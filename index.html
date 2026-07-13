@@ -1,1 +1,402 @@
-<h1>emmm</h1>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>光伏发电量曲线</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f4f7f6;
+      --surface: #ffffff;
+      --ink: #15201c;
+      --muted: #66736e;
+      --grid: #dfe7e3;
+      --line: #087f5b;
+      --line-soft: #d5f1e7;
+      --focus: #075d45;
+      --danger: #a63d40;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--page);
+      color: var(--ink);
+    }
+
+    main {
+      width: min(1120px, calc(100% - 32px));
+      margin: 40px auto;
+    }
+
+    .heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--line);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .date-control {
+      display: grid;
+      gap: 7px;
+      min-width: 190px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input[type="date"] {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #c8d4ce;
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 8px 11px;
+      font: inherit;
+    }
+
+    input[type="date"]:focus-visible,
+    .point:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--focus) 35%, transparent);
+      outline-offset: 2px;
+    }
+
+    .card {
+      border: 1px solid #e0e7e3;
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 14px 40px rgba(29, 51, 43, .08);
+      overflow: hidden;
+    }
+
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      padding: 20px 24px;
+      border-bottom: 1px solid #e7ece9;
+    }
+
+    .metric { min-width: 130px; }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { display: block; margin-top: 4px; font-size: 20px; font-weight: 700; }
+
+    .chart-shell {
+      position: relative;
+      min-height: 480px;
+      padding: 20px 20px 12px;
+    }
+
+    #chart {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 380px;
+    }
+
+    .grid { stroke: var(--grid); stroke-width: 1; }
+    .axis { stroke: #9eaaa4; stroke-width: 1; }
+    .tick { fill: var(--muted); font-size: 12px; }
+    .axis-title { fill: var(--muted); font-size: 13px; font-weight: 700; }
+    .curve { fill: none; stroke: var(--line); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .area { fill: var(--line-soft); opacity: .65; }
+    .point { fill: var(--surface); stroke: var(--line); stroke-width: 2; cursor: pointer; }
+    .point:hover, .point:focus { fill: var(--line); }
+    .crosshair { stroke: #82928b; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+
+    .tooltip {
+      position: absolute;
+      z-index: 2;
+      min-width: 136px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      background: #15201c;
+      color: #fff;
+      font-size: 13px;
+      line-height: 1.5;
+      pointer-events: none;
+      transform: translate(-50%, calc(-100% - 14px));
+      box-shadow: 0 7px 20px rgba(0, 0, 0, .2);
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background: rgba(255, 255, 255, .9);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .status.error { color: var(--danger); }
+    [hidden] { display: none !important; }
+
+    details { border-top: 1px solid #e7ece9; }
+    summary {
+      cursor: pointer;
+      padding: 16px 24px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .table-wrap { max-height: 360px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 11px 24px; border-top: 1px solid #edf1ef; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    th { position: sticky; top: 0; background: #f8faf9; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 680px) {
+      main { width: min(100% - 20px, 1120px); margin: 22px auto; }
+      .heading { align-items: stretch; flex-direction: column; }
+      .date-control { width: 100%; }
+      .summary { gap: 18px; padding: 16px; }
+      .metric { min-width: calc(50% - 18px); }
+      .chart-shell { min-height: 390px; padding: 10px 6px 8px; overflow-x: auto; }
+      #chart { min-width: 700px; min-height: 340px; }
+      th, td { padding: 10px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="heading">
+      <div>
+        <p class="eyebrow">Photovoltaic generation</p>
+        <h1>光伏发电量曲线</h1>
+        <p class="subtitle">24 个时段 · 数据实时读取自 Supabase</p>
+      </div>
+      <label class="date-control" for="date-picker">
+        选择日期
+        <input id="date-picker" type="date" disabled>
+      </label>
+    </header>
+
+    <section class="card" aria-labelledby="chart-title">
+      <div class="summary" aria-live="polite">
+        <div class="metric"><span class="metric-label">日期</span><strong class="metric-value" id="metric-date">—</strong></div>
+        <div class="metric"><span class="metric-label">当日总发电量</span><strong class="metric-value" id="metric-total">—</strong></div>
+        <div class="metric"><span class="metric-label">峰值发电量</span><strong class="metric-value" id="metric-peak">—</strong></div>
+      </div>
+
+      <div class="chart-shell" id="chart-shell">
+        <svg id="chart" viewBox="0 0 1040 430" role="img" aria-labelledby="chart-title chart-desc">
+          <title id="chart-title">每小时光伏发电量折线图</title>
+          <desc id="chart-desc">横轴为 0 到 24 时段，纵轴为发电量，单位 MWh。</desc>
+        </svg>
+        <div class="tooltip" id="tooltip" role="status" hidden></div>
+        <div class="status" id="status">正在连接 Supabase…</div>
+      </div>
+
+      <details>
+        <summary>查看 24 个时段的详细数据</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">时段</th><th scope="col">发电量（MWh）</th></tr></thead>
+            <tbody id="data-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const SUPABASE_URL = "https://kputrrbbcmxbnhwhxvoo.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
+    const TABLE_URL = `${SUPABASE_URL}/rest/v1/daily_curves`;
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    const datePicker = document.querySelector("#date-picker");
+    const chart = document.querySelector("#chart");
+    const chartShell = document.querySelector("#chart-shell");
+    const tooltip = document.querySelector("#tooltip");
+    const status = document.querySelector("#status");
+    const dataBody = document.querySelector("#data-body");
+    const metricDate = document.querySelector("#metric-date");
+    const metricTotal = document.querySelector("#metric-total");
+    const metricPeak = document.querySelector("#metric-peak");
+
+    const requestHeaders = { apikey: SUPABASE_KEY, Accept: "application/json" };
+    const size = { width: 1040, height: 430, top: 30, right: 28, bottom: 64, left: 78 };
+    const plotWidth = size.width - size.left - size.right;
+    const plotHeight = size.height - size.top - size.bottom;
+
+    function svgElement(name, attributes = {}) {
+      const element = document.createElementNS(SVG_NS, name);
+      Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+      return element;
+    }
+
+    function setStatus(message, isError = false) {
+      status.textContent = message;
+      status.classList.toggle("error", isError);
+      status.hidden = false;
+    }
+
+    async function fetchRows(query) {
+      const response = await fetch(`${TABLE_URL}?${query}`, { headers: requestHeaders });
+      if (!response.ok) throw new Error(`Supabase 请求失败（HTTP ${response.status}）`);
+      return response.json();
+    }
+
+    async function initialize() {
+      try {
+        const [oldestRows, newestRows] = await Promise.all([
+          fetchRows("select=date&order=date.asc&limit=1"),
+          fetchRows("select=date&order=date.desc&limit=1")
+        ]);
+        if (!oldestRows.length || !newestRows.length) {
+          setStatus("Supabase 中暂无发电量数据。", true);
+          return;
+        }
+        datePicker.min = oldestRows[0].date;
+        datePicker.max = newestRows[0].date;
+        datePicker.value = newestRows[0].date;
+        datePicker.disabled = false;
+        await loadDate(datePicker.value);
+      } catch (error) {
+        console.error(error);
+        setStatus("无法加载数据，请稍后重试。", true);
+      }
+    }
+
+    async function loadDate(date) {
+      datePicker.disabled = true;
+      setStatus("正在加载该日发电量…");
+      try {
+        const rows = await fetchRows(`select=date,hour,value&date=eq.${encodeURIComponent(date)}&order=hour.asc`);
+        if (rows.length !== 24) throw new Error(`该日应有 24 条数据，实际为 ${rows.length} 条`);
+        render(rows.map(row => ({ date: row.date, hour: Number(row.hour), value: Number(row.value) })));
+        status.hidden = true;
+      } catch (error) {
+        console.error(error);
+        clearChart();
+        setStatus(error.message || "该日数据加载失败。", true);
+      } finally {
+        datePicker.disabled = false;
+      }
+    }
+
+    function clearChart() {
+      [...chart.children].forEach(child => {
+        if (!child.matches("title, desc")) child.remove();
+      });
+      dataBody.replaceChildren();
+    }
+
+    function render(rows) {
+      clearChart();
+      const maxValue = Math.max(...rows.map(row => row.value), 0.01);
+      const yMax = Math.ceil(maxValue / 0.05) * 0.05;
+      const x = hour => size.left + (hour / 24) * plotWidth;
+      const y = value => size.top + plotHeight - (value / yMax) * plotHeight;
+
+      for (let step = 0; step <= 5; step += 1) {
+        const value = (yMax * step) / 5;
+        const yPosition = y(value);
+        chart.append(svgElement("line", { x1: size.left, y1: yPosition, x2: size.width - size.right, y2: yPosition, class: "grid" }));
+        const label = svgElement("text", { x: size.left - 12, y: yPosition + 4, class: "tick", "text-anchor": "end" });
+        label.textContent = value.toFixed(2);
+        chart.append(label);
+      }
+
+      for (let hour = 0; hour <= 24; hour += 2) {
+        const label = svgElement("text", { x: x(hour), y: size.height - size.bottom + 25, class: "tick", "text-anchor": "middle" });
+        label.textContent = hour;
+        chart.append(label);
+      }
+
+      chart.append(svgElement("line", { x1: size.left, y1: size.top, x2: size.left, y2: size.height - size.bottom, class: "axis" }));
+      chart.append(svgElement("line", { x1: size.left, y1: size.height - size.bottom, x2: size.width - size.right, y2: size.height - size.bottom, class: "axis" }));
+
+      const xTitle = svgElement("text", { x: size.left + plotWidth / 2, y: size.height - 12, class: "axis-title", "text-anchor": "middle" });
+      xTitle.textContent = "时段（0–24）";
+      chart.append(xTitle);
+      const yTitle = svgElement("text", { x: 20, y: size.top + plotHeight / 2, class: "axis-title", transform: `rotate(-90 20 ${size.top + plotHeight / 2})`, "text-anchor": "middle" });
+      yTitle.textContent = "发电量（MWh）";
+      chart.append(yTitle);
+
+      const coordinates = rows.map(row => [x(row.hour + 0.5), y(row.value)]);
+      const linePath = coordinates.map(([cx, cy], index) => `${index ? "L" : "M"} ${cx} ${cy}`).join(" ");
+      const areaPath = `${linePath} L ${coordinates.at(-1)[0]} ${y(0)} L ${coordinates[0][0]} ${y(0)} Z`;
+      chart.append(svgElement("path", { d: areaPath, class: "area" }));
+      chart.append(svgElement("path", { d: linePath, class: "curve" }));
+
+      rows.forEach((row, index) => {
+        const [cx, cy] = coordinates[index];
+        const point = svgElement("circle", {
+          cx, cy, r: 4, class: "point", tabindex: 0, focusable: "true",
+          role: "button", "aria-label": `第 ${row.hour + 1} 时段，${row.value.toFixed(5)} MWh`
+        });
+        point.addEventListener("mouseenter", () => showTooltip(row, cx, cy));
+        point.addEventListener("focus", () => showTooltip(row, cx, cy));
+        point.addEventListener("mouseleave", hideTooltip);
+        point.addEventListener("blur", hideTooltip);
+        chart.append(point);
+
+        const tr = document.createElement("tr");
+        const periodCell = document.createElement("td");
+        const valueCell = document.createElement("td");
+        periodCell.textContent = `${row.hour}:00–${row.hour + 1}:00（第 ${row.hour + 1} 时段）`;
+        valueCell.textContent = row.value.toFixed(5);
+        tr.append(periodCell, valueCell);
+        dataBody.append(tr);
+      });
+
+      const total = rows.reduce((sum, row) => sum + row.value, 0);
+      const peak = rows.reduce((best, row) => row.value > best.value ? row : best, rows[0]);
+      metricDate.textContent = rows[0].date;
+      metricTotal.textContent = `${total.toFixed(3)} MWh`;
+      metricPeak.textContent = `${peak.value.toFixed(3)} MWh · 第 ${peak.hour + 1} 时段`;
+    }
+
+    function showTooltip(row, cx, cy) {
+      chart.querySelectorAll(".crosshair").forEach(element => element.remove());
+      chart.append(svgElement("line", { x1: cx, y1: size.top, x2: cx, y2: size.height - size.bottom, class: "crosshair" }));
+      tooltip.innerHTML = `<strong>第 ${row.hour + 1} 时段</strong><br>${row.hour}:00–${row.hour + 1}:00<br>${row.value.toFixed(5)} MWh`;
+      const svgRect = chart.getBoundingClientRect();
+      const shellRect = chartShell.getBoundingClientRect();
+      tooltip.style.left = `${svgRect.left - shellRect.left + (cx / size.width) * svgRect.width}px`;
+      tooltip.style.top = `${svgRect.top - shellRect.top + (cy / size.height) * svgRect.height}px`;
+      tooltip.hidden = false;
+    }
+
+    function hideTooltip() {
+      tooltip.hidden = true;
+      chart.querySelectorAll(".crosshair").forEach(element => element.remove());
+    }
+
+    datePicker.addEventListener("change", event => loadDate(event.target.value));
+    initialize();
+  </script>
+</body>
+</html>
