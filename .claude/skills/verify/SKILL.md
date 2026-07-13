@@ -1,6 +1,6 @@
 ---
 name: verify
-summary: Verify the static Supabase chart in a real browser.
+summary: Verify the static Supabase user electricity consumption chart in a real browser.
 ---
 
 # Verify

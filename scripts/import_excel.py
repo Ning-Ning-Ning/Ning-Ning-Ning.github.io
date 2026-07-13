@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and import hourly generation data from Excel into Supabase."""
+"""Validate and import hourly user electricity consumption data from Excel into Supabase."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def read_records(path: Path) -> list[dict[str, object]]:
 
         value = float(raw_value)
         if value < 0:
-            raise ValueError(f"第 {row_number} 行发电量小于 0：{raw_value!r}")
+            raise ValueError(f"第 {row_number} 行用电量小于 0：{raw_value!r}")
 
         db_hour = excel_hour - 1
         key = (day, db_hour)

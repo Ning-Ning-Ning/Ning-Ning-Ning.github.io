@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>光伏发电量曲线</title>
+  <title>用户用电量曲线</title>
   <style>
     :root {
       color-scheme: light;
@@ -189,8 +189,8 @@
   <main>
     <header class="heading">
       <div>
-        <p class="eyebrow">Photovoltaic generation</p>
-        <h1>光伏发电量曲线</h1>
+        <p class="eyebrow">User electricity consumption</p>
+        <h1>用户用电量曲线</h1>
         <p class="subtitle">24 个时段 · 数据实时读取自 Supabase</p>
       </div>
       <label class="date-control" for="date-picker">
@@ -202,14 +202,14 @@
     <section class="card" aria-labelledby="chart-title">
       <div class="summary" aria-live="polite">
         <div class="metric"><span class="metric-label">日期</span><strong class="metric-value" id="metric-date">—</strong></div>
-        <div class="metric"><span class="metric-label">当日总发电量</span><strong class="metric-value" id="metric-total">—</strong></div>
-        <div class="metric"><span class="metric-label">峰值发电量</span><strong class="metric-value" id="metric-peak">—</strong></div>
+        <div class="metric"><span class="metric-label">当日总用电量</span><strong class="metric-value" id="metric-total">—</strong></div>
+        <div class="metric"><span class="metric-label">峰值用电量</span><strong class="metric-value" id="metric-peak">—</strong></div>
       </div>
 
       <div class="chart-shell" id="chart-shell">
         <svg id="chart" viewBox="0 0 1040 430" role="img" aria-labelledby="chart-title chart-desc">
-          <title id="chart-title">每小时光伏发电量折线图</title>
-          <desc id="chart-desc">横轴为 0 到 24 时段，纵轴为发电量，单位 MWh。</desc>
+          <title id="chart-title">每小时用户用电量折线图</title>
+          <desc id="chart-desc">横轴为 0 到 24 时段，纵轴为用电量，单位 MWh。</desc>
         </svg>
         <div class="tooltip" id="tooltip" role="status" hidden></div>
         <div class="status" id="status">正在连接 Supabase…</div>
@@ -219,7 +219,7 @@
         <summary>查看 24 个时段的详细数据</summary>
         <div class="table-wrap">
           <table>
-            <thead><tr><th scope="col">时段</th><th scope="col">发电量（MWh）</th></tr></thead>
+            <thead><tr><th scope="col">时段</th><th scope="col">用电量（MWh）</th></tr></thead>
             <tbody id="data-body"></tbody>
           </table>
         </div>
@@ -275,7 +275,7 @@
           fetchRows("select=date&order=date.desc&limit=1")
         ]);
         if (!oldestRows.length || !newestRows.length) {
-          setStatus("Supabase 中暂无发电量数据。", true);
+          setStatus("Supabase 中暂无用电量数据。", true);
           return;
         }
         datePicker.min = oldestRows[0].date;
@@ -291,7 +291,7 @@
 
     async function loadDate(date) {
       datePicker.disabled = true;
-      setStatus("正在加载该日发电量…");
+      setStatus("正在加载该日用电量…");
       try {
         const rows = await fetchRows(`select=date,hour,value&date=eq.${encodeURIComponent(date)}&order=hour.asc`);
         if (rows.length !== 24) throw new Error(`该日应有 24 条数据，实际为 ${rows.length} 条`);
@@ -342,7 +342,7 @@
       xTitle.textContent = "时段（0–24）";
       chart.append(xTitle);
       const yTitle = svgElement("text", { x: 20, y: size.top + plotHeight / 2, class: "axis-title", transform: `rotate(-90 20 ${size.top + plotHeight / 2})`, "text-anchor": "middle" });
-      yTitle.textContent = "发电量（MWh）";
+      yTitle.textContent = "用电量（MWh）";
       chart.append(yTitle);
 
       const coordinates = rows.map(row => [x(row.hour + 0.5), y(row.value)]);

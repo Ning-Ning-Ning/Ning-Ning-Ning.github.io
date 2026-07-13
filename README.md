@@ -1,6 +1,6 @@
-# 光伏发电量曲线
+# 用户用电量曲线
 
-GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按日期展示 24 个时段的发电量折线图。
+GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按日期展示 24 个时段的用电量折线图。
 
 ## 数据映射
 
