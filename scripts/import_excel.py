@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and import hourly user electricity consumption data from Excel into Supabase."""
+"""Validate and import actual, predicted, and adjusted electricity usage."""
 
 from __future__ import annotations
 
@@ -15,7 +15,14 @@ from urllib.request import Request, urlopen
 
 from openpyxl import load_workbook
 
-EXPECTED_HEADERS = ("年月日", "小时", "电量MWh")
+EXPECTED_HEADERS = (
+    "年月日",
+    "小时",
+    "实际用电量MWh",
+    "预测用电量MWh",
+    "调整后用电量MWh",
+)
+ACTUAL_NULL_FROM = date(2026, 5, 24)
 EXPECTED_HOURS = set(range(1, 25))
 
 
@@ -44,6 +51,15 @@ def normalize_date(value: object, row_number: int) -> str:
         raise ValueError(f"第 {row_number} 行日期无效：{value!r}") from exc
 
 
+def optional_number(value: object, label: str, row_number: int) -> float | None:
+    if value is None or value == "":
+        return None
+    number = float(value)
+    if number < 0:
+        raise ValueError(f"第 {row_number} 行{label}小于 0：{value!r}")
+    return number
+
+
 def read_records(path: Path) -> list[dict[str, object]]:
     workbook = load_workbook(path, read_only=True, data_only=True)
     sheet = workbook["Sheet1"]
@@ -55,20 +71,33 @@ def read_records(path: Path) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
     per_date: Counter[str] = Counter()
     seen: set[tuple[str, int]] = set()
+    predicted_count = 0
+    adjusted_count = 0
+    actual_count = 0
 
     for row_number, row in enumerate(rows, start=2):
-        if len(row) != 3 or any(value is None for value in row):
-            raise ValueError(f"第 {row_number} 行存在空值或多余字段：{row!r}")
+        if len(row) != 5:
+            raise ValueError(f"第 {row_number} 行字段数不是 5：{row!r}")
 
-        raw_date, raw_hour, raw_value = row
+        raw_date, raw_hour, raw_actual, raw_predicted, raw_adjusted = row
+        if raw_date is None or raw_hour is None or raw_actual is None:
+            raise ValueError(f"第 {row_number} 行日期、小时或实际用电量为空：{row!r}")
+
         day = normalize_date(raw_date, row_number)
         excel_hour = int(raw_hour)
         if excel_hour not in EXPECTED_HOURS:
             raise ValueError(f"第 {row_number} 行小时不在 1..24：{raw_hour!r}")
 
-        value = float(raw_value)
-        if value < 0:
-            raise ValueError(f"第 {row_number} 行用电量小于 0：{raw_value!r}")
+        actual = optional_number(raw_actual, "实际用电量", row_number)
+        predicted = optional_number(raw_predicted, "预测用电量", row_number)
+        adjusted = optional_number(raw_adjusted, "调整后用电量", row_number)
+        assert actual is not None
+        if date.fromisoformat(day) >= ACTUAL_NULL_FROM:
+            actual = None
+
+        actual_count += actual is not None
+        predicted_count += predicted is not None
+        adjusted_count += adjusted is not None
 
         db_hour = excel_hour - 1
         key = (day, db_hour)
@@ -76,7 +105,15 @@ def read_records(path: Path) -> list[dict[str, object]]:
             raise ValueError(f"发现重复日期和时段：{key}")
         seen.add(key)
         per_date[day] += 1
-        records.append({"date": day, "hour": db_hour, "value": value})
+        records.append(
+            {
+                "date": day,
+                "hour": db_hour,
+                "actual_value": actual,
+                "predicted_value": predicted,
+                "adjusted_value": adjusted,
+            }
+        )
 
     invalid_days = [day for day, count in per_date.items() if count != 24]
     if invalid_days:
@@ -88,7 +125,8 @@ def read_records(path: Path) -> list[dict[str, object]]:
 
     print(
         f"校验完成：{len(records)} 条，{len(per_date)} 天，"
-        f"{min(per_date)} 至 {max(per_date)}，小时已映射为 0..23。"
+        f"{min(per_date)} 至 {max(per_date)}；实际 {actual_count} 个，"
+        f"预测 {predicted_count} 个，原始调整后 {adjusted_count} 个。"
     )
     return records
 
