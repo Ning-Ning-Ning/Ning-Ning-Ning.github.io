@@ -2,6 +2,16 @@
 
 GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按日期同时展示实际、预测和调整后用电量。
 
+## 用户账号
+
+- 打开页面必须先登录（用户名 + 密码），未注册可在登录页直接注册。
+- 用户名规则：2–30 位，仅限字母、数字、`_` `.` `-`；不能为空；不区分大小写；不允许重复（底层以用户名合成内部邮箱 `<用户名>@curve.local` 对接 Supabase Auth，重复用户名会被拒绝）。
+- 密码至少 6 位。用户名不绑定真实邮箱，因此**无法自助找回密码**，忘记密码需管理员在 Supabase Dashboard → Authentication → Users 中重置。
+- **必须**在 Dashboard → Authentication → Sign In / Providers → Email 关闭 “Confirm email”（保存后立即生效）。开启状态下注册会触发验证邮件发送，而内部邮箱收不到邮件、且默认 SMTP 额度极低（约每小时 2 封），会导致注册直接失败（429）。
+- **调整后用电量曲线按账号独立**：每个账号的调整保存到 `public.user_adjustments`（主键 `user_id + curve_date + hour`），行级安全（RLS）保证用户只能读写自己的调整数据；其余信息（实际、预测用电量及日期范围）为所有账号公用。
+- 账号在某时段没有自己的调整数据时，沿用原缺省逻辑：默认采用同一时段的预测用电量。
+- 迁移文件：`supabase/migrations/20260727_add_user_adjustments.sql`。历史遗留的 `daily_curves.adjusted_value` 全局调整列已不再被页面读取。
+
 ## 数据映射
 
 源文件 `excel.xlsx` 的表头必须为：
@@ -30,13 +40,13 @@ Excel 小时 `1..24` 导入为数据库 `hour = 0..23`：
   - 两套模式的未保存输入在切换时互相保留，日期变更、清空选择或保存后清理。
   - 无论哪种模式，最终保存的均为 MWh 数值，比例仅为前端计算方式，不影响数据库结构或写入协议。
 
-调整值是**公开全局数据**：任何访问网页的人都能保存修改，修改会影响所有访问者。
+调整值是**按账号独立的数据**：登录用户保存的调整仅影响自己的账号视图，其他账号互不可见。
 
 ## 写入安全边界
 
-浏览器只能通过 Supabase Edge Function `update-curve-adjustments` 保存调整值。Edge Function 校验日期、唯一小时、1–24 项批量上限以及 0–1000 MWh 数值范围，再通过仅 `service_role` 可执行的数据库 RPC 原子更新。
+浏览器登录后直接通过 Supabase Data API 读写 `public.user_adjustments`，由 RLS 策略保证 `user_id = auth.uid()`（只能操作自己的行），表级 CHECK 约束校验小时 0–23、数值 0–1000 MWh。`daily_curves` 对 `anon` 和 `authenticated` 仍只有 `SELECT` 权限，浏览器不能修改公用数据；secret/service-role key 不会出现在网页或 Git 中。
 
-`daily_curves` 对 `anon` 和 `authenticated` 仍只有 `SELECT` 权限，浏览器不能直接调用 REST `UPDATE`，secret/service-role key 不会出现在网页或 Git 中。公开编辑不等同于身份认证；Edge Function 的校验用于保护数据结构和事务完整性，不限制谁可以修改。
+历史遗留：Edge Function `update-curve-adjustments` 及其 service_role RPC 曾是全局公开编辑的写入通道，账号功能上线后页面不再调用，保留以备兼容。
 
 ## 导入数据
 

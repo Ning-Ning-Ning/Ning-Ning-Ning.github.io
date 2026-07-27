@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <title>用户用电量曲线</title>
   <style>
     :root {
@@ -95,6 +96,24 @@
     .ratio-preview { font-weight:700; color:var(--adjusted); white-space:nowrap; }
     .ratio-disabled { color:var(--danger); font-size:12px; }
     .point-inputs.ratio-mode { grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+    .auth-overlay { position:fixed; inset:0; z-index:10; display:grid; place-items:center; padding:20px; background:var(--page); }
+    .auth-card { width:min(400px,100%); border:1px solid #e0e7e3; border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.12); padding:28px; }
+    .auth-card h2 { margin:0 0 4px; }
+    .auth-subtitle { margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.6; }
+    .auth-tabs { display:flex; margin-bottom:18px; border:1px solid #c8d4ce; border-radius:8px; overflow:hidden; }
+    .auth-tab { flex:1; min-height:38px; border:none; border-radius:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .auth-tab.active { background:var(--actual); color:#fff; }
+    .auth-tab + .auth-tab { border-left:1px solid #c8d4ce; }
+    .auth-form { display:grid; gap:12px; }
+    .auth-form label { display:grid; gap:6px; color:var(--muted); font-size:13px; font-weight:700; }
+    .auth-form input { min-height:42px; border:1px solid #c8d4ce; border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
+    .auth-hint { font-weight:400; }
+    .auth-error { margin:0; min-height:18px; color:var(--danger); font-size:13px; }
+    .auth-submit { border-color:var(--actual); background:var(--actual); color:#fff; }
+    .header-right { display:grid; gap:10px; justify-items:end; }
+    .user-chip { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; }
+    .user-chip strong { color:var(--ink); }
+    .user-chip button { min-height:34px; padding:5px 10px; font-size:12px; }
     @media (max-width:760px) {
       main { width:min(100% - 20px,1120px); margin:22px auto; }
       .heading { align-items:stretch; flex-direction:column; }
@@ -111,10 +130,30 @@
   </style>
 </head>
 <body>
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-card">
+      <h2 id="auth-title">登录账号</h2>
+      <p class="auth-subtitle">调整后用电量曲线按账号独立保存；实际与预测数据为所有账号公用。</p>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="auth-tab-login" type="button">登录</button>
+        <button class="auth-tab" id="auth-tab-register" type="button">注册</button>
+      </div>
+      <form class="auth-form" id="auth-form">
+        <label>用户名<input id="auth-username" type="text" required minlength="2" maxlength="30" pattern="[A-Za-z0-9_.\-]+" autocomplete="username" placeholder="2–30 位字母、数字、_ . -"></label>
+        <label>密码<input id="auth-password" type="password" required minlength="6" autocomplete="current-password" placeholder="至少 6 位"></label>
+        <p class="auth-error" id="auth-error" role="alert"></p>
+        <button class="auth-submit" id="auth-submit" type="submit">登录</button>
+      </form>
+      <p class="auth-subtitle auth-hint" style="margin:14px 0 0">如长时间停留在此页，请确认网络可访问 cdn.jsdelivr.net 与 supabase.co。</p>
+    </div>
+  </div>
   <main>
     <header class="heading">
       <div><p class="eyebrow">User electricity consumption</p><h1>用户用电量曲线</h1><p class="subtitle">实际、预测与调整后用电量 · 24 个时段</p></div>
-      <label class="date-control" for="date-picker">选择日期<input id="date-picker" type="date" disabled></label>
+      <div class="header-right">
+        <label class="date-control" for="date-picker">选择日期<input id="date-picker" type="date" disabled></label>
+        <div class="user-chip" id="user-chip" hidden><span>当前账号：<strong id="user-email"></strong></span><button id="logout-btn" type="button">退出登录</button></div>
+      </div>
     </header>
     <section class="card" aria-labelledby="chart-title">
       <div class="summary" aria-live="polite">
@@ -142,7 +181,7 @@
       </div>
       <section class="editor" id="editor" aria-labelledby="editor-title" hidden>
         <div class="editor-head"><h2 id="editor-title">编辑调整后用电量（<span id="selected-count">0</span> 个时段）</h2><button id="editor-clear" type="button">取消选择</button></div>
-        <p class="editor-warning">公开编辑：保存会修改 Supabase 中的全局数据，并影响所有访问者。</p>
+        <p class="editor-warning">保存仅影响当前账号的调整曲线；其他账号的调整数据互不可见。</p>
         <div class="mode-selector"><button class="mode-btn active" id="mode-direct" type="button">直接设置 MWh</button><button class="mode-btn" id="mode-ratio" type="button">按预测值比例</button></div>
         <div class="batch-row" id="batch-direct"><label for="batch-value">全部设为（MWh）</label><input id="batch-value" type="number" min="0" max="1000" step="0.001"><button id="batch-apply" type="button">应用到选中时段</button></div>
         <div class="batch-row" id="batch-ratio" hidden><label for="batch-ratio-value">全部比例设为</label><input id="batch-ratio-value" type="number" min="0" max="100" step="0.00001"><button id="batch-ratio-apply" type="button">应用到选中时段</button></div>
@@ -159,8 +198,7 @@
     "use strict";
     const SUPABASE_URL="https://kputrrbbcmxbnhwhxvoo.supabase.co";
     const SUPABASE_KEY="sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
-    const TABLE_URL=`${SUPABASE_URL}/rest/v1/daily_curves`;
-    const UPDATE_URL=`${SUPABASE_URL}/functions/v1/update-curve-adjustments`;
+    const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
     const SVG_NS="http://www.w3.org/2000/svg";
     const SERIES={actual:{key:"actual",label:"实际用电量"},adjusted:{key:"adjusted",label:"调整后用电量"},predicted:{key:"predicted",label:"预测用电量"}};
     const VISUAL_ORDER=[SERIES.actual,SERIES.adjusted,SERIES.predicted];
@@ -169,17 +207,16 @@
     const datePicker=document.querySelector("#date-picker"),chart=document.querySelector("#chart"),chartShell=document.querySelector("#chart-shell"),tooltip=document.querySelector("#tooltip"),status=document.querySelector("#status"),dataBody=document.querySelector("#data-body");
     const selectionToggle=document.querySelector("#selection-toggle"),selectionClear=document.querySelector("#selection-clear"),editor=document.querySelector("#editor"),selectedCount=document.querySelector("#selected-count"),pointInputs=document.querySelector("#point-inputs"),batchValue=document.querySelector("#batch-value"),batchApply=document.querySelector("#batch-apply"),editorClear=document.querySelector("#editor-clear"),editorCancel=document.querySelector("#editor-cancel"),editorSave=document.querySelector("#editor-save"),saveStatus=document.querySelector("#save-status"),modeDirectBtn=document.querySelector("#mode-direct"),modeRatioBtn=document.querySelector("#mode-ratio"),batchDirectRow=document.querySelector("#batch-direct"),batchRatioRow=document.querySelector("#batch-ratio"),batchRatioValue=document.querySelector("#batch-ratio-value"),batchRatioApply=document.querySelector("#batch-ratio-apply");
     const metrics={date:document.querySelector("#metric-date"),actual:document.querySelector("#metric-actual"),predicted:document.querySelector("#metric-predicted"),adjusted:document.querySelector("#metric-adjusted")};
-    const requestHeaders={apikey:SUPABASE_KEY,Accept:"application/json"};
-    let currentRows=[],selectedHours=new Set(),selectionMode=false,drag=null,scale=null,editorMode="direct",directDrafts={},ratioDrafts={};
+    let currentRows=[],selectedHours=new Set(),selectionMode=false,drag=null,scale=null,editorMode="direct",directDrafts={},ratioDrafts={},currentUser=null,booted=false;
 
     function svgElement(name,attrs={}){const el=document.createElementNS(SVG_NS,name);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));return el;}
     function setStatus(message,isError=false){status.textContent=message;status.classList.toggle("error",isError);status.hidden=false;}
     function formatValue(value){return value===null?"—":value.toFixed(5);}
     function localTomorrow(){const d=new Date();d.setDate(d.getDate()+1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
     function clampDate(value,min,max){return value<min?min:value>max?max:value;}
-    async function fetchRows(query){const response=await fetch(`${TABLE_URL}?${query}`,{headers:requestHeaders});if(!response.ok)throw new Error(`Supabase 请求失败（HTTP ${response.status}）`);return response.json();}
-    async function initialize(){try{const [oldest,newest]=await Promise.all([fetchRows("select=date&order=date.asc&limit=1"),fetchRows("select=date&order=date.desc&limit=1")]);if(!oldest.length||!newest.length){setStatus("Supabase 中暂无用电量数据。",true);return;}datePicker.min=oldest[0].date;datePicker.max=newest[0].date;datePicker.value=clampDate(localTomorrow(),datePicker.min,datePicker.max);datePicker.disabled=false;await loadDate(datePicker.value);}catch(error){console.error(error);setStatus("无法加载数据，请稍后重试。",true);}}
-    async function loadDate(date){datePicker.disabled=true;setStatus("正在加载该日用电量…");clearSelection(false);try{const rows=await fetchRows(`select=date,hour,actual_value,predicted_value,adjusted_value&date=eq.${encodeURIComponent(date)}&order=hour.asc`);if(rows.length!==24)throw new Error(`该日应有 24 条数据，实际为 ${rows.length} 条`);currentRows=rows.map(row=>{const actual=row.actual_value===null?null:Number(row.actual_value),predicted=row.predicted_value===null?null:Number(row.predicted_value),rawAdjusted=row.adjusted_value===null?null:Number(row.adjusted_value);return{date:row.date,hour:Number(row.hour),actual,predicted,adjusted:rawAdjusted??predicted,adjustedFallback:rawAdjusted===null&&predicted!==null};});render();status.hidden=true;}catch(error){console.error(error);clearChart();setStatus(error.message||"该日数据加载失败。",true);}finally{datePicker.disabled=false;}}
+    async function fetchBoundary(ascending){const {data,error}=await sb.from("daily_curves").select("date").order("date",{ascending}).limit(1);if(error)throw new Error(error.message);return data;}
+    async function initialize(){try{const [oldest,newest]=await Promise.all([fetchBoundary(true),fetchBoundary(false)]);if(!oldest.length||!newest.length){setStatus("Supabase 中暂无用电量数据。",true);return;}datePicker.min=oldest[0].date;datePicker.max=newest[0].date;datePicker.value=clampDate(localTomorrow(),datePicker.min,datePicker.max);datePicker.disabled=false;await loadDate(datePicker.value);}catch(error){console.error(error);setStatus("无法加载数据，请稍后重试。",true);}}
+    async function loadDate(date){datePicker.disabled=true;setStatus("正在加载该日用电量…");clearSelection(false);try{const [{data:rows,error},{data:adjRows,error:adjError}]=await Promise.all([sb.from("daily_curves").select("date,hour,actual_value,predicted_value").eq("date",date).order("hour",{ascending:true}),sb.from("user_adjustments").select("hour,adjusted_value").eq("curve_date",date)]);if(error)throw new Error(error.message);if(adjError)throw new Error(adjError.message);if(rows.length!==24)throw new Error(`该日应有 24 条数据，实际为 ${rows.length} 条`);const adjMap=new Map(adjRows.map(r=>[Number(r.hour),Number(r.adjusted_value)]));currentRows=rows.map(row=>{const actual=row.actual_value===null?null:Number(row.actual_value),predicted=row.predicted_value===null?null:Number(row.predicted_value),rawAdjusted=adjMap.has(Number(row.hour))?adjMap.get(Number(row.hour)):null;return{date:row.date,hour:Number(row.hour),actual,predicted,adjusted:rawAdjusted??predicted,adjustedFallback:rawAdjusted===null&&predicted!==null};});render();status.hidden=true;}catch(error){console.error(error);clearChart();setStatus(error.message||"该日数据加载失败。",true);}finally{datePicker.disabled=false;}}
     function clearChart(){hideTooltip();[...chart.children].forEach(child=>{if(!child.matches("title,desc"))child.remove();});dataBody.replaceChildren();}
     function pathFor(values,x,y){let path="",drawing=false;values.forEach((value,hour)=>{if(value===null){drawing=false;return;}path+=`${drawing?" L":" M"} ${x(hour+.5)} ${y(value)}`;drawing=true;});return path;}
     function totalFor(key){const values=currentRows.map(row=>row[key]).filter(v=>v!==null);return values.length?`${values.reduce((a,b)=>a+b,0).toFixed(3)} MWh`:"暂无数据";}
@@ -203,9 +240,21 @@
     function showTooltip(row,cx,cy){chart.querySelectorAll(".crosshair").forEach(el=>el.remove());chart.append(svgElement("line",{x1:cx,y1:size.top,x2:cx,y2:size.height-size.bottom,class:"crosshair"}));const note=row.adjustedFallback?'<div class="tooltip-note">调整后为空，默认采用预测值</div>':"";tooltip.innerHTML=`<strong>第 ${row.hour+1} 时段 · ${row.hour}:00–${row.hour+1}:00</strong><div class="tooltip-row"><span>实际</span><span>${formatValue(row.actual)}${row.actual===null?"":" MWh"}</span></div><div class="tooltip-row"><span>预测</span><span>${formatValue(row.predicted)}${row.predicted===null?"":" MWh"}</span></div><div class="tooltip-row"><span>调整后</span><span>${formatValue(row.adjusted)}${row.adjusted===null?"":" MWh"}</span></div>${note}`;const sr=chart.getBoundingClientRect(),cr=chartShell.getBoundingClientRect();tooltip.style.left=`${sr.left-cr.left+cx/size.width*sr.width}px`;tooltip.style.top=`${sr.top-cr.top+cy/size.height*sr.height}px`;tooltip.hidden=false;}
     function hideTooltip(){tooltip.hidden=true;chart.querySelectorAll(".crosshair").forEach(el=>el.remove());}
     function editorValues(){if(editorMode==="direct"){return[...pointInputs.querySelectorAll("input")].map(input=>{const value=Number(input.value);if(input.value===""||!Number.isFinite(value)||value<0||value>1000)throw new Error(`第 ${Number(input.dataset.hour)+1} 时段请输入 0..1000 的有效数值`);return{hour:Number(input.dataset.hour),adjusted_value:value};});}const nullHours=[...selectedHours].filter(h=>currentRows[h].predicted===null);if(nullHours.length)throw new Error(`第 ${nullHours.map(h=>h+1).join("、")} 时段无预测值，无法按比例调整。请取消选择这些时段或切换到直接设置模式。`);return[...pointInputs.querySelectorAll("input")].map(input=>{const ratio=Number(input.value),hour=Number(input.dataset.hour);if(input.value===""||!Number.isFinite(ratio)||ratio<0||ratio>100)throw new Error(`第 ${hour+1} 时段比例必须在 0..100 之间`);const adjusted_value=parseFloat((currentRows[hour].predicted*ratio).toFixed(3));if(adjusted_value>1000)throw new Error(`第 ${hour+1} 时段计算结果 ${adjusted_value} MWh 超出上限 1000`);return{hour,adjusted_value};});}
-    async function saveAdjustments(){try{const updates=editorValues();editorSave.disabled=true;saveStatus.className="save-status";saveStatus.textContent="正在保存…";const response=await fetch(UPDATE_URL,{method:"POST",headers:{apikey:SUPABASE_KEY,"Content-Type":"application/json"},body:JSON.stringify({date:datePicker.value,updates})});const body=await response.json().catch(()=>({}));if(!response.ok)throw new Error(body.error||`保存失败（HTTP ${response.status}）`);clearSelection(false);await loadDate(datePicker.value);}catch(error){console.error(error);saveStatus.className="save-status error";saveStatus.textContent=error.message||"保存失败";}finally{editorSave.disabled=false;}}
+    async function saveAdjustments(){try{const updates=editorValues();editorSave.disabled=true;saveStatus.className="save-status";saveStatus.textContent="正在保存…";const rows=updates.map(u=>({user_id:currentUser.id,curve_date:datePicker.value,hour:u.hour,adjusted_value:u.adjusted_value}));const {error}=await sb.from("user_adjustments").upsert(rows,{onConflict:"user_id,curve_date,hour"});if(error)throw new Error(error.message);clearSelection(false);await loadDate(datePicker.value);}catch(error){console.error(error);saveStatus.className="save-status error";saveStatus.textContent=error.message||"保存失败";}finally{editorSave.disabled=false;}}
     selectionToggle.addEventListener("click",()=>setSelectionMode(!selectionMode));selectionClear.addEventListener("click",()=>clearSelection());editorClear.addEventListener("click",()=>clearSelection());editorCancel.addEventListener("click",()=>{directDrafts={};ratioDrafts={};updateEditor();saveStatus.textContent="";});modeDirectBtn.addEventListener("click",()=>{if(editorMode==="direct")return;editorMode="direct";saveStatus.textContent="";updateEditor();});modeRatioBtn.addEventListener("click",()=>{if(editorMode==="ratio")return;editorMode="ratio";saveStatus.textContent="";updateEditor();});batchApply.addEventListener("click",()=>{const value=Number(batchValue.value);if(batchValue.value===""||!Number.isFinite(value)||value<0||value>1000){saveStatus.className="save-status error";saveStatus.textContent="批量值必须在 0..1000 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});batchRatioApply.addEventListener("click",()=>{const value=Number(batchRatioValue.value);if(batchRatioValue.value===""||!Number.isFinite(value)||value<0||value>100){saveStatus.className="save-status error";saveStatus.textContent="批量比例必须在 0..100 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});editorSave.addEventListener("click",saveAdjustments);
-    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));initialize();
+    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));
+    const authOverlay=document.querySelector("#auth-overlay"),authForm=document.querySelector("#auth-form"),authUsername=document.querySelector("#auth-username"),authPassword=document.querySelector("#auth-password"),authError=document.querySelector("#auth-error"),authSubmit=document.querySelector("#auth-submit"),authTitle=document.querySelector("#auth-title"),tabLogin=document.querySelector("#auth-tab-login"),tabRegister=document.querySelector("#auth-tab-register"),userChip=document.querySelector("#user-chip"),userEmail=document.querySelector("#user-email"),logoutBtn=document.querySelector("#logout-btn");
+    let authMode="login";
+    const USERNAME_PATTERN=/^[A-Za-z0-9_.\-]{2,30}$/;
+    function synthEmail(username){return`${username.trim().toLowerCase()}@curve.local`;}
+    function displayName(user){return user.user_metadata?.username||user.email||user.id;}
+    function translateAuthError(message){if(/invalid login credentials/i.test(message))return"用户名或密码错误。";if(/already registered|already been registered/i.test(message))return"该用户名已被占用，请换一个或直接登录。";if(/at least 6/i.test(message))return"密码至少 6 位。";if(/email not confirmed/i.test(message))return"该账号尚未激活，请联系管理员。";if(/rate limit/i.test(message))return"操作过于频繁，请稍后再试。";return message;}
+    function setAuthMode(mode){authMode=mode;tabLogin.classList.toggle("active",mode==="login");tabRegister.classList.toggle("active",mode==="register");authTitle.textContent=mode==="login"?"登录账号":"注册账号";authSubmit.textContent=mode==="login"?"登录":"注册";authPassword.setAttribute("autocomplete",mode==="login"?"current-password":"new-password");authError.textContent="";}
+    tabLogin.addEventListener("click",()=>setAuthMode("login"));tabRegister.addEventListener("click",()=>setAuthMode("register"));
+    function onSignedIn(session){currentUser=session.user;authOverlay.hidden=true;userChip.hidden=false;userEmail.textContent=displayName(session.user);if(!booted){booted=true;initialize();}}
+    authForm.addEventListener("submit",async event=>{event.preventDefault();if(!sb)return;const username=authUsername.value.trim();if(!USERNAME_PATTERN.test(username)){authError.textContent="用户名需为 2–30 位字母、数字、_ . -，且不能为空。";return;}authSubmit.disabled=true;authError.textContent="";const email=synthEmail(username);try{if(authMode==="login"){const {error}=await sb.auth.signInWithPassword({email,password:authPassword.value});if(error)throw error;}else{const {data,error}=await sb.auth.signUp({email,password:authPassword.value,options:{data:{username}}});if(error)throw error;if(!data.session){if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0){authError.textContent="该用户名已被占用，请换一个或直接登录。";}else{setAuthMode("login");authError.textContent="注册成功，请返回登录。";}return;}}}catch(err){authError.textContent=translateAuthError(err.message||"操作失败");}finally{authSubmit.disabled=false;}});
+    logoutBtn.addEventListener("click",async()=>{logoutBtn.disabled=true;await sb.auth.signOut();location.reload();});
+    if(!sb){authOverlay.hidden=false;authSubmit.disabled=true;authError.textContent="页面组件加载失败（需访问 cdn.jsdelivr.net），请检查网络后刷新。";}else{sb.auth.onAuthStateChange((event,session)=>{if(session)onSignedIn(session);});sb.auth.getSession().then(({data:{session}})=>{if(session)onSignedIn(session);else authOverlay.hidden=false;});}
   </script>
 </body>
 </html>
