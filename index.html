@@ -44,7 +44,7 @@
     .legend-line.adjusted { border-color:var(--adjusted); border-top-style:dashed; }
     .legend-line.day-ahead { border-color:var(--day-ahead); }
     .legend-line.real-time { border-color:var(--real-time); }
-    .price-section { border-bottom:1px solid #e7ece9; padding-bottom:8px; }
+    .price-section { border-top:1px solid #e7ece9; padding-bottom:8px; }
     .price-section-head { padding:20px 24px 0; }
     .price-section-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .price-chart-shell { position:relative; min-height:350px; padding:8px 20px 12px; }
@@ -179,20 +179,6 @@
         <div class="metric"><span class="metric-label">预测合计</span><strong class="metric-value" id="metric-predicted">—</strong></div>
         <div class="metric"><span class="metric-label">调整后合计</span><strong class="metric-value" id="metric-adjusted">—</strong></div>
       </div>
-      <section class="price-section" aria-labelledby="price-chart-heading">
-        <div class="price-section-head"><h2 id="price-chart-heading">日前电价与实时电价</h2><p>同一图表展示 24 个时段，单位：元/MWh</p></div>
-        <div class="legend" aria-label="电价图例">
-          <span class="legend-item"><span class="legend-line day-ahead"></span>日前电价</span>
-          <span class="legend-item"><span class="legend-line real-time"></span>实时电价</span>
-        </div>
-        <div class="price-chart-shell" id="price-chart-shell">
-          <svg id="price-chart" viewBox="0 0 1040 320" role="img" aria-labelledby="price-chart-title price-chart-desc">
-            <title id="price-chart-title">日前电价和实时电价折线图</title>
-            <desc id="price-chart-desc">橙色折线为日前电价，蓝色折线为实时电价。</desc>
-          </svg>
-          <div class="tooltip" id="price-tooltip" role="status" hidden></div>
-        </div>
-      </section>
       <div class="chart-tools">
         <div><button id="selection-toggle" type="button" aria-pressed="false">框选调整点</button> <button id="selection-clear" type="button" disabled>清空选择</button></div>
         <span class="tool-note" id="selection-note">开启后拖动画框；只会选中调整后用电量点。</span>
@@ -223,6 +209,20 @@
         <summary>查看 24 个时段的详细数据（可用复选框选择调整点）</summary>
         <div class="table-wrap"><table><thead><tr><th scope="col">时段</th><th scope="col">实际（MWh）</th><th scope="col">预测（MWh）</th><th scope="col">调整后（MWh）</th></tr></thead><tbody id="data-body"></tbody></table></div>
       </details>
+      <section class="price-section" aria-labelledby="price-chart-heading">
+        <div class="price-section-head"><h2 id="price-chart-heading">日前电价与实时电价</h2><p>同一图表展示 24 个时段，单位：元/MWh</p></div>
+        <div class="legend" aria-label="电价图例">
+          <span class="legend-item"><span class="legend-line day-ahead"></span>日前电价</span>
+          <span class="legend-item"><span class="legend-line real-time"></span>实时电价</span>
+        </div>
+        <div class="price-chart-shell" id="price-chart-shell">
+          <svg id="price-chart" viewBox="0 0 1040 320" role="img" aria-labelledby="price-chart-title price-chart-desc">
+            <title id="price-chart-title">日前电价和实时电价折线图</title>
+            <desc id="price-chart-desc">橙色折线为日前电价，蓝色折线为实时电价。</desc>
+          </svg>
+          <div class="tooltip" id="price-tooltip" role="status" hidden></div>
+        </div>
+      </section>
     </section>
   </main>
   <script>
