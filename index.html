@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <title>用户用电量曲线</title>
+  <title>模拟交易：售电公司日前电量申报</title>
   <style>
     :root {
       color-scheme: light;
@@ -30,7 +30,9 @@
     button.active { border-color:var(--adjusted); background:#eeebff; color:#493a9e; }
     input:focus-visible,button:focus-visible,.hit-area:focus-visible { outline:3px solid color-mix(in srgb,var(--focus) 35%,transparent); outline-offset:2px; }
     .card { border:1px solid #e0e7e3; border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.08); overflow:hidden; }
-    .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; padding:1px; background:#e7ece9; border-bottom:1px solid #e7ece9; }
+    .chart-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:20px 24px 0; }
+    .chart-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; padding:1px; background:#e7ece9; border-top:1px solid #e7ece9; margin-top:18px; }
     .metric { min-width:0; padding:18px 20px; background:var(--surface); }
     .metric-label { color:var(--muted); font-size:12px; }
     .metric-value { display:block; margin-top:5px; font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
@@ -161,6 +163,8 @@
       .summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .metric { padding:15px; }
       .chart-tools,.legend,.price-section-head { padding-inline:16px; }
+      .chart-head { align-items:stretch; flex-direction:column; padding:16px 16px 0; }
+      .chart-head .date-control { width:100%; }
       .price-section-head { align-items:stretch; flex-direction:column; }
       .price-section-head .date-control { width:100%; }
       .price-chart-shell,.chart-shell { padding-inline:6px; overflow-x:auto; }
@@ -195,16 +199,19 @@
   </div>
   <main>
     <header class="heading">
-      <div><p class="eyebrow">User electricity consumption</p><h1>用户用电量曲线</h1><p class="subtitle">实际、预测与调整后用电量 · 24 个时段</p></div>
+      <div><p class="eyebrow">Simulated trading · Day-ahead declaration</p><h1>模拟交易：售电公司日前电量申报</h1><p class="subtitle">日前电量申报模拟 · 24 个时段</p></div>
       <div class="header-right">
-        <label class="date-control" for="date-picker">选择日期<input id="date-picker" type="date" disabled></label>
         <div class="user-chip" id="user-chip" hidden>
           <label class="admin-switch" id="admin-switch-wrap" hidden for="account-switch">查看账号<select id="account-switch"></select></label>
           <span>当前账号：<strong id="user-email"></strong></span><button id="logout-btn" type="button">退出登录</button>
         </div>
       </div>
     </header>
-    <section class="card" aria-labelledby="chart-title">
+    <section class="card" aria-labelledby="consumption-title">
+      <div class="chart-head">
+        <div><h2 id="consumption-title">用户用电量曲线</h2><p>实际、预测与调整后用电量 · 24 个时段</p></div>
+        <label class="date-control" for="date-picker">选择日期<input id="date-picker" type="date" disabled></label>
+      </div>
       <div class="summary" aria-live="polite">
         <div class="metric"><span class="metric-label">日期</span><strong class="metric-value" id="metric-date">—</strong></div>
         <div class="metric"><span class="metric-label">实际合计</span><strong class="metric-value" id="metric-actual">—</strong></div>
