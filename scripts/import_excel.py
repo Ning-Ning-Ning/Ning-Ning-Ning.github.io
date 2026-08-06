@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and import actual, predicted, and adjusted electricity usage."""
+"""Validate and import electricity usage and day-ahead/real-time prices."""
 
 from __future__ import annotations
 
@@ -21,6 +21,8 @@ EXPECTED_HEADERS = (
     "实际用电量MWh",
     "预测用电量MWh",
     "调整后用电量MWh",
+    "日前电价（元/MWh）",
+    "实时电价（元/MWh）",
 )
 ACTUAL_NULL_FROM = date(2026, 5, 24)
 EXPECTED_HOURS = set(range(1, 25))
@@ -51,11 +53,13 @@ def normalize_date(value: object, row_number: int) -> str:
         raise ValueError(f"第 {row_number} 行日期无效：{value!r}") from exc
 
 
-def optional_number(value: object, label: str, row_number: int) -> float | None:
+def optional_number(
+    value: object, label: str, row_number: int, *, allow_negative: bool = False
+) -> float | None:
     if value is None or value == "":
         return None
     number = float(value)
-    if number < 0:
+    if not allow_negative and number < 0:
         raise ValueError(f"第 {row_number} 行{label}小于 0：{value!r}")
     return number
 
@@ -74,12 +78,22 @@ def read_records(path: Path) -> list[dict[str, object]]:
     predicted_count = 0
     adjusted_count = 0
     actual_count = 0
+    day_ahead_count = 0
+    real_time_count = 0
 
     for row_number, row in enumerate(rows, start=2):
-        if len(row) != 5:
-            raise ValueError(f"第 {row_number} 行字段数不是 5：{row!r}")
+        if len(row) != 7:
+            raise ValueError(f"第 {row_number} 行字段数不是 7：{row!r}")
 
-        raw_date, raw_hour, raw_actual, raw_predicted, raw_adjusted = row
+        (
+            raw_date,
+            raw_hour,
+            raw_actual,
+            raw_predicted,
+            raw_adjusted,
+            raw_day_ahead,
+            raw_real_time,
+        ) = row
         if raw_date is None or raw_hour is None or raw_actual is None:
             raise ValueError(f"第 {row_number} 行日期、小时或实际用电量为空：{row!r}")
 
@@ -91,6 +105,12 @@ def read_records(path: Path) -> list[dict[str, object]]:
         actual = optional_number(raw_actual, "实际用电量", row_number)
         predicted = optional_number(raw_predicted, "预测用电量", row_number)
         adjusted = optional_number(raw_adjusted, "调整后用电量", row_number)
+        day_ahead = optional_number(
+            raw_day_ahead, "日前电价", row_number, allow_negative=True
+        )
+        real_time = optional_number(
+            raw_real_time, "实时电价", row_number, allow_negative=True
+        )
         assert actual is not None
         if date.fromisoformat(day) >= ACTUAL_NULL_FROM:
             actual = None
@@ -98,6 +118,8 @@ def read_records(path: Path) -> list[dict[str, object]]:
         actual_count += actual is not None
         predicted_count += predicted is not None
         adjusted_count += adjusted is not None
+        day_ahead_count += day_ahead is not None
+        real_time_count += real_time is not None
 
         db_hour = excel_hour - 1
         key = (day, db_hour)
@@ -112,6 +134,8 @@ def read_records(path: Path) -> list[dict[str, object]]:
                 "actual_value": actual,
                 "predicted_value": predicted,
                 "adjusted_value": adjusted,
+                "day_ahead_price": day_ahead,
+                "real_time_price": real_time,
             }
         )
 
@@ -126,7 +150,8 @@ def read_records(path: Path) -> list[dict[str, object]]:
     print(
         f"校验完成：{len(records)} 条，{len(per_date)} 天，"
         f"{min(per_date)} 至 {max(per_date)}；实际 {actual_count} 个，"
-        f"预测 {predicted_count} 个，原始调整后 {adjusted_count} 个。"
+        f"预测 {predicted_count} 个，原始调整后 {adjusted_count} 个，"
+        f"日前电价 {day_ahead_count} 个，实时电价 {real_time_count} 个。"
     )
     return records
 

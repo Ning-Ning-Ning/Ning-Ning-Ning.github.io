@@ -9,7 +9,7 @@
     :root {
       color-scheme: light;
       --page:#f4f7f6; --surface:#fff; --ink:#15201c; --muted:#66736e; --grid:#dfe7e3;
-      --actual:#087f5b; --predicted:#b85c00; --adjusted:#6554c0; --focus:#075d45; --danger:#a63d40;
+      --actual:#087f5b; --predicted:#b85c00; --adjusted:#6554c0; --day-ahead:#c2410c; --real-time:#2563eb; --focus:#075d45; --danger:#a63d40;
       font-family:Arial,"Microsoft YaHei",sans-serif;
     }
     * { box-sizing:border-box; }
@@ -42,6 +42,19 @@
     .legend-line.actual { border-color:var(--actual); }
     .legend-line.predicted { border-color:var(--predicted); }
     .legend-line.adjusted { border-color:var(--adjusted); border-top-style:dashed; }
+    .legend-line.day-ahead { border-color:var(--day-ahead); }
+    .legend-line.real-time { border-color:var(--real-time); }
+    .price-section { border-bottom:1px solid #e7ece9; padding-bottom:8px; }
+    .price-section-head { padding:20px 24px 0; }
+    .price-section-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .price-chart-shell { position:relative; min-height:350px; padding:8px 20px 12px; }
+    #price-chart { display:block; width:100%; height:auto; min-height:300px; }
+    .price-curve { fill:none; stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+    .price-curve.day-ahead { stroke:var(--day-ahead); }
+    .price-curve.real-time { stroke:var(--real-time); }
+    .price-point { fill:var(--surface); stroke-width:2; pointer-events:none; }
+    .price-point.day-ahead { stroke:var(--day-ahead); }
+    .price-point.real-time { stroke:var(--real-time); }
     .chart-shell { position:relative; min-height:480px; padding:8px 20px 12px; }
     .chart-shell.selecting { user-select:none; }
     .chart-shell.selecting #chart { touch-action:none; cursor:crosshair; }
@@ -120,9 +133,13 @@
       .date-control { width:100%; }
       .summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .metric { padding:15px; }
-      .chart-tools,.legend { padding-inline:16px; }
-      .chart-shell { min-height:390px; padding:8px 6px; overflow-x:auto; }
-      #chart { min-width:760px; min-height:340px; }
+      .chart-tools,.legend,.price-section-head { padding-inline:16px; }
+      .price-chart-shell,.chart-shell { padding-inline:6px; overflow-x:auto; }
+      .price-chart-shell { min-height:320px; }
+      .chart-shell { min-height:390px; }
+      #price-chart,#chart { min-width:760px; }
+      #price-chart { min-height:290px; }
+      #chart { min-height:340px; }
       .editor { margin-inline:10px; }
       .batch-row input { width:100%; }
       th,td { padding:10px 14px; }
@@ -162,6 +179,20 @@
         <div class="metric"><span class="metric-label">预测合计</span><strong class="metric-value" id="metric-predicted">—</strong></div>
         <div class="metric"><span class="metric-label">调整后合计</span><strong class="metric-value" id="metric-adjusted">—</strong></div>
       </div>
+      <section class="price-section" aria-labelledby="price-chart-heading">
+        <div class="price-section-head"><h2 id="price-chart-heading">日前电价与实时电价</h2><p>同一图表展示 24 个时段，单位：元/MWh</p></div>
+        <div class="legend" aria-label="电价图例">
+          <span class="legend-item"><span class="legend-line day-ahead"></span>日前电价</span>
+          <span class="legend-item"><span class="legend-line real-time"></span>实时电价</span>
+        </div>
+        <div class="price-chart-shell" id="price-chart-shell">
+          <svg id="price-chart" viewBox="0 0 1040 320" role="img" aria-labelledby="price-chart-title price-chart-desc">
+            <title id="price-chart-title">日前电价和实时电价折线图</title>
+            <desc id="price-chart-desc">橙色折线为日前电价，蓝色折线为实时电价。</desc>
+          </svg>
+          <div class="tooltip" id="price-tooltip" role="status" hidden></div>
+        </div>
+      </section>
       <div class="chart-tools">
         <div><button id="selection-toggle" type="button" aria-pressed="false">框选调整点</button> <button id="selection-clear" type="button" disabled>清空选择</button></div>
         <span class="tool-note" id="selection-note">开启后拖动画框；只会选中调整后用电量点。</span>
@@ -203,8 +234,11 @@
     const SERIES={actual:{key:"actual",label:"实际用电量"},adjusted:{key:"adjusted",label:"调整后用电量"},predicted:{key:"predicted",label:"预测用电量"}};
     const VISUAL_ORDER=[SERIES.actual,SERIES.adjusted,SERIES.predicted];
     const size={width:1040,height:430,top:30,right:28,bottom:64,left:78};
+    const priceSize={width:1040,height:320,top:24,right:28,bottom:58,left:84};
     const plotWidth=size.width-size.left-size.right,plotHeight=size.height-size.top-size.bottom;
+    const pricePlotWidth=priceSize.width-priceSize.left-priceSize.right,pricePlotHeight=priceSize.height-priceSize.top-priceSize.bottom;
     const datePicker=document.querySelector("#date-picker"),chart=document.querySelector("#chart"),chartShell=document.querySelector("#chart-shell"),tooltip=document.querySelector("#tooltip"),status=document.querySelector("#status"),dataBody=document.querySelector("#data-body");
+    const priceChart=document.querySelector("#price-chart"),priceChartShell=document.querySelector("#price-chart-shell"),priceTooltip=document.querySelector("#price-tooltip");
     const selectionToggle=document.querySelector("#selection-toggle"),selectionClear=document.querySelector("#selection-clear"),editor=document.querySelector("#editor"),selectedCount=document.querySelector("#selected-count"),pointInputs=document.querySelector("#point-inputs"),batchValue=document.querySelector("#batch-value"),batchApply=document.querySelector("#batch-apply"),editorClear=document.querySelector("#editor-clear"),editorCancel=document.querySelector("#editor-cancel"),editorSave=document.querySelector("#editor-save"),saveStatus=document.querySelector("#save-status"),modeDirectBtn=document.querySelector("#mode-direct"),modeRatioBtn=document.querySelector("#mode-ratio"),batchDirectRow=document.querySelector("#batch-direct"),batchRatioRow=document.querySelector("#batch-ratio"),batchRatioValue=document.querySelector("#batch-ratio-value"),batchRatioApply=document.querySelector("#batch-ratio-apply");
     const metrics={date:document.querySelector("#metric-date"),actual:document.querySelector("#metric-actual"),predicted:document.querySelector("#metric-predicted"),adjusted:document.querySelector("#metric-adjusted")};
     let currentRows=[],selectedHours=new Set(),selectionMode=false,drag=null,scale=null,editorMode="direct",directDrafts={},ratioDrafts={},currentUser=null,booted=false;
@@ -216,11 +250,15 @@
     function clampDate(value,min,max){return value<min?min:value>max?max:value;}
     async function fetchBoundary(ascending){const {data,error}=await sb.from("daily_curves").select("date").order("date",{ascending}).limit(1);if(error)throw new Error(error.message);return data;}
     async function initialize(){try{const [oldest,newest]=await Promise.all([fetchBoundary(true),fetchBoundary(false)]);if(!oldest.length||!newest.length){setStatus("Supabase 中暂无用电量数据。",true);return;}datePicker.min=oldest[0].date;datePicker.max=newest[0].date;datePicker.value=clampDate(localTomorrow(),datePicker.min,datePicker.max);datePicker.disabled=false;await loadDate(datePicker.value);}catch(error){console.error(error);setStatus("无法加载数据，请稍后重试。",true);}}
-    async function loadDate(date){datePicker.disabled=true;setStatus("正在加载该日用电量…");clearSelection(false);try{const [{data:rows,error},{data:adjRows,error:adjError}]=await Promise.all([sb.from("daily_curves").select("date,hour,actual_value,predicted_value").eq("date",date).order("hour",{ascending:true}),sb.from("user_adjustments").select("hour,adjusted_value").eq("curve_date",date)]);if(error)throw new Error(error.message);if(adjError)throw new Error(adjError.message);if(rows.length!==24)throw new Error(`该日应有 24 条数据，实际为 ${rows.length} 条`);const adjMap=new Map(adjRows.map(r=>[Number(r.hour),Number(r.adjusted_value)]));currentRows=rows.map(row=>{const actual=row.actual_value===null?null:Number(row.actual_value),predicted=row.predicted_value===null?null:Number(row.predicted_value),rawAdjusted=adjMap.has(Number(row.hour))?adjMap.get(Number(row.hour)):null;return{date:row.date,hour:Number(row.hour),actual,predicted,adjusted:rawAdjusted??predicted,adjustedFallback:rawAdjusted===null&&predicted!==null};});render();status.hidden=true;}catch(error){console.error(error);clearChart();setStatus(error.message||"该日数据加载失败。",true);}finally{datePicker.disabled=false;}}
-    function clearChart(){hideTooltip();[...chart.children].forEach(child=>{if(!child.matches("title,desc"))child.remove();});dataBody.replaceChildren();}
+    async function loadDate(date){datePicker.disabled=true;setStatus("正在加载该日用电量与电价…");clearSelection(false);try{const [{data:rows,error},{data:adjRows,error:adjError}]=await Promise.all([sb.from("daily_curves").select("date,hour,actual_value,predicted_value,day_ahead_price,real_time_price").eq("date",date).order("hour",{ascending:true}),sb.from("user_adjustments").select("hour,adjusted_value").eq("curve_date",date)]);if(error)throw new Error(error.message);if(adjError)throw new Error(adjError.message);if(rows.length!==24)throw new Error(`该日应有 24 条数据，实际为 ${rows.length} 条`);const adjMap=new Map(adjRows.map(r=>[Number(r.hour),Number(r.adjusted_value)]));currentRows=rows.map(row=>{const actual=row.actual_value===null?null:Number(row.actual_value),predicted=row.predicted_value===null?null:Number(row.predicted_value),dayAhead=row.day_ahead_price===null?null:Number(row.day_ahead_price),realTime=row.real_time_price===null?null:Number(row.real_time_price),rawAdjusted=adjMap.has(Number(row.hour))?adjMap.get(Number(row.hour)):null;return{date:row.date,hour:Number(row.hour),actual,predicted,adjusted:rawAdjusted??predicted,adjustedFallback:rawAdjusted===null&&predicted!==null,dayAhead,realTime};});render();status.hidden=true;}catch(error){console.error(error);clearChart();setStatus(error.message||"该日数据加载失败。",true);}finally{datePicker.disabled=false;}}
+    function clearChart(){hideTooltip();hidePriceTooltip();[chart,priceChart].forEach(svg=>[...svg.children].forEach(child=>{if(!child.matches("title,desc"))child.remove();}));dataBody.replaceChildren();}
     function pathFor(values,x,y){let path="",drawing=false;values.forEach((value,hour)=>{if(value===null){drawing=false;return;}path+=`${drawing?" L":" M"} ${x(hour+.5)} ${y(value)}`;drawing=true;});return path;}
+    function priceLabel(value){return value===null?"—":`${value.toFixed(2)} 元/MWh`;}
+    function renderPriceChart(){const all=currentRows.flatMap(row=>[row.dayAhead,row.realTime]).filter(value=>value!==null);if(!all.length){const note=svgElement("text",{x:priceSize.width/2,y:priceSize.height/2,class:"tick","text-anchor":"middle"});note.textContent="该日期暂无电价数据";priceChart.append(note);return;}const rawMin=Math.min(...all),rawMax=Math.max(...all),span=Math.max(rawMax-rawMin,1),padding=span*.1,yMin=Math.floor((rawMin-padding)/50)*50,yMax=Math.ceil((rawMax+padding)/50)*50,x=hour=>priceSize.left+hour/24*pricePlotWidth,y=value=>priceSize.top+(yMax-value)/(yMax-yMin)*pricePlotHeight;for(let step=0;step<=5;step++){const value=yMin+(yMax-yMin)*step/5,yp=y(value);priceChart.append(svgElement("line",{x1:priceSize.left,y1:yp,x2:priceSize.width-priceSize.right,y2:yp,class:"grid"}));const label=svgElement("text",{x:priceSize.left-12,y:yp+4,class:"tick","text-anchor":"end"});label.textContent=value.toFixed(0);priceChart.append(label);}for(let hour=0;hour<=24;hour+=2){const label=svgElement("text",{x:x(hour),y:priceSize.height-priceSize.bottom+24,class:"tick","text-anchor":"middle"});label.textContent=hour;priceChart.append(label);}priceChart.append(svgElement("line",{x1:priceSize.left,y1:priceSize.top,x2:priceSize.left,y2:priceSize.height-priceSize.bottom,class:"axis"}));priceChart.append(svgElement("line",{x1:priceSize.left,y1:priceSize.height-priceSize.bottom,x2:priceSize.width-priceSize.right,y2:priceSize.height-priceSize.bottom,class:"axis"}));const xt=svgElement("text",{x:priceSize.left+pricePlotWidth/2,y:priceSize.height-10,class:"axis-title","text-anchor":"middle"});xt.textContent="时段（0–24）";priceChart.append(xt);const yt=svgElement("text",{x:20,y:priceSize.top+pricePlotHeight/2,class:"axis-title",transform:`rotate(-90 20 ${priceSize.top+pricePlotHeight/2})`,"text-anchor":"middle"});yt.textContent="电价（元/MWh）";priceChart.append(yt);[["dayAhead","day-ahead"],["realTime","real-time"]].forEach(([key,className])=>{const values=currentRows.map(row=>row[key]),path=pathFor(values,x,y);if(path)priceChart.append(svgElement("path",{d:path,class:`price-curve ${className}`}));values.forEach((value,hour)=>{if(value!==null)priceChart.append(svgElement("circle",{cx:x(hour+.5),cy:y(value),r:3.5,class:`price-point ${className}`}));});});currentRows.forEach(row=>{const hit=svgElement("rect",{x:x(row.hour),y:priceSize.top,width:pricePlotWidth/24,height:pricePlotHeight,class:"hit-area",tabindex:0,focusable:"true",role:"button","aria-label":`第 ${row.hour+1} 时段，日前电价 ${priceLabel(row.dayAhead)}，实时电价 ${priceLabel(row.realTime)}`});hit.addEventListener("mouseenter",()=>showPriceTooltip(row,x(row.hour+.5),priceSize.top+20));hit.addEventListener("focus",()=>showPriceTooltip(row,x(row.hour+.5),priceSize.top+20));hit.addEventListener("mouseleave",hidePriceTooltip);hit.addEventListener("blur",hidePriceTooltip);priceChart.append(hit);});}
+    function showPriceTooltip(row,cx,cy){priceChart.querySelectorAll(".crosshair").forEach(el=>el.remove());priceChart.append(svgElement("line",{x1:cx,y1:priceSize.top,x2:cx,y2:priceSize.height-priceSize.bottom,class:"crosshair"}));priceTooltip.innerHTML=`<strong>第 ${row.hour+1} 时段 · ${row.hour}:00–${row.hour+1}:00</strong><div class="tooltip-row"><span>日前电价</span><span>${priceLabel(row.dayAhead)}</span></div><div class="tooltip-row"><span>实时电价</span><span>${priceLabel(row.realTime)}</span></div>`;const sr=priceChart.getBoundingClientRect(),cr=priceChartShell.getBoundingClientRect();priceTooltip.style.left=`${sr.left-cr.left+cx/priceSize.width*sr.width}px`;priceTooltip.style.top=`${sr.top-cr.top+cy/priceSize.height*sr.height}px`;priceTooltip.hidden=false;}
+    function hidePriceTooltip(){priceTooltip.hidden=true;priceChart.querySelectorAll(".crosshair").forEach(el=>el.remove());}
     function totalFor(key){const values=currentRows.map(row=>row[key]).filter(v=>v!==null);return values.length?`${values.reduce((a,b)=>a+b,0).toFixed(3)} MWh`:"暂无数据";}
-    function render(){clearChart();const all=VISUAL_ORDER.flatMap(s=>currentRows.map(r=>r[s.key])).filter(v=>v!==null),max=Math.max(...all,.01),yMax=Math.ceil(max/.05)*.05,x=h=>size.left+h/24*plotWidth,y=v=>size.top+plotHeight-v/yMax*plotHeight;scale={x,y};
+    function render(){clearChart();renderPriceChart();const all=VISUAL_ORDER.flatMap(s=>currentRows.map(r=>r[s.key])).filter(v=>v!==null),max=Math.max(...all,.01),yMax=Math.ceil(max/.05)*.05,x=h=>size.left+h/24*plotWidth,y=v=>size.top+plotHeight-v/yMax*plotHeight;scale={x,y};
       for(let step=0;step<=5;step++){const value=yMax*step/5,yp=y(value);chart.append(svgElement("line",{x1:size.left,y1:yp,x2:size.width-size.right,y2:yp,class:"grid"}));const label=svgElement("text",{x:size.left-12,y:yp+4,class:"tick","text-anchor":"end"});label.textContent=value.toFixed(2);chart.append(label);}for(let h=0;h<=24;h+=2){const label=svgElement("text",{x:x(h),y:size.height-size.bottom+25,class:"tick","text-anchor":"middle"});label.textContent=h;chart.append(label);}chart.append(svgElement("line",{x1:size.left,y1:size.top,x2:size.left,y2:size.height-size.bottom,class:"axis"}));chart.append(svgElement("line",{x1:size.left,y1:size.height-size.bottom,x2:size.width-size.right,y2:size.height-size.bottom,class:"axis"}));const xt=svgElement("text",{x:size.left+plotWidth/2,y:size.height-12,class:"axis-title","text-anchor":"middle"});xt.textContent="时段（0–24）";chart.append(xt);const yt=svgElement("text",{x:20,y:size.top+plotHeight/2,class:"axis-title",transform:`rotate(-90 20 ${size.top+plotHeight/2})`,"text-anchor":"middle"});yt.textContent="用电量（MWh）";chart.append(yt);
       VISUAL_ORDER.forEach(series=>{const values=currentRows.map(r=>r[series.key]),path=pathFor(values,x,y);if(path)chart.append(svgElement("path",{d:path,class:`curve ${series.key}`,"data-series":series.key}));values.forEach((value,hour)=>{if(value!==null)chart.append(svgElement("circle",{cx:x(hour+.5),cy:y(value),r:3.5,class:`point ${series.key}`,"data-hour":hour}));});});
       currentRows.forEach(row=>{const hit=svgElement("rect",{x:x(row.hour),y:size.top,width:plotWidth/24,height:plotHeight,class:"hit-area",tabindex:0,focusable:"true",role:"button","aria-label":`第 ${row.hour+1} 时段，实际 ${formatValue(row.actual)}，预测 ${formatValue(row.predicted)}，调整后 ${formatValue(row.adjusted)} MWh`});hit.addEventListener("mouseenter",()=>{if(!selectionMode)showTooltip(row,x(row.hour+.5),size.top+20);});hit.addEventListener("focus",()=>{if(!selectionMode)showTooltip(row,x(row.hour+.5),size.top+20);});hit.addEventListener("mouseleave",hideTooltip);hit.addEventListener("blur",hideTooltip);chart.append(hit);

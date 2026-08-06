@@ -1,6 +1,6 @@
 # 用户用电量曲线
 
-GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按日期同时展示实际、预测和调整后用电量。
+GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按日期展示实际、预测、调整后用电量，以及日前电价和实时电价。
 
 ## 用户账号
 
@@ -16,18 +16,21 @@ GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按�
 
 源文件 `excel.xlsx` 的表头必须为：
 
-`年月日 / 小时 / 实际用电量MWh / 预测用电量MWh / 调整后用电量MWh`
+`年月日 / 小时 / 实际用电量MWh / 预测用电量MWh / 调整后用电量MWh / 日前电价（元/MWh） / 实时电价（元/MWh）`
 
 Excel 小时 `1..24` 导入为数据库 `hour = 0..23`：
 
 - `实际用电量MWh` → `actual_value`；2026-05-24（含）起保存为 `NULL`；
 - `预测用电量MWh` → `predicted_value`，空单元格保存为 `NULL`；
-- `调整后用电量MWh` → `adjusted_value`，空单元格保存为 `NULL`。
+- `调整后用电量MWh` → `adjusted_value`，空单元格保存为 `NULL`；
+- `日前电价（元/MWh）` → `day_ahead_price`；
+- `实时电价（元/MWh）` → `real_time_price`。价格允许负值，空单元格保存为 `NULL`。
 
-页面展示时，如果 `adjusted_value` 为空，则默认采用同一时段的预测用电量；若预测也为空，则显示暂无数据，不按 0 处理。
+迁移文件 `supabase/migrations/20260806_add_market_prices.sql` 为 `daily_curves` 增加两个公用电价字段。页面展示时，如果 `adjusted_value` 为空，则默认采用同一时段的预测用电量；若预测也为空，则显示暂无数据，不按 0 处理。
 
 ## 图表和编辑
 
+- 页面上方为日前电价与实时电价双折线图，两条曲线共用同一坐标系，单位为元/MWh；悬停或键盘聚焦可查看每个时段价格。
 - 默认日期为浏览器本地系统日期的后一天；超出数据范围时使用最近边界。
 - 重叠时从上到下为预测、调整后、实际；SVG 实际绘制顺序为实际 → 调整后 → 预测。
 - 调整后用电量使用紫色虚线。
