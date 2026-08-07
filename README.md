@@ -6,13 +6,15 @@ GitHub Pages 页面通过 Supabase Data API 读取 `public.daily_curves`，按�
 
 - 系统只支持 **12 个固定账号**，**不开放注册**：`gly`（管理员）、`wanliyang`、`songningning`、`zhangchenyue`、`liangweiqi`、`liubingyan`、`liuziye`、`luna`、`songyihan`、`wangyanshu`、`xumanli`、`zhengkezhuo`。
 - **登录只输入用户名**，无需密码、邮箱或注册。底层按固定规则由用户名派生内部密码（规则公开在前端代码中，等价于“仅用户名”安全级别）；内部邮箱为 `<用户名>@curve.local`，页面不显示。
-- 管理员 `gly` 登录后页面顶部出现“查看账号”下拉框，可选择其他 11 个账号并**只读查看**其页面（调整曲线、电费变化等）；其他账号没有下拉框，只能看自己的数据。
+- 管理员 `gly` 登录后页面顶部出现“查看账号”下拉框，可选择其他 11 个账号并**只读查看**其页面（调整曲线、电费变化等）；下拉框选项显示为“管理员”，顶部当前账号显示为 `***`；其他账号没有下拉框。
 - 普通账号（非 `gly`）只能在**当前日期的下一天**（明天）调整并保存用电量，其他日期只读；管理员 `gly` 不受此限制，可调整任意日期。
+- **所有登录账号**都可以访问页面顶部菜单“全员总览”：以热力表形式查看全部普通账号（不含 `gly`）的电费变化，表1 为账号×日期（当日合计，月份可选）、表2 为账号×时段（默认全月加和，点击表1日期行切换单日）；该页面为只读，不能修改任何数据。
 - 普通账号（含管理员查看他人时）**不能修改他人调整数据**；写入受 RLS 限制，只能写自己用户名对应的行。
+- **读取权限（2026-08-07 起）**：所有登录账号可读取全部账号的调整数据（`user_adjustments` SELECT 对 authenticated 放开，用于全员总览）；写入仍仅限本人。
 - **调整后用电量曲线按账号独立**：每个账号的调整保存到 `public.user_adjustments`（主键 `user_id + curve_date + hour`，另有 `username` 冗余列用于按账号读取），RLS 保证用户只能读写自己的调整数据；其余信息（实际、预测用电量及日期范围）为所有账号公用。
 - 账号在某时段没有自己的调整数据时，沿用原缺省逻辑：默认采用同一时段的预测用电量。
 - 固定账号由 `scripts/create_fixed_accounts.py` 批量创建（调用 Auth signup，幂等，已存在则跳过）。
-- 迁移文件：`supabase/migrations/20260727_add_user_adjustments.sql`（原始账号表）和 `supabase/migrations/20260806_username_only_accounts.sql`（固定账号/username 列/管理员 RLS）。历史遗留的 `daily_curves.adjusted_value` 全局调整列已不再被页面读取。
+- 迁移文件：`supabase/migrations/20260727_add_user_adjustments.sql`（原始账号表）、`20260806_username_only_accounts.sql`（固定账号/username 列/管理员 RLS）和 `20260807_open_adjustments_select.sql`（全员总览开放读取）。历史遗留的 `daily_curves.adjusted_value` 全局调整列已不再被页面读取。
 
 ## 数据映射
 
@@ -49,13 +51,13 @@ Excel 小时 `1..24` 导入为数据库 `hour = 0..23`：
   - 两套模式的未保存输入在切换时互相保留，日期变更、清空选择或保存后清理。
   - 无论哪种模式，最终保存的均为 MWh 数值，比例仅为前端计算方式，不影响数据库结构或写入协议。
 
-调整值是**按账号独立的数据**：登录用户保存的调整仅影响自己的账号视图；管理员 `gly` 可以只读查看所有账号的数据，但不能修改他人的调整。
+调整值是**按账号独立的数据**：登录用户保存的调整仅影响自己的账号视图；所有登录账号可通过“全员总览”只读查看全部账号的电费变化，但不能修改他人的调整。
 
 ## 写入安全边界
 
 浏览器登录后直接通过 Supabase Data API 读写 `public.user_adjustments`，由 RLS 策略保证：
-- 普通账号：`username = 当前登录用户` 且 `user_id = auth.uid()`（只能操作自己的行）；
-- 管理员 `gly`：可 SELECT 所有账号的行（只读查看），写入仍限制为本人；
+- 读取（SELECT）：**所有登录账号可读全部账号的行**（`USING (true)`，供全员总览使用）；
+- 写入（INSERT/UPDATE/DELETE）：`username = 当前登录用户` 且 `user_id = auth.uid()`，仅能操作自己的行；
 - 表级 CHECK 约束校验小时 0–23、数值 0–1000 MWh。
 
 `daily_curves` 对 `anon` 和 `authenticated` 仍只有 `SELECT` 权限，浏览器不能修改公用数据；secret/service-role key 不会出现在网页或 Git 中。
