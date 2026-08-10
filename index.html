@@ -67,7 +67,8 @@
     .spread-swatch.negative { background:#dc2626; }
     .spread-swatch.zero { background:#f1f5f3; }
     .spread-swatch.positive { background:#16a34a; }
-    .spread-swatch.increase { background:#2563eb; }
+    .spread-swatch.decrease { background:#16a34a; }
+    .spread-swatch.increase { background:#dc2626; }
     .spread-status { min-height:20px; margin:0 0 10px; color:var(--muted); font-size:13px; }
     .spread-status.error { color:var(--danger); }
     .spread-table-wrap { overflow-x:auto; overflow-y:visible; border:1px solid #dfe7e3; border-radius:10px; }
@@ -95,11 +96,11 @@
     .overview-substatus { min-height:20px; margin:12px 0 8px; color:var(--adjusted); font-size:13px; font-weight:700; }
     .overview-hourly-wrap { overflow:auto; }
     .overview-table { min-width:0; }
-    .overview-table th,.overview-table td { width:46px; }
+    .overview-table th,.overview-table td { width:36px; }
     .overview-table th { font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .overview-table th:first-child,.overview-table td:first-child { width:88px; min-width:88px; }
     .overview-table.numeric-mode { min-width:0; }
-    .overview-table.numeric-mode th,.overview-table.numeric-mode td { width:72px; }
+    .overview-table.numeric-mode th,.overview-table.numeric-mode td { width:68px; }
     .overview-table .date-cell { cursor:pointer; }
     .overview-table tr:hover td:first-child { background:#eef2f0; }
     .overview-table tr.row-selected td:first-child { background:var(--adjusted); color:#fff; font-weight:700; }
@@ -275,7 +276,7 @@
             <button id="strategy-mode" type="button" disabled>显示数字</button>
           </div>
         </div>
-        <div class="spread-legend strategy-legend" aria-label="电费变化色阶说明"><span>电费减少</span><span class="spread-swatch negative"></span><span>0</span><span class="spread-swatch zero"></span><span class="spread-swatch increase"></span><span>电费增加</span><span>｜绝对值越大，颜色越深</span></div>
+        <div class="spread-legend strategy-legend" aria-label="电费变化色阶说明"><span>电费减少</span><span class="spread-swatch decrease"></span><span>0</span><span class="spread-swatch zero"></span><span class="spread-swatch increase"></span><span>电费增加</span><span>｜绝对值越大，颜色越深</span></div>
         <p class="spread-status" id="strategy-status" role="status">请选择月份后查看整月情况。</p>
         <div class="spread-table-wrap">
           <table class="spread-table" id="strategy-table"><thead id="strategy-head-row"></thead><tbody id="strategy-body"></tbody></table>
@@ -323,7 +324,7 @@
           <button id="overview-mode" type="button" disabled>显示数字</button>
         </div>
       </div>
-      <div class="spread-legend" aria-label="全员总览色阶说明"><span>电费减少</span><span class="spread-swatch negative"></span><span>0</span><span class="spread-swatch zero"></span><span class="spread-swatch increase"></span><span>电费增加</span><span>｜绝对值越大，颜色越深</span></div>
+      <div class="spread-legend" aria-label="全员总览色阶说明"><span>电费减少</span><span class="spread-swatch decrease"></span><span>0</span><span class="spread-swatch zero"></span><span class="spread-swatch increase"></span><span>电费增加</span><span>｜绝对值越大，颜色越深</span></div>
       <p class="overview-status" id="overview-status" role="status">请选择月份后查看全员电费变化。</p>
       <div class="spread-table-wrap">
         <table class="spread-table overview-table" id="overview-daily-table"><thead id="overview-daily-head"></thead><tbody id="overview-daily-body"></tbody></table>
