@@ -7,21 +7,21 @@
   <title>模拟交易：售电公司日前电量申报</title>
   <style>
     :root {
-      color-scheme: dark;
-      --page:#0b0d0c; --surface:#151a18; --surface2:#1b211e; --ink:#e8edeb; --muted:#8a9690; --grid:#232a27; --line:#262d2a;
-      --actual:#2fbf8f; --predicted:#f0a04b; --adjusted:#8b7cf8; --day-ahead:#f97316; --real-time:#60a5fa; --focus:#2fbf8f; --danger:#f87171;
+      color-scheme: light;
+      --page:#f4f7f6; --surface:#fff; --surface2:#eef1ef; --ink:#15201c; --muted:#66736e; --grid:#dfe7e3; --line:#dde5e1;
+      --actual:#087f5b; --predicted:#b85c00; --adjusted:#6554c0; --day-ahead:#c2410c; --real-time:#2563eb; --focus:#075d45; --danger:#a63d40;
       font-family:Arial,"Microsoft YaHei",sans-serif;
     }
     * { box-sizing:border-box; }
     body { margin:0; min-width:320px; background:var(--page); color:var(--ink); }
     .layout { display:flex; min-height:100vh; }
-    .sidebar { width:232px; flex-shrink:0; background:#0a0c0b; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:18px 12px; position:sticky; top:0; height:100vh; }
+    .sidebar { width:232px; flex-shrink:0; background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:18px 12px; position:sticky; top:0; height:100vh; }
     .sidebar-brand { display:flex; align-items:center; gap:10px; padding:4px 10px 20px; font-size:15px; font-weight:800; letter-spacing:.02em; color:var(--ink); }
     .sidebar-brand .logo { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#2fbf8f,#8b7cf8); display:grid; place-items:center; color:#fff; font-size:16px; font-weight:700; }
     .sidebar-nav { display:grid; gap:3px; }
     .sidebar-item { display:flex; align-items:center; gap:10px; min-height:40px; padding:8px 12px; border:0; border-radius:9px; background:transparent; color:var(--muted); font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
-    .sidebar-item:hover { background:#131917; color:var(--ink); }
-    .sidebar-item.active { background:#1c2421; color:#fff; }
+    .sidebar-item:hover { background:#f1f4f2; color:var(--ink); }
+    .sidebar-item.active { background:#ece8ff; color:#493a9e; }
     .sidebar-foot { margin-top:auto; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:10px; }
     .sidebar-user { color:var(--muted); font-size:13px; padding:0 6px; line-height:1.6; }
     .sidebar-user strong { color:var(--ink); }
@@ -43,7 +43,7 @@
     button:hover { background:var(--surface2); }
     button:disabled { cursor:not-allowed; opacity:.55; }
     button.primary { border-color:var(--adjusted); background:var(--adjusted); color:#fff; }
-    button.active { border-color:var(--adjusted); background:#241f3d; color:#c4b8ff; }
+    button.active { border-color:var(--adjusted); background:#eeebff; color:#493a9e; }
     input:focus-visible,button:focus-visible,.hit-area:focus-visible { outline:3px solid color-mix(in srgb,var(--focus) 35%,transparent); outline-offset:2px; }
     .card { border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.08); overflow:hidden; }
     .chart-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:20px 24px 0; }
@@ -81,7 +81,7 @@
     .spread-legend { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:16px 0 10px; color:var(--muted); font-size:12px; }
     .spread-swatch { width:30px; height:14px; border:1px solid rgba(0,0,0,.08); border-radius:3px; }
     .spread-swatch.negative { background:#dc2626; }
-    .spread-swatch.zero { background:#232a27; }
+    .spread-swatch.zero { background:#f1f5f3; }
     .spread-swatch.positive { background:#16a34a; }
     .spread-swatch.decrease { background:#16a34a; }
     .spread-swatch.increase { background:#dc2626; }
@@ -104,7 +104,7 @@
     .strategy-summary-row td:first-child { font-weight:700; }
     .gly-tabs { display:flex; gap:8px; margin:0 0 18px; }
     .tab-btn { min-height:38px; border-radius:8px; padding:8px 16px; }
-    .tab-btn.active { border-color:var(--adjusted); background:#241f3d; color:#c4b8ff; }
+    .tab-btn.active { border-color:var(--adjusted); background:#eeebff; color:#493a9e; }
     .overview-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:22px 24px 0; }
     .overview-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .overview-status { min-height:20px; margin:0 0 10px; color:var(--muted); font-size:13px; }
@@ -119,7 +119,7 @@
     .overview-table.numeric-mode th,.overview-table.numeric-mode td { width:68px; }
     .overview-table.numeric-mode th:first-child,.overview-table.numeric-mode td:first-child { width:80px; min-width:80px; padding:9px 6px; text-align:center; }
     .overview-table .date-cell { cursor:pointer; }
-    .overview-table tr:hover td:first-child { background:#1a211e; }
+    .overview-table tr:hover td:first-child { background:#eef2f0; }
     .overview-table tr.row-selected td:first-child { background:var(--adjusted); color:#fff; font-weight:700; }
     .overview-table tr.row-selected td:not(:first-child) { box-shadow:inset 0 0 0 2px var(--adjusted); }
     .chart-shell { position:relative; min-height:480px; padding:8px 20px 12px; }
@@ -143,10 +143,10 @@
     .selection-box { fill:rgba(101,84,192,.13); stroke:var(--adjusted); stroke-width:1.5; stroke-dasharray:6 4; pointer-events:none; }
     .hit-area { fill:transparent; cursor:crosshair; }
     .crosshair { stroke:#82928b; stroke-width:1; stroke-dasharray:3 3; pointer-events:none; }
-    .tooltip { position:absolute; z-index:2; min-width:220px; padding:10px 12px; border-radius:8px; background:#222926; border:1px solid var(--line); color:#e8edeb; font-size:13px; line-height:1.65; pointer-events:none; transform:translate(-50%,calc(-100% - 14px)); box-shadow:0 10px 26px rgba(0,0,0,.5); }
+    .tooltip { position:absolute; z-index:2; min-width:220px; padding:10px 12px; border-radius:8px; background:#15201c; color:#fff; font-size:13px; line-height:1.65; pointer-events:none; transform:translate(-50%,calc(-100% - 14px)); box-shadow:0 10px 26px rgba(0,0,0,.5); }
     .tooltip-row { display:flex; justify-content:space-between; gap:18px; }
     .tooltip-note { color:#d6d0ff; font-size:11px; }
-    .status { position:absolute; inset:0; display:grid; place-items:center; padding:32px; background:rgba(11,13,12,.92); color:var(--muted); text-align:center; }
+    .status { position:absolute; inset:0; display:grid; place-items:center; padding:32px; background:rgba(255,255,255,.92); color:var(--muted); text-align:center; }
     .status.error,.save-status.error { color:var(--danger); }
     [hidden] { display:none !important; }
     .editor { margin:0 20px 20px; border:1px solid #3b3254; border-radius:12px; background:#171b1a; padding:18px; }
@@ -227,13 +227,13 @@
     .weather-col { flex:1; min-width:0; display:flex; flex-direction:column; }
     .weather-controls { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:6px; min-height:34px; }
     .weather-controls label { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); white-space:nowrap; }
-    .weather-controls input,.weather-controls select { padding:4px 8px; border:1px solid var(--line); border-radius:6px; font-size:13px; background:var(--surface); color:var(--ink); }
+    .weather-controls input,.weather-controls select { padding:4px 8px; border:1px solid var(--line); border-radius:6px; font-size:13px; background:#fff; color:#233; }
     .weather-status { min-height:18px; font-size:12px; color:var(--muted); margin:2px 0; }
     .weather-legend { display:flex; flex-wrap:wrap; gap:10px 14px; margin:2px 0 8px; font-size:12px; color:var(--muted); min-height:20px; align-items:center; }
     .weather-legend .wlegend-item { display:inline-flex; align-items:center; gap:5px; cursor:pointer; user-select:none; }
     .weather-legend .wlegend-item .wlegend-swatch { width:18px; height:4px; border-radius:2px; }
     .weather-legend .wlegend-item.off { opacity:.35; text-decoration:line-through; }
-    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:var(--surface); overflow-x:auto; flex:1; }
+    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:#fff; overflow-x:auto; flex:1; }
     #wchart-left,#wchart-right { min-width:760px; }
     #wchart-left { min-height:300px; }
     #wchart-right { min-height:300px; }
@@ -446,13 +446,13 @@
     function renderStrategyHeader(){const tr=document.createElement("tr"),dateTh=document.createElement("th");dateTh.scope="col";dateTh.textContent="日期";tr.append(dateTh);for(let hour=0;hour<24;hour++){const th=document.createElement("th");th.scope="col";th.textContent=`${hour}:00`;tr.append(th);}const totalTh=document.createElement("th");totalTh.scope="col";totalTh.className="strategy-total";totalTh.textContent="当日电费变化";tr.append(totalTh);strategyHeadRow.replaceChildren(tr);}
     function renderSpreadHeader(){const tr=document.createElement("tr"),dateTh=document.createElement("th");dateTh.scope="col";dateTh.textContent="日期";tr.append(dateTh);for(let hour=0;hour<24;hour++){const th=document.createElement("th");th.scope="col";th.textContent=`${hour}:00`;tr.append(th);}spreadHeadRow.replaceChildren(tr);}
     function setSpreadStatus(message,isError=false){spreadStatus.textContent=message;spreadStatus.classList.toggle("error",isError);}
-    function spreadCellStyle(value,maxAbs){if(value===null)return{background:"var(--surface2)",color:"#8a9690"};const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.25+intensity*.5;if(value>0)return{background:`rgba(22,163,74,${alpha})`,color:"#bbf7d0"};if(value<0)return{background:`rgba(220,38,38,${alpha})`,color:"#fecaca"};return{background:"#232a27",color:"#8a9690"};}
+    function spreadCellStyle(value,maxAbs){if(value===null)return{background:"#f8faf9",color:"#86938d"};const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.12+intensity*.68;if(value>0)return{background:`rgba(22,163,74,${alpha})`,color:intensity>.48?"#fff":"#14532d"};if(value<0)return{background:`rgba(220,38,38,${alpha})`,color:intensity>.48?"#fff":"#7f1d1d"};return{background:"#f1f5f3",color:"#52615b"};}
     async function fetchSpreadRows(start,end){const pageSize=1000,rows=[];for(let from=0;;from+=pageSize){const {data,error}=await sb.from("daily_curves").select("date,hour,day_ahead_price,real_time_price").gte("date",start).lte("date",end).order("date",{ascending:true}).order("hour",{ascending:true}).range(from,from+pageSize-1);if(error)throw new Error(error.message);rows.push(...data);if(data.length<pageSize)break;}return rows;}
     function renderSpread(rows){const byDate=new Map();rows.forEach(row=>{if(!byDate.has(row.date))byDate.set(row.date,Array(24).fill(null));const dayAhead=row.day_ahead_price===null?null:Number(row.day_ahead_price),realTime=row.real_time_price===null?null:Number(row.real_time_price);byDate.get(row.date)[Number(row.hour)]=dayAhead===null||realTime===null?null:realTime-dayAhead;});const values=[...byDate.values()].flat().filter(value=>value!==null),maxAbs=values.length?Math.max(...values.map(Math.abs)):1,fragment=document.createDocumentFragment();byDate.forEach((spreads,date)=>{const tr=document.createElement("tr"),dateCell=document.createElement("td");dateCell.textContent=date;tr.append(dateCell);spreads.forEach((value,hour)=>{const td=document.createElement("td"),style=spreadCellStyle(value,maxAbs);td.className="spread-cell";td.textContent=spreadNumeric?(value===null?"—":value.toFixed(2)):"";td.style.background=style.background;td.style.color=style.color;td.title=value===null?`${date} ${hour}:00 暂无完整电价`:`${date} ${hour}:00 价差 ${value.toFixed(2)} 元/MWh`;tr.append(td);});fragment.append(tr);});spreadBody.replaceChildren(fragment);setSpreadStatus(`已展示 ${byDate.size} 天；色阶按当前范围最大绝对价差 ${maxAbs.toFixed(2)} 元/MWh 归一化。`);}
     async function loadSpread(){const start=spreadStart.value,end=spreadEnd.value;if(!start||!end){setSpreadStatus("请选择完整的开始和结束日期。",true);return;}if(start>end){setSpreadStatus("开始日期不能晚于结束日期。",true);return;}spreadLoad.disabled=true;setSpreadStatus("正在加载价差数据…");try{spreadRows=await fetchSpreadRows(start,end);renderSpread(spreadRows);}catch(error){console.error(error);spreadRows=[];spreadBody.replaceChildren();setSpreadStatus(error.message||"价差数据加载失败。",true);}finally{spreadLoad.disabled=false;}}
     function toggleSpreadMode(){spreadNumeric=!spreadNumeric;spreadTable.classList.toggle("numeric-mode",spreadNumeric);spreadMode.textContent=spreadNumeric?"只显示色块":"显示数字";spreadMode.classList.toggle("active",spreadNumeric);if(spreadRows.length)renderSpread(spreadRows);}
     function setStrategyStatus(message,isError=false){strategyStatus.textContent=message;strategyStatus.classList.toggle("error",isError);}
-    function strategyCellStyle(value,maxAbs){const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.22+intensity*.42;if(value>0)return{background:`rgba(220,38,38,${alpha})`,color:"#fecaca"};if(value<0)return{background:`rgba(22,163,74,${alpha})`,color:"#bbf7d0"};return{background:"#232a27",color:"#8a9690"};}
+    function strategyCellStyle(value,maxAbs){const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.08+intensity*.4;if(value>0)return{background:`rgba(220,38,38,${alpha})`,color:"#7f1d1d"};if(value<0)return{background:`rgba(22,163,74,${alpha})`,color:"#14532d"};return{background:"#f1f5f3",color:"#52615b"};}
     async function fetchStrategyData(start,end){const pageSize=1000,baseRows=[],adjustmentRows=[];for(let from=0;;from+=pageSize){const {data,error}=await sb.from("daily_curves").select("date,hour,predicted_value,day_ahead_price,real_time_price").gte("date",start).lte("date",end).order("date",{ascending:true}).order("hour",{ascending:true}).range(from,from+pageSize-1);if(error)throw new Error(error.message);baseRows.push(...data);if(data.length<pageSize)break;}const target=activeViewingUsername();for(let from=0;;from+=pageSize){const {data,error}=await sb.from("user_adjustments").select("curve_date,hour,adjusted_value").eq("username",target).gte("curve_date",start).lte("curve_date",end).order("curve_date",{ascending:true}).order("hour",{ascending:true}).range(from,from+pageSize-1);if(error)throw new Error(error.message);adjustmentRows.push(...data);if(data.length<pageSize)break;}return{baseRows,adjustmentRows};}
     function renderStrategy(){const adjustments=new Map(strategyAdjustmentRows.map(row=>[`${row.curve_date}:${Number(row.hour)}`,Number(row.adjusted_value)])),byDate=new Map();strategyBaseRows.forEach(row=>{if(!byDate.has(row.date))byDate.set(row.date,Array(24).fill(0));const key=`${row.date}:${Number(row.hour)}`;if(!adjustments.has(key)){byDate.get(row.date)[Number(row.hour)]=0;return;}const predicted=row.predicted_value===null?null:Number(row.predicted_value),dayAhead=row.day_ahead_price===null?null:Number(row.day_ahead_price),realTime=row.real_time_price===null?null:Number(row.real_time_price),adjusted=adjustments.get(key);byDate.get(row.date)[Number(row.hour)]=predicted===null||dayAhead===null||realTime===null?0:(dayAhead-realTime)*(adjusted-predicted);});const values=[...byDate.values()].flat(),maxAbs=values.length?Math.max(...values.map(Math.abs)):1,hourTotals=Array(24).fill(0),fragment=document.createDocumentFragment();byDate.forEach(returns=>returns.forEach((v,h)=>hourTotals[h]+=v));const grandTotal=hourTotals.reduce((s,v)=>s+v,0),sumTr=document.createElement("tr");sumTr.className="strategy-summary-row";const sumDateCell=document.createElement("td");sumDateCell.textContent="全月汇总";sumDateCell.title=`整月电费变化合计 ${grandTotal.toFixed(2)} 元`;sumTr.append(sumDateCell);hourTotals.forEach((value,hour)=>{const td=document.createElement("td"),style=strategyCellStyle(value,maxAbs);td.className="spread-cell";td.textContent=strategyNumeric?value.toFixed(2):"";td.style.background=style.background;td.style.color=style.color;td.title=`全月 ${hour}:00 电费变化合计 ${value.toFixed(2)} 元`;sumTr.append(td);});const grandCell=document.createElement("td"),grandStyle=strategyCellStyle(grandTotal,Math.max(maxAbs,Math.abs(grandTotal)));grandCell.className="strategy-total";grandCell.textContent=`${grandTotal.toFixed(2)} 元`;grandCell.style.background=grandStyle.background;grandCell.style.color=grandStyle.color;grandCell.title=`整月电费变化合计 ${grandTotal.toFixed(2)} 元`;sumTr.append(grandCell);fragment.append(sumTr);byDate.forEach((returns,date)=>{const tr=document.createElement("tr"),dateCell=document.createElement("td");dateCell.textContent=date;tr.append(dateCell);returns.forEach((value,hour)=>{const td=document.createElement("td"),style=strategyCellStyle(value,maxAbs);td.className="spread-cell";td.textContent=strategyNumeric?value.toFixed(2):"";td.style.background=style.background;td.style.color=style.color;td.title=`${date} ${hour}:00 电费变化 ${value.toFixed(2)} 元`;tr.append(td);});const total=returns.reduce((sum,value)=>sum+value,0),totalCell=document.createElement("td"),totalStyle=strategyCellStyle(total,Math.max(maxAbs,Math.abs(total)));totalCell.className="strategy-total";totalCell.textContent=`${total.toFixed(2)} 元`;totalCell.style.background=totalStyle.background;totalCell.style.color=totalStyle.color;totalCell.title=`${date} 当日电费变化 ${total.toFixed(2)} 元`;tr.append(totalCell);fragment.append(tr);});strategyBody.replaceChildren(fragment);setStrategyStatus(`已展示 ${byDate.size} 天；首行为全月汇总；无账号调整的时段按 0 元计算，每日电费变化显示在最右列。`);}
     async function loadStrategy(){if(!strategyMonth.value){setStrategyStatus("请选择月份。",true);return;}const {start,end}=strategyMonthRange();strategyLoad.disabled=true;setStrategyStatus("正在加载整月电费变化…");try{const data=await fetchStrategyData(start,end);strategyBaseRows=data.baseRows;strategyAdjustmentRows=data.adjustmentRows;renderStrategy();}catch(error){console.error(error);strategyBaseRows=[];strategyAdjustmentRows=[];strategyBody.replaceChildren();setStrategyStatus(error.message||"电费变化加载失败。",true);}finally{strategyLoad.disabled=false;}}
