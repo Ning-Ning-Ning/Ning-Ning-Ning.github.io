@@ -240,10 +240,10 @@
     .weather-legend .wlegend-item { display:inline-flex; align-items:center; gap:5px; cursor:pointer; user-select:none; }
     .weather-legend .wlegend-item .wlegend-swatch { width:18px; height:4px; border-radius:2px; }
     .weather-legend .wlegend-item.off { opacity:.35; text-decoration:line-through; }
-    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:#fff; flex:1; }
+    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:#fff; height:360px; }
     #wchart-left,#wchart-right { width:100%; height:auto; }
-    #wchart-left { min-height:0; }
-    #wchart-right { min-height:0; }
+    #wchart-left { width:100%; height:100%; display:block; }
+    #wchart-right { width:100%; height:100%; display:block; }
     .w-curve { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
     @media (max-width:1100px){ .weather-panel{flex-direction:column;} }
   </style>
