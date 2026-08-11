@@ -7,29 +7,45 @@
   <title>模拟交易：售电公司日前电量申报</title>
   <style>
     :root {
-      color-scheme: light;
-      --page:#f4f7f6; --surface:#fff; --ink:#15201c; --muted:#66736e; --grid:#dfe7e3;
-      --actual:#087f5b; --predicted:#b85c00; --adjusted:#6554c0; --day-ahead:#c2410c; --real-time:#2563eb; --focus:#075d45; --danger:#a63d40;
+      color-scheme: dark;
+      --page:#0b0d0c; --surface:#151a18; --surface2:#1b211e; --ink:#e8edeb; --muted:#8a9690; --grid:#232a27; --line:#262d2a;
+      --actual:#2fbf8f; --predicted:#f0a04b; --adjusted:#8b7cf8; --day-ahead:#f97316; --real-time:#60a5fa; --focus:#2fbf8f; --danger:#f87171;
       font-family:Arial,"Microsoft YaHei",sans-serif;
     }
     * { box-sizing:border-box; }
     body { margin:0; min-width:320px; background:var(--page); color:var(--ink); }
-    main { width:min(1120px,calc(100% - 32px)); margin:40px auto; }
+    .layout { display:flex; min-height:100vh; }
+    .sidebar { width:232px; flex-shrink:0; background:#0a0c0b; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:18px 12px; position:sticky; top:0; height:100vh; }
+    .sidebar-brand { display:flex; align-items:center; gap:10px; padding:4px 10px 20px; font-size:15px; font-weight:800; letter-spacing:.02em; color:var(--ink); }
+    .sidebar-brand .logo { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#2fbf8f,#8b7cf8); display:grid; place-items:center; color:#fff; font-size:16px; font-weight:700; }
+    .sidebar-nav { display:grid; gap:3px; }
+    .sidebar-item { display:flex; align-items:center; gap:10px; min-height:40px; padding:8px 12px; border:0; border-radius:9px; background:transparent; color:var(--muted); font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
+    .sidebar-item:hover { background:#131917; color:var(--ink); }
+    .sidebar-item.active { background:#1c2421; color:#fff; }
+    .sidebar-foot { margin-top:auto; border-top:1px solid var(--line); padding-top:14px; display:grid; gap:10px; }
+    .sidebar-user { color:var(--muted); font-size:13px; padding:0 6px; line-height:1.6; }
+    .sidebar-user strong { color:var(--ink); }
+    .sidebar-admin { padding:0 6px; }
+    .sidebar-admin select { width:100%; min-height:34px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); padding:4px 8px; font:inherit; }
+    .sidebar-foot button { min-height:36px; }
+    .content { flex:1; min-width:0; }
+    .content main { width:min(1120px,calc(100% - 32px)); margin:32px auto; }
+    .page-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:20px; }
     .heading { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:20px; }
     .eyebrow { margin:0 0 8px; color:var(--actual); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
     h1 { margin:0; font-size:clamp(26px,4vw,42px); line-height:1.1; }
     h2 { margin:0; font-size:19px; }
     .subtitle { margin:10px 0 0; color:var(--muted); }
     .date-control { display:grid; gap:7px; min-width:190px; color:var(--muted); font-size:13px; font-weight:700; }
-    input[type="date"],input[type="number"] { min-height:42px; border:1px solid #c8d4ce; border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
+    input[type="date"],input[type="number"] { min-height:42px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
     input[type="date"] { width:100%; }
-    button { min-height:40px; border:1px solid #b8c6bf; border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 14px; font:inherit; font-weight:700; cursor:pointer; }
-    button:hover { background:#f4f7f6; }
+    button { min-height:40px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 14px; font:inherit; font-weight:700; cursor:pointer; }
+    button:hover { background:var(--surface2); }
     button:disabled { cursor:not-allowed; opacity:.55; }
     button.primary { border-color:var(--adjusted); background:var(--adjusted); color:#fff; }
-    button.active { border-color:var(--adjusted); background:#eeebff; color:#493a9e; }
+    button.active { border-color:var(--adjusted); background:#241f3d; color:#c4b8ff; }
     input:focus-visible,button:focus-visible,.hit-area:focus-visible { outline:3px solid color-mix(in srgb,var(--focus) 35%,transparent); outline-offset:2px; }
-    .card { border:1px solid #e0e7e3; border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.08); overflow:hidden; }
+    .card { border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.08); overflow:hidden; }
     .chart-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:20px 24px 0; }
     .chart-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .metric-value { display:block; margin-top:5px; font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
@@ -43,7 +59,7 @@
     .legend-line.adjusted { border-color:var(--adjusted); border-top-style:dashed; }
     .legend-line.day-ahead { border-color:var(--day-ahead); }
     .legend-line.real-time { border-color:var(--real-time); }
-    .price-section { border-top:1px solid #e7ece9; padding-bottom:8px; }
+    .price-section { border-top:1px solid var(--line); padding-bottom:8px; }
     .price-section-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:20px 24px 0; }
     .price-section-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .price-status { min-height:18px; margin:8px 24px 0; color:var(--muted); font-size:13px; }
@@ -56,7 +72,7 @@
     .price-point { fill:var(--surface); stroke-width:2; pointer-events:none; }
     .price-point.day-ahead { stroke:var(--day-ahead); }
     .price-point.real-time { stroke:var(--real-time); }
-    .spread-section { border-top:1px solid #e7ece9; padding:22px 24px 24px; }
+    .spread-section { border-top:1px solid var(--line); padding:22px 24px 24px; }
     .spread-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:16px; }
     .spread-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .spread-controls { display:flex; align-items:end; flex-wrap:wrap; gap:10px; }
@@ -65,30 +81,30 @@
     .spread-legend { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:16px 0 10px; color:var(--muted); font-size:12px; }
     .spread-swatch { width:30px; height:14px; border:1px solid rgba(0,0,0,.08); border-radius:3px; }
     .spread-swatch.negative { background:#dc2626; }
-    .spread-swatch.zero { background:#f1f5f3; }
+    .spread-swatch.zero { background:#232a27; }
     .spread-swatch.positive { background:#16a34a; }
     .spread-swatch.decrease { background:#16a34a; }
     .spread-swatch.increase { background:#dc2626; }
     .spread-status { min-height:20px; margin:0 0 10px; color:var(--muted); font-size:13px; }
     .spread-status.error { color:var(--danger); }
-    .spread-table-wrap { overflow-x:auto; overflow-y:visible; border:1px solid #dfe7e3; border-radius:10px; }
+    .spread-table-wrap { overflow-x:auto; overflow-y:visible; border:1px solid var(--line); border-radius:10px; }
     .spread-table { min-width:920px; table-layout:fixed; border-collapse:separate; border-spacing:3px; padding:3px; }
     .spread-table th,.spread-table td { width:30px; height:24px; padding:0; border:0; border-radius:3px; text-align:center; font-size:0; }
     .spread-table th { height:28px; color:var(--muted); font-size:10px; font-weight:700; }
-    .spread-table th:first-child,.spread-table td:first-child { position:sticky; left:0; z-index:2; width:112px; min-width:112px; padding:0 8px; background:#f8faf9; border-radius:0; text-align:left; font-size:11px; font-weight:700; }
+    .spread-table th:first-child,.spread-table td:first-child { position:sticky; left:0; z-index:2; width:112px; min-width:112px; padding:0 8px; background:var(--surface2); border-radius:0; text-align:left; font-size:11px; font-weight:700; }
     .spread-table thead th { top:0; z-index:3; }
     .spread-table thead th:first-child { z-index:4; }
     .spread-cell { font-variant-numeric:tabular-nums; font-weight:700; }
     .spread-table.numeric-mode { min-width:1840px; border-collapse:collapse; border-spacing:0; padding:0; }
-    .spread-table.numeric-mode th,.spread-table.numeric-mode td { width:70px; height:auto; padding:9px 6px; border:1px solid #edf1ef; border-radius:0; font-size:11px; }
+    .spread-table.numeric-mode th,.spread-table.numeric-mode td { width:70px; height:auto; padding:9px 6px; border:1px solid var(--line); border-radius:0; font-size:11px; }
     .spread-table.numeric-mode th:first-child,.spread-table.numeric-mode td:first-child { width:112px; min-width:112px; padding:9px 8px; }
-    .strategy-total { width:100px !important; min-width:100px; padding:0 8px !important; border-left:2px solid #c8d4ce !important; font-size:11px !important; font-weight:700; }
+    .strategy-total { width:100px !important; min-width:100px; padding:0 8px !important; border-left:2px solid var(--line) !important; font-size:11px !important; font-weight:700; }
     .numeric-mode .strategy-total { padding:9px 8px !important; }
-    .strategy-summary-row td { border-top:2px solid #9eaaa4 !important; }
+    .strategy-summary-row td { border-top:2px solid var(--muted) !important; }
     .strategy-summary-row td:first-child { font-weight:700; }
     .gly-tabs { display:flex; gap:8px; margin:0 0 18px; }
     .tab-btn { min-height:38px; border-radius:8px; padding:8px 16px; }
-    .tab-btn.active { border-color:var(--adjusted); background:#eeebff; color:#493a9e; }
+    .tab-btn.active { border-color:var(--adjusted); background:#241f3d; color:#c4b8ff; }
     .overview-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:22px 24px 0; }
     .overview-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .overview-status { min-height:20px; margin:0 0 10px; color:var(--muted); font-size:13px; }
@@ -103,7 +119,7 @@
     .overview-table.numeric-mode th,.overview-table.numeric-mode td { width:68px; }
     .overview-table.numeric-mode th:first-child,.overview-table.numeric-mode td:first-child { width:80px; min-width:80px; padding:9px 6px; text-align:center; }
     .overview-table .date-cell { cursor:pointer; }
-    .overview-table tr:hover td:first-child { background:#eef2f0; }
+    .overview-table tr:hover td:first-child { background:#1a211e; }
     .overview-table tr.row-selected td:first-child { background:var(--adjusted); color:#fff; font-weight:700; }
     .overview-table tr.row-selected td:not(:first-child) { box-shadow:inset 0 0 0 2px var(--adjusted); }
     .chart-shell { position:relative; min-height:480px; padding:8px 20px 12px; }
@@ -111,7 +127,7 @@
     .chart-shell.selecting #chart { touch-action:none; cursor:crosshair; }
     #chart { display:block; width:100%; height:auto; min-height:380px; }
     .grid { stroke:var(--grid); stroke-width:1; }
-    .axis { stroke:#9eaaa4; stroke-width:1; }
+    .axis { stroke:var(--muted); stroke-width:1; }
     .tick { fill:var(--muted); font-size:12px; }
     .x-tick { font-size:9px; }
     .axis-title { fill:var(--muted); font-size:13px; font-weight:700; }
@@ -127,57 +143,59 @@
     .selection-box { fill:rgba(101,84,192,.13); stroke:var(--adjusted); stroke-width:1.5; stroke-dasharray:6 4; pointer-events:none; }
     .hit-area { fill:transparent; cursor:crosshair; }
     .crosshair { stroke:#82928b; stroke-width:1; stroke-dasharray:3 3; pointer-events:none; }
-    .tooltip { position:absolute; z-index:2; min-width:220px; padding:10px 12px; border-radius:8px; background:#15201c; color:#fff; font-size:13px; line-height:1.65; pointer-events:none; transform:translate(-50%,calc(-100% - 14px)); box-shadow:0 7px 20px rgba(0,0,0,.2); }
+    .tooltip { position:absolute; z-index:2; min-width:220px; padding:10px 12px; border-radius:8px; background:#222926; border:1px solid var(--line); color:#e8edeb; font-size:13px; line-height:1.65; pointer-events:none; transform:translate(-50%,calc(-100% - 14px)); box-shadow:0 10px 26px rgba(0,0,0,.5); }
     .tooltip-row { display:flex; justify-content:space-between; gap:18px; }
     .tooltip-note { color:#d6d0ff; font-size:11px; }
-    .status { position:absolute; inset:0; display:grid; place-items:center; padding:32px; background:rgba(255,255,255,.92); color:var(--muted); text-align:center; }
+    .status { position:absolute; inset:0; display:grid; place-items:center; padding:32px; background:rgba(11,13,12,.92); color:var(--muted); text-align:center; }
     .status.error,.save-status.error { color:var(--danger); }
     [hidden] { display:none !important; }
-    .editor { margin:0 20px 20px; border:1px solid #dcd6ff; border-radius:12px; background:#faf9ff; padding:18px; }
+    .editor { margin:0 20px 20px; border:1px solid #3b3254; border-radius:12px; background:#171b1a; padding:18px; }
     .editor-head,.editor-actions,.batch-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
     .editor-warning { margin:8px 0 16px; color:var(--danger); font-size:13px; }
-    .batch-row { justify-content:flex-start; border-radius:9px; background:#f1efff; padding:12px; }
+    .batch-row { justify-content:flex-start; border-radius:9px; background:#211d30; padding:12px; }
     .batch-row input { width:180px; }
     .point-inputs { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin:16px 0; }
     .point-input { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:700; }
     .editor-actions { justify-content:flex-end; }
     .save-status { margin-right:auto; color:var(--muted); font-size:13px; }
-    details { border-top:1px solid #e7ece9; }
+    details { border-top:1px solid var(--line); }
     summary { cursor:pointer; padding:16px 24px; color:var(--ink); font-weight:700; }
     .table-wrap { max-height:390px; overflow:auto; }
     table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; white-space:nowrap; }
-    th,td { padding:11px 20px; border-top:1px solid #edf1ef; text-align:right; }
+    th,td { padding:11px 20px; border-top:1px solid var(--line); text-align:right; }
     th:first-child,td:first-child { text-align:left; }
-    th { position:sticky; top:0; z-index:1; background:#f8faf9; color:var(--muted); font-size:12px; }
+    th { position:sticky; top:0; z-index:1; background:var(--surface2); color:var(--muted); font-size:12px; }
     .fallback { color:var(--adjusted); font-size:11px; }
     .select-cell { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
-    .mode-selector { display:flex; gap:0; margin:10px 0 16px; border:1px solid #dcd6ff; border-radius:8px; overflow:hidden; }
+    .mode-selector { display:flex; gap:0; margin:10px 0 16px; border:1px solid #3b3254; border-radius:8px; overflow:hidden; }
     .mode-btn { flex:1; min-height:38px; border:none; border-radius:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s,color .15s; }
-    .mode-btn:hover { background:#f1efff; }
+    .mode-btn:hover { background:#211d30; }
     .mode-btn.active { background:var(--adjusted); color:#fff; }
-    .mode-btn + .mode-btn { border-left:1px solid #dcd6ff; }
+    .mode-btn + .mode-btn { border-left:1px solid #3b3254; }
     .ratio-info { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:12px; color:var(--muted); }
     .ratio-info input { width:80px; }
     .ratio-preview { font-weight:700; color:var(--adjusted); white-space:nowrap; }
     .ratio-disabled { color:var(--danger); font-size:12px; }
     .point-inputs.ratio-mode { grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
     .auth-overlay { position:fixed; inset:0; z-index:10; display:grid; place-items:center; padding:20px; background:var(--page); }
-    .auth-card { width:min(400px,100%); border:1px solid #e0e7e3; border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.12); padding:28px; }
+    .auth-card { width:min(400px,100%); border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:0 14px 40px rgba(29,51,43,.12); padding:28px; }
     .auth-card h2 { margin:0 0 4px; }
     .auth-subtitle { margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.6; }
     .auth-form { display:grid; gap:12px; }
     .auth-form label { display:grid; gap:6px; color:var(--muted); font-size:13px; font-weight:700; }
-    .auth-form input { min-height:42px; border:1px solid #c8d4ce; border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
+    .auth-form input { min-height:42px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
     .auth-hint { font-weight:400; }
     .auth-error { margin:0; min-height:18px; color:var(--danger); font-size:13px; }
     .auth-submit { border-color:var(--actual); background:var(--actual); color:#fff; }
-    .header-right { display:grid; gap:10px; justify-items:end; }
-    .user-chip { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:10px; color:var(--muted); font-size:13px; }
-    .user-chip strong { color:var(--ink); }
-    .user-chip button { min-height:34px; padding:5px 10px; font-size:12px; }
-    .admin-switch { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; font-weight:700; }
-    .admin-switch select { min-height:34px; border:1px solid #c8d4ce; border-radius:8px; background:var(--surface); color:var(--ink); padding:4px 8px; font:inherit; }
+    .sidebar-foot button { min-height:36px; }
     @media (max-width:760px) {
+      .layout { flex-direction:column; }
+      .sidebar { width:100%; height:auto; position:static; flex-direction:row; align-items:center; padding:10px 12px; gap:8px; }
+      .sidebar-brand { padding:0; }
+      .sidebar-nav { display:flex; gap:6px; margin-left:auto; }
+      .sidebar-item { min-height:34px; padding:6px 10px; }
+      .sidebar-foot { margin-top:0; margin-left:auto; border-top:0; padding-top:0; display:flex; align-items:center; gap:8px; }
+      .sidebar-user,.sidebar-admin { display:none; }
       main { width:min(100% - 20px,1120px); margin:22px auto; }
       .heading { align-items:stretch; flex-direction:column; }
       .date-control { width:100%; }
@@ -209,13 +227,13 @@
     .weather-col { flex:1; min-width:0; display:flex; flex-direction:column; }
     .weather-controls { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:6px; min-height:34px; }
     .weather-controls label { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); white-space:nowrap; }
-    .weather-controls input,.weather-controls select { padding:4px 8px; border:1px solid #dfe7e3; border-radius:6px; font-size:13px; background:#fff; color:#233; }
+    .weather-controls input,.weather-controls select { padding:4px 8px; border:1px solid var(--line); border-radius:6px; font-size:13px; background:var(--surface); color:var(--ink); }
     .weather-status { min-height:18px; font-size:12px; color:var(--muted); margin:2px 0; }
     .weather-legend { display:flex; flex-wrap:wrap; gap:10px 14px; margin:2px 0 8px; font-size:12px; color:var(--muted); min-height:20px; align-items:center; }
     .weather-legend .wlegend-item { display:inline-flex; align-items:center; gap:5px; cursor:pointer; user-select:none; }
     .weather-legend .wlegend-item .wlegend-swatch { width:18px; height:4px; border-radius:2px; }
     .weather-legend .wlegend-item.off { opacity:.35; text-decoration:line-through; }
-    .weather-chart-shell { border:1px solid #dfe7e3; border-radius:10px; padding:6px 12px 10px; background:#fff; overflow-x:auto; flex:1; }
+    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:var(--surface); overflow-x:auto; flex:1; }
     #wchart-left,#wchart-right { min-width:760px; }
     #wchart-left { min-height:300px; }
     #wchart-right { min-height:300px; }
@@ -236,20 +254,24 @@
       <p class="auth-subtitle auth-hint" style="margin:14px 0 0">如长时间停留在此页，请确认网络可访问 cdn.jsdelivr.net 与 supabase.co。</p>
     </div>
   </div>
-  <main>
-    <header class="heading">
-      <div><p class="eyebrow">Simulated trading · Day-ahead declaration</p><h1>模拟交易：售电公司日前电量申报</h1><p class="subtitle">日前电量申报模拟 · 24 个时段</p></div>
-      <div class="header-right">
-        <div class="user-chip" id="user-chip" hidden>
-          <label class="admin-switch" id="admin-switch-wrap" hidden for="account-switch">查看账号<select id="account-switch"></select></label>
-          <span>当前账号：<strong id="user-email"></strong></span><button id="logout-btn" type="button">退出登录</button>
-        </div>
-      </div>
-    </header>
-    <nav class="gly-tabs" id="gly-tabs" hidden aria-label="页面切换">
-      <button class="tab-btn active" id="tab-declaration" type="button">日前申报</button>
-      <button class="tab-btn" id="tab-overview" type="button">全员总览</button>
+  <div class="layout" id="app-layout" hidden>
+  <aside class="sidebar">
+    <div class="sidebar-brand"><span class="logo">⚡</span>售电申报</div>
+    <nav class="sidebar-nav" id="gly-tabs" aria-label="页面切换">
+      <button class="sidebar-item active" id="tab-declaration" type="button">📊 日前申报</button>
+      <button class="sidebar-item" id="tab-overview" type="button">👥 全员总览</button>
     </nav>
+    <div class="sidebar-foot" id="user-chip" hidden>
+      <div class="sidebar-user">当前账号：<strong id="user-email"></strong></div>
+      <div class="sidebar-admin" id="admin-switch-wrap" hidden>查看账号<select id="account-switch"></select></div>
+      <button id="logout-btn" type="button">退出登录</button>
+    </div>
+  </aside>
+  <div class="content">
+  <main>
+    <header class="page-head">
+      <div><p class="eyebrow">Simulated trading · Day-ahead declaration</p><h1>模拟交易：售电公司日前电量申报</h1><p class="subtitle">日前电量申报模拟 · 24 个时段</p></div>
+    </header>
     <div id="page-declaration">
     <section class="card" aria-labelledby="consumption-title">
       <div class="chart-head">
@@ -376,6 +398,8 @@
       </div>
     </section>
   </main>
+  </div>
+  </div>
   <script>
     "use strict";
     const SUPABASE_URL="https://kputrrbbcmxbnhwhxvoo.supabase.co";
@@ -422,13 +446,13 @@
     function renderStrategyHeader(){const tr=document.createElement("tr"),dateTh=document.createElement("th");dateTh.scope="col";dateTh.textContent="日期";tr.append(dateTh);for(let hour=0;hour<24;hour++){const th=document.createElement("th");th.scope="col";th.textContent=`${hour}:00`;tr.append(th);}const totalTh=document.createElement("th");totalTh.scope="col";totalTh.className="strategy-total";totalTh.textContent="当日电费变化";tr.append(totalTh);strategyHeadRow.replaceChildren(tr);}
     function renderSpreadHeader(){const tr=document.createElement("tr"),dateTh=document.createElement("th");dateTh.scope="col";dateTh.textContent="日期";tr.append(dateTh);for(let hour=0;hour<24;hour++){const th=document.createElement("th");th.scope="col";th.textContent=`${hour}:00`;tr.append(th);}spreadHeadRow.replaceChildren(tr);}
     function setSpreadStatus(message,isError=false){spreadStatus.textContent=message;spreadStatus.classList.toggle("error",isError);}
-    function spreadCellStyle(value,maxAbs){if(value===null)return{background:"#f8faf9",color:"#86938d"};const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.12+intensity*.68;if(value>0)return{background:`rgba(22,163,74,${alpha})`,color:intensity>.48?"#fff":"#14532d"};if(value<0)return{background:`rgba(220,38,38,${alpha})`,color:intensity>.48?"#fff":"#7f1d1d"};return{background:"#f1f5f3",color:"#52615b"};}
+    function spreadCellStyle(value,maxAbs){if(value===null)return{background:"var(--surface2)",color:"#8a9690"};const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.25+intensity*.5;if(value>0)return{background:`rgba(22,163,74,${alpha})`,color:"#bbf7d0"};if(value<0)return{background:`rgba(220,38,38,${alpha})`,color:"#fecaca"};return{background:"#232a27",color:"#8a9690"};}
     async function fetchSpreadRows(start,end){const pageSize=1000,rows=[];for(let from=0;;from+=pageSize){const {data,error}=await sb.from("daily_curves").select("date,hour,day_ahead_price,real_time_price").gte("date",start).lte("date",end).order("date",{ascending:true}).order("hour",{ascending:true}).range(from,from+pageSize-1);if(error)throw new Error(error.message);rows.push(...data);if(data.length<pageSize)break;}return rows;}
     function renderSpread(rows){const byDate=new Map();rows.forEach(row=>{if(!byDate.has(row.date))byDate.set(row.date,Array(24).fill(null));const dayAhead=row.day_ahead_price===null?null:Number(row.day_ahead_price),realTime=row.real_time_price===null?null:Number(row.real_time_price);byDate.get(row.date)[Number(row.hour)]=dayAhead===null||realTime===null?null:realTime-dayAhead;});const values=[...byDate.values()].flat().filter(value=>value!==null),maxAbs=values.length?Math.max(...values.map(Math.abs)):1,fragment=document.createDocumentFragment();byDate.forEach((spreads,date)=>{const tr=document.createElement("tr"),dateCell=document.createElement("td");dateCell.textContent=date;tr.append(dateCell);spreads.forEach((value,hour)=>{const td=document.createElement("td"),style=spreadCellStyle(value,maxAbs);td.className="spread-cell";td.textContent=spreadNumeric?(value===null?"—":value.toFixed(2)):"";td.style.background=style.background;td.style.color=style.color;td.title=value===null?`${date} ${hour}:00 暂无完整电价`:`${date} ${hour}:00 价差 ${value.toFixed(2)} 元/MWh`;tr.append(td);});fragment.append(tr);});spreadBody.replaceChildren(fragment);setSpreadStatus(`已展示 ${byDate.size} 天；色阶按当前范围最大绝对价差 ${maxAbs.toFixed(2)} 元/MWh 归一化。`);}
     async function loadSpread(){const start=spreadStart.value,end=spreadEnd.value;if(!start||!end){setSpreadStatus("请选择完整的开始和结束日期。",true);return;}if(start>end){setSpreadStatus("开始日期不能晚于结束日期。",true);return;}spreadLoad.disabled=true;setSpreadStatus("正在加载价差数据…");try{spreadRows=await fetchSpreadRows(start,end);renderSpread(spreadRows);}catch(error){console.error(error);spreadRows=[];spreadBody.replaceChildren();setSpreadStatus(error.message||"价差数据加载失败。",true);}finally{spreadLoad.disabled=false;}}
     function toggleSpreadMode(){spreadNumeric=!spreadNumeric;spreadTable.classList.toggle("numeric-mode",spreadNumeric);spreadMode.textContent=spreadNumeric?"只显示色块":"显示数字";spreadMode.classList.toggle("active",spreadNumeric);if(spreadRows.length)renderSpread(spreadRows);}
     function setStrategyStatus(message,isError=false){strategyStatus.textContent=message;strategyStatus.classList.toggle("error",isError);}
-    function strategyCellStyle(value,maxAbs){const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.08+intensity*.4;if(value>0)return{background:`rgba(220,38,38,${alpha})`,color:"#7f1d1d"};if(value<0)return{background:`rgba(22,163,74,${alpha})`,color:"#14532d"};return{background:"#f1f5f3",color:"#52615b"};}
+    function strategyCellStyle(value,maxAbs){const intensity=Math.min(Math.abs(value)/Math.max(maxAbs,1),1),alpha=.22+intensity*.42;if(value>0)return{background:`rgba(220,38,38,${alpha})`,color:"#fecaca"};if(value<0)return{background:`rgba(22,163,74,${alpha})`,color:"#bbf7d0"};return{background:"#232a27",color:"#8a9690"};}
     async function fetchStrategyData(start,end){const pageSize=1000,baseRows=[],adjustmentRows=[];for(let from=0;;from+=pageSize){const {data,error}=await sb.from("daily_curves").select("date,hour,predicted_value,day_ahead_price,real_time_price").gte("date",start).lte("date",end).order("date",{ascending:true}).order("hour",{ascending:true}).range(from,from+pageSize-1);if(error)throw new Error(error.message);baseRows.push(...data);if(data.length<pageSize)break;}const target=activeViewingUsername();for(let from=0;;from+=pageSize){const {data,error}=await sb.from("user_adjustments").select("curve_date,hour,adjusted_value").eq("username",target).gte("curve_date",start).lte("curve_date",end).order("curve_date",{ascending:true}).order("hour",{ascending:true}).range(from,from+pageSize-1);if(error)throw new Error(error.message);adjustmentRows.push(...data);if(data.length<pageSize)break;}return{baseRows,adjustmentRows};}
     function renderStrategy(){const adjustments=new Map(strategyAdjustmentRows.map(row=>[`${row.curve_date}:${Number(row.hour)}`,Number(row.adjusted_value)])),byDate=new Map();strategyBaseRows.forEach(row=>{if(!byDate.has(row.date))byDate.set(row.date,Array(24).fill(0));const key=`${row.date}:${Number(row.hour)}`;if(!adjustments.has(key)){byDate.get(row.date)[Number(row.hour)]=0;return;}const predicted=row.predicted_value===null?null:Number(row.predicted_value),dayAhead=row.day_ahead_price===null?null:Number(row.day_ahead_price),realTime=row.real_time_price===null?null:Number(row.real_time_price),adjusted=adjustments.get(key);byDate.get(row.date)[Number(row.hour)]=predicted===null||dayAhead===null||realTime===null?0:(dayAhead-realTime)*(adjusted-predicted);});const values=[...byDate.values()].flat(),maxAbs=values.length?Math.max(...values.map(Math.abs)):1,hourTotals=Array(24).fill(0),fragment=document.createDocumentFragment();byDate.forEach(returns=>returns.forEach((v,h)=>hourTotals[h]+=v));const grandTotal=hourTotals.reduce((s,v)=>s+v,0),sumTr=document.createElement("tr");sumTr.className="strategy-summary-row";const sumDateCell=document.createElement("td");sumDateCell.textContent="全月汇总";sumDateCell.title=`整月电费变化合计 ${grandTotal.toFixed(2)} 元`;sumTr.append(sumDateCell);hourTotals.forEach((value,hour)=>{const td=document.createElement("td"),style=strategyCellStyle(value,maxAbs);td.className="spread-cell";td.textContent=strategyNumeric?value.toFixed(2):"";td.style.background=style.background;td.style.color=style.color;td.title=`全月 ${hour}:00 电费变化合计 ${value.toFixed(2)} 元`;sumTr.append(td);});const grandCell=document.createElement("td"),grandStyle=strategyCellStyle(grandTotal,Math.max(maxAbs,Math.abs(grandTotal)));grandCell.className="strategy-total";grandCell.textContent=`${grandTotal.toFixed(2)} 元`;grandCell.style.background=grandStyle.background;grandCell.style.color=grandStyle.color;grandCell.title=`整月电费变化合计 ${grandTotal.toFixed(2)} 元`;sumTr.append(grandCell);fragment.append(sumTr);byDate.forEach((returns,date)=>{const tr=document.createElement("tr"),dateCell=document.createElement("td");dateCell.textContent=date;tr.append(dateCell);returns.forEach((value,hour)=>{const td=document.createElement("td"),style=strategyCellStyle(value,maxAbs);td.className="spread-cell";td.textContent=strategyNumeric?value.toFixed(2):"";td.style.background=style.background;td.style.color=style.color;td.title=`${date} ${hour}:00 电费变化 ${value.toFixed(2)} 元`;tr.append(td);});const total=returns.reduce((sum,value)=>sum+value,0),totalCell=document.createElement("td"),totalStyle=strategyCellStyle(total,Math.max(maxAbs,Math.abs(total)));totalCell.className="strategy-total";totalCell.textContent=`${total.toFixed(2)} 元`;totalCell.style.background=totalStyle.background;totalCell.style.color=totalStyle.color;totalCell.title=`${date} 当日电费变化 ${total.toFixed(2)} 元`;tr.append(totalCell);fragment.append(tr);});strategyBody.replaceChildren(fragment);setStrategyStatus(`已展示 ${byDate.size} 天；首行为全月汇总；无账号调整的时段按 0 元计算，每日电费变化显示在最右列。`);}
     async function loadStrategy(){if(!strategyMonth.value){setStrategyStatus("请选择月份。",true);return;}const {start,end}=strategyMonthRange();strategyLoad.disabled=true;setStrategyStatus("正在加载整月电费变化…");try{const data=await fetchStrategyData(start,end);strategyBaseRows=data.baseRows;strategyAdjustmentRows=data.adjustmentRows;renderStrategy();}catch(error){console.error(error);strategyBaseRows=[];strategyAdjustmentRows=[];strategyBody.replaceChildren();setStrategyStatus(error.message||"电费变化加载失败。",true);}finally{strategyLoad.disabled=false;}}
@@ -485,7 +509,7 @@
     function updateReadOnlyUI(){const me=normalizeUsername(displayName(currentUser)),admin=me===ADMIN_USERNAME,editableStart=localTomorrow(),editableEnd=addDays(editableStart,4),dateLocked=!admin&&(datePicker.value<editableStart||datePicker.value>editableEnd),readonly=isReadOnlyView()||dateLocked;if(readonly&&selectionMode)setSelectionMode(false);selectionToggle.disabled=readonly;if(readonly)clearSelection(false);renderTableChecks();document.querySelectorAll("#data-body input[type=checkbox]").forEach(box=>{box.disabled=readonly||(currentRows[Number(box.dataset.hour)]?.adjusted===null);});const note=document.querySelector("#selection-note");if(isReadOnlyView())note.textContent="管理员查看模式：只能查看该账号数据，不可编辑。";else if(dateLocked)note.textContent=`仅可调整明天起 5 天（${editableStart} 至 ${editableEnd}）的用电量，其他日期只读。`;else note.textContent="开启后拖动画框；只会选中调整后用电量点。";}
     function translateAuthError(message){if(/invalid login credentials/i.test(message))return"该用户名不存在，或账号未开通。";if(/rate limit/i.test(message))return"操作过于频繁，请稍后再试。";if(/network|fetch/i.test(message))return"网络异常，请稍后再试。";return message;}
     function fillAccountSwitch(){accountSwitch.replaceChildren();FIXED_ACCOUNTS.forEach(name=>{const opt=document.createElement("option");opt.value=name;opt.textContent=name===ADMIN_USERNAME?"管理员":name;accountSwitch.append(opt);});accountSwitch.value=displayName(currentUser);}
-    function onSignedIn(session){currentUser=session.user;authOverlay.hidden=true;userChip.hidden=false;userEmail.textContent=displayName(session.user)===ADMIN_USERNAME?"***":displayName(session.user);if(isAdminUser()){accountSwitchWrap.hidden=false;fillAccountSwitch();}else{accountSwitchWrap.hidden=true;}glyTabs.hidden=false;if(!booted){booted=true;initialize();}}
+    function onSignedIn(session){currentUser=session.user;authOverlay.hidden=true;userChip.hidden=false;userEmail.textContent=displayName(session.user)===ADMIN_USERNAME?"***":displayName(session.user);if(isAdminUser()){accountSwitchWrap.hidden=false;fillAccountSwitch();}else{accountSwitchWrap.hidden=true;}document.querySelector("#app-layout").hidden=false;glyTabs.hidden=false;if(!booted){booted=true;initialize();}}
     authForm.addEventListener("submit",async event=>{event.preventDefault();if(!sb)return;const username=normalizeUsername(authUsername.value);if(!FIXED_ACCOUNTS.includes(username)){authError.textContent="该用户名不在固定账号列表中，请联系管理员开通。";return;}authSubmit.disabled=true;authError.textContent="";try{const {error}=await sb.auth.signInWithPassword({email:synthEmail(username),password:accountPassword(username)});if(error)throw error;}catch(err){authError.textContent=translateAuthError(err.message||"操作失败");}finally{authSubmit.disabled=false;}});
     async function switchAccount(){if(displayName(currentUser)!==ADMIN_USERNAME)return;const target=normalizeUsername(accountSwitch.value);if(!target)return;userEmail.textContent=target===ADMIN_USERNAME?"***":`***（查看 ${target}）`;if(datePicker.value){await loadDate(datePicker.value);}if(strategyMonth.value){const {start,end}=strategyMonthRange();await loadStrategy();}setStatus("");}
     accountSwitch.addEventListener("change",switchAccount);
