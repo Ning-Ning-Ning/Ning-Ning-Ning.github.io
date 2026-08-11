@@ -16,9 +16,13 @@
     body { margin:0; min-width:320px; background:var(--page); color:var(--ink); }
     .layout { display:flex; min-height:100vh; }
     .sidebar { width:232px; flex-shrink:0; background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:18px 12px; position:sticky; top:0; height:100vh; }
-    .sidebar-brand { display:flex; align-items:center; gap:10px; padding:4px 10px 20px; font-size:15px; font-weight:800; letter-spacing:.02em; color:var(--ink); }
+    .sidebar-brand { padding:6px 10px 18px; font-size:13.5px; font-weight:800; line-height:1.45; letter-spacing:.02em; color:var(--ink); }
     .sidebar-brand .logo { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#2fbf8f,#8b7cf8); display:grid; place-items:center; color:#fff; font-size:16px; font-weight:700; }
     .sidebar-nav { display:grid; gap:3px; }
+    .sidebar-subnav { display:grid; gap:2px; padding:2px 0 6px 12px; }
+    .sidebar-subitem { min-height:30px; padding:5px 12px; border:0; border-radius:7px; background:transparent; color:var(--muted); font-size:12.5px; text-align:left; cursor:pointer; }
+    .sidebar-subitem:hover { background:var(--surface2); color:var(--ink); }
+    .sidebar-subitem.active { color:var(--adjusted); font-weight:700; }
     .sidebar-item { display:flex; align-items:center; gap:10px; min-height:40px; padding:8px 12px; border:0; border-radius:9px; background:transparent; color:var(--muted); font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
     .sidebar-item:hover { background:#f1f4f2; color:var(--ink); }
     .sidebar-item.active { background:#ece8ff; color:#493a9e; }
@@ -191,7 +195,7 @@
     @media (max-width:760px) {
       .layout { flex-direction:column; }
       .sidebar { width:100%; height:auto; position:static; flex-direction:row; align-items:center; padding:10px 12px; gap:8px; }
-      .sidebar-brand { padding:0; }
+      .sidebar-brand { display:none; }
       .sidebar-nav { display:flex; gap:6px; margin-left:auto; }
       .sidebar-item { min-height:34px; padding:6px 10px; }
       .sidebar-foot { margin-top:0; margin-left:auto; border-top:0; padding-top:0; display:flex; align-items:center; gap:8px; }
@@ -233,10 +237,10 @@
     .weather-legend .wlegend-item { display:inline-flex; align-items:center; gap:5px; cursor:pointer; user-select:none; }
     .weather-legend .wlegend-item .wlegend-swatch { width:18px; height:4px; border-radius:2px; }
     .weather-legend .wlegend-item.off { opacity:.35; text-decoration:line-through; }
-    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:#fff; overflow-x:auto; flex:1; }
-    #wchart-left,#wchart-right { min-width:760px; }
-    #wchart-left { min-height:300px; }
-    #wchart-right { min-height:300px; }
+    .weather-chart-shell { border:1px solid var(--line); border-radius:10px; padding:6px 12px 10px; background:#fff; flex:1; }
+    #wchart-left,#wchart-right { width:100%; height:auto; }
+    #wchart-left { min-height:0; }
+    #wchart-right { min-height:0; }
     .w-curve { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
     @media (max-width:1100px){ .weather-panel{flex-direction:column;} }
   </style>
@@ -256,10 +260,17 @@
   </div>
   <div class="layout" id="app-layout" hidden>
   <aside class="sidebar">
-    <div class="sidebar-brand"><span class="logo">⚡</span>售电申报</div>
+    <div class="sidebar-brand">模拟交易：售电公司日前电量申报</div>
     <nav class="sidebar-nav" id="gly-tabs" aria-label="页面切换">
-      <button class="sidebar-item active" id="tab-declaration" type="button">📊 日前申报</button>
-      <button class="sidebar-item" id="tab-overview" type="button">👥 全员总览</button>
+      <button class="sidebar-item active" id="tab-declaration" type="button">日前申报</button>
+      <div class="sidebar-subnav" id="declaration-subnav">
+        <button class="sidebar-subitem" type="button" data-target="sec-consumption">用户用电量曲线</button>
+        <button class="sidebar-subitem" type="button" data-target="sec-strategy">电费变化</button>
+        <button class="sidebar-subitem" type="button" data-target="sec-price">日前电价与实时电价</button>
+        <button class="sidebar-subitem" type="button" data-target="sec-spread">价差展示</button>
+        <button class="sidebar-subitem" type="button" data-target="sec-weather">气象预测对比</button>
+      </div>
+      <button class="sidebar-item" id="tab-overview" type="button">全员总览</button>
     </nav>
     <div class="sidebar-foot" id="user-chip" hidden>
       <div class="sidebar-user">当前账号：<strong id="user-email"></strong></div>
@@ -269,11 +280,8 @@
   </aside>
   <div class="content">
   <main>
-    <header class="page-head">
-      <div><p class="eyebrow">Simulated trading · Day-ahead declaration</p><h1>模拟交易：售电公司日前电量申报</h1><p class="subtitle">日前电量申报模拟 · 24 个时段</p></div>
-    </header>
     <div id="page-declaration">
-    <section class="card" aria-labelledby="consumption-title">
+    <section class="card" id="sec-consumption" aria-labelledby="consumption-title">
       <div class="chart-head">
         <div><h2 id="consumption-title">用户用电量曲线</h2><p>实际、预测与调整后用电量 · 24 个时段</p></div>
         <label class="date-control" for="date-picker">选择日期<input id="date-picker" type="date" disabled></label>
@@ -308,7 +316,7 @@
         <summary>查看 24 个时段的详细数据（可用复选框选择调整点）</summary>
         <div class="table-wrap"><table><thead><tr><th scope="col">时段</th><th scope="col">实际（MWh）</th><th scope="col">预测（MWh）</th><th scope="col">调整后（MWh）</th></tr></thead><tbody id="data-body"></tbody></table></div>
       </details>
-      <section class="spread-section" aria-labelledby="strategy-title">
+      <section class="spread-section" id="sec-strategy" aria-labelledby="strategy-title">
         <div class="spread-head">
           <div><h2 id="strategy-title">电费变化</h2><p>电费变化 =（日前价格 − 实时价格）×（调整后用电量 − 预测用电量）；未调整时变化为 0，单位：元</p></div>
           <div class="spread-controls">
@@ -323,7 +331,7 @@
           <table class="spread-table" id="strategy-table"><thead id="strategy-head-row"></thead><tbody id="strategy-body"></tbody></table>
         </div>
       </section>
-      <section class="price-section" aria-labelledby="price-chart-heading">
+      <section class="price-section" id="sec-price" aria-labelledby="price-chart-heading">
         <div class="price-section-head"><div><h2 id="price-chart-heading">日前电价与实时电价</h2><p>同一图表展示 24 个时段，单位：元/MWh</p></div><label class="date-control" for="price-date-picker">选择日期<input id="price-date-picker" type="date" disabled></label></div>
         <div class="legend" aria-label="电价图例">
           <span class="legend-item"><span class="legend-line day-ahead"></span>日前电价</span>
@@ -338,7 +346,7 @@
           <div class="tooltip" id="price-tooltip" role="status" hidden></div>
         </div>
       </section>
-      <section class="spread-section" aria-labelledby="spread-title">
+      <section class="spread-section" id="sec-spread" aria-labelledby="spread-title">
         <div class="spread-head">
           <div><h2 id="spread-title">价差展示</h2><p>价差 = 实时电价 − 日前电价；每行一天，每列一个小时，单位：元/MWh</p></div>
           <div class="spread-controls">
@@ -354,7 +362,7 @@
           <table class="spread-table" id="spread-table"><thead id="spread-head-row"></thead><tbody id="spread-body"></tbody></table>
         </div>
       </section>
-      <section class="card weather-section" aria-labelledby="weather-title">
+      <section class="card weather-section" id="sec-weather" aria-labelledby="weather-title">
         <div class="weather-head"><div><h2 id="weather-title">气象预测对比</h2><p>GFS 逐小时预测 · 广东省中心（23.25°N, 113.25°E）· 左图对比各起报日，右图查看指定小时</p></div></div>
         <div class="weather-panel">
           <div class="weather-col">
@@ -533,6 +541,7 @@
     for(let h=0;h<24;h++){const o=document.createElement("option");o.value=String(h);o.textContent=`${h}:00–${h+1}:00`;whourSelect.append(o);}
     wdatePicker.min=addDays(localTomorrow(),-365);wdatePicker.max=addDays(localTomorrow(),30);wdatePicker.value=localTomorrow();wdatePicker.addEventListener("change",loadWeather);wvarSelect.addEventListener("change",loadWeather);whourSelect.addEventListener("change",renderWeatherRight);
     loadWeather();
+    document.querySelectorAll("#declaration-subnav .sidebar-subitem").forEach(btn=>{btn.addEventListener("click",()=>{switchGlyPage("declaration");document.querySelectorAll("#declaration-subnav .sidebar-subitem").forEach(b=>b.classList.remove("active"));btn.classList.add("active");const el=document.getElementById(btn.dataset.target);if(el)setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),60);});});
     if(!sb){authOverlay.hidden=false;authSubmit.disabled=true;authError.textContent="页面组件加载失败（需访问 cdn.jsdelivr.net），请检查网络后刷新。";}else{sb.auth.onAuthStateChange((event,session)=>{if(session)onSignedIn(session);});sb.auth.getSession().then(({data:{session}})=>{if(session)onSignedIn(session);else authOverlay.hidden=false;});}
   </script>
 </body>
