@@ -248,6 +248,24 @@
     .w-curve { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
     .w-hl { pointer-events:none; }
     @media (max-width:1100px){ .weather-panel{flex-direction:column;} }
+    .boundary-section { margin-top:22px; }
+    .boundary-head { padding:18px 22px 4px; }
+    .boundary-controls { padding:4px 22px 8px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+    .boundary-controls label { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); font-weight:700; white-space:nowrap; }
+    .boundary-controls input { min-height:34px; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); font:inherit; }
+    .boundary-status { padding:2px 22px 8px; min-height:16px; color:var(--muted); font-size:12px; }
+    .boundary-table-wrap { overflow-x:auto; padding:0 22px 22px; }
+    .boundary-table { width:100%; border-collapse:separate; border-spacing:0; font-variant-numeric:tabular-nums; }
+    .boundary-table th { padding:8px 10px; background:var(--surface2); color:var(--muted); font-size:12px; font-weight:700; border-bottom:1px solid var(--line); white-space:nowrap; }
+    .boundary-table th.bh-hour { width:80px; text-align:center; }
+    .boundary-table td { padding:0; border-bottom:1px solid var(--line); height:28px; font-size:12px; vertical-align:middle; }
+    .boundary-cell { position:relative; width:140px; min-width:140px; }
+    .boundary-cell .bar { position:absolute; top:6px; height:16px; border-radius:2px; }
+    .boundary-cell .bpos { right:50%; background:rgba(22,163,74,.75); }
+    .boundary-cell .bneg { left:50%; background:rgba(220,38,38,.75); }
+    .boundary-cell .bval { position:relative; z-index:1; line-height:28px; text-align:center; font-weight:700; color:#15201c; padding:0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .boundary-cell.empty .bval { color:var(--muted); font-weight:400; }
+    .boundary-table .hour-cell { width:80px; text-align:center; padding:0 8px; font-weight:700; color:var(--muted); background:var(--surface2); }
   </style>
 </head>
 <body>
@@ -274,6 +292,7 @@
         <button class="sidebar-subitem" type="button" data-target="sec-price">日前电价与实时电价</button>
         <button class="sidebar-subitem" type="button" data-target="sec-spread">价差展示</button>
         <button class="sidebar-subitem" type="button" data-target="sec-weather">气象预测对比</button>
+        <button class="sidebar-subitem" type="button" data-target="sec-boundary">边界信息展示</button>
       </div>
       <button class="sidebar-item" id="tab-overview" type="button">全员总览</button>
     </nav>
@@ -365,6 +384,19 @@
         <p class="spread-status" id="spread-status" role="status">请选择日期范围后查看。</p>
         <div class="spread-table-wrap">
           <table class="spread-table" id="spread-table"><thead id="spread-head-row"></thead><tbody id="spread-body"></tbody></table>
+        </div>
+      </section>
+      <section class="card boundary-section" id="sec-boundary" aria-labelledby="boundary-title">
+        <div class="boundary-head"><h2 id="boundary-title">边界信息展示</h2><p>差值 = 实际 − 预测（绿正红负）· 价差 = 实时 − 日前</p></div>
+        <div class="boundary-controls">
+          <label>选择日期<input id="boundary-date" type="date"></label>
+        </div>
+        <p class="boundary-status" id="boundary-status" role="status"></p>
+        <div class="boundary-table-wrap">
+          <table class="boundary-table" id="boundary-table">
+            <thead><tr><th class="bh-hour">小时</th><th>价差(元/MWh)</th><th>省内A类电源(MW)</th><th>地方电源(MW)</th><th>粤港联络线(MW)</th><th>省内B类电源(MW)</th></tr></thead>
+            <tbody id="boundary-body"></tbody>
+          </table>
         </div>
       </section>
       <section class="card weather-section" id="sec-weather" aria-labelledby="weather-title">
@@ -547,6 +579,52 @@
     wdatePicker.min=addDays(localTomorrow(),-365);wdatePicker.max=addDays(localTomorrow(),30);wdatePicker.value=localTomorrow();wdatePicker.addEventListener("change",loadWeather);wvarSelect.addEventListener("change",loadWeather);whourSelect.addEventListener("change",renderWeatherRight);
     loadWeather();
     document.querySelectorAll("#declaration-subnav .sidebar-subitem").forEach(btn=>{btn.addEventListener("click",()=>{switchGlyPage("declaration");document.querySelectorAll("#declaration-subnav .sidebar-subitem").forEach(b=>b.classList.remove("active"));btn.classList.add("active");const el=document.getElementById(btn.dataset.target);if(el)setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),60);});});
+    const boundaryDate=document.querySelector("#boundary-date"),boundaryStatus=document.querySelector("#boundary-status"),boundaryBody=document.querySelector("#boundary-body");
+    async function loadBoundary(){
+      if(!sb)return;
+      const date=boundaryDate.value;
+      boundaryStatus.textContent="正在加载边界信息…";
+      const hdr={apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`};
+      try{
+        const[ar,fr,pr]=await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/boundary_actual?date=eq.${date}&select=hour,var,value&limit=200`,{headers:hdr}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/boundary_forecast?date=eq.${date}&select=hour,var,value&limit=200`,{headers:hdr}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/daily_curves?date=eq.${date}&select=hour,day_ahead_price,real_time_price&limit=200`,{headers:hdr}).then(r=>r.json())
+        ]);
+        const am={},fm={},pm={};
+        ar.forEach(r=>{am[`${r.hour}_${r.var}`]=Number(r.value);});
+        fr.forEach(r=>{fm[`${r.hour}_${r.var}`]=Number(r.value);});
+        pr.forEach(r=>{pm[`${r.hour}_`]=r;});
+        const cols=["jingjiacha","a_power","local_power","yuekong","b_power"];
+        const maxAbs={};cols.forEach(c=>maxAbs[c]=0);
+        const grid=[];
+        for(let h=0;h<24;h++){
+          const prow=pm[`${h}_`];
+          const jingjia=prow?(Number(prow.real_time_price)-Number(prow.day_ahead_price)):null;
+          const row={h,jingjia,a:am[`${h}_a_power`],b:am[`${h}_b_power`],l:am[`${h}_local_power`],y:am[`${h}_yuekong`],af:fm[`${h}_a_power`],bf:fm[`${h}_b_power`],lf:fm[`${h}_local_power`],yf:fm[`${h}_yuekong`]};
+          ["jingjia","a","b","l","y"].forEach((k,i)=>{const v=(k==="jingjia")?row.jingjia:(k==="a"?row.a:k==="b"?row.b:k==="l"?row.l:row.y)-(k==="jingjia"?0:k==="a"?row.af:k==="b"?row.bf:k==="l"?row.lf:row.yf);if(v!=null&&!isNaN(v)){maxAbs[cols[i]]=Math.max(maxAbs[cols[i]],Math.abs(v));}});
+          grid.push(row);
+        }
+        boundaryBody.replaceChildren();
+        grid.forEach(row=>{
+          const tr=document.createElement("tr");
+          const htd=document.createElement("td");htd.className="hour-cell";htd.textContent=`${row.h}:00`;tr.append(htd);
+          const vals=[row.jingjia, (row.a??null)-(row.af??null), (row.l??null)-(row.lf??null), (row.y??null)-(row.yf??null), (row.b??null)-(row.bf??null)];
+          vals.forEach((v,i)=>{
+            const td=document.createElement("td");td.className="boundary-cell";
+            if(v==null||isNaN(v)){td.classList.add("empty");td.innerHTML='<div class="bval">—</div>';}
+            else{const maxC=Math.max(maxAbs[cols[i]]||1,0.0001);const pct=Math.min(Math.abs(v)/maxC*50,50);const bar=document.createElement("div");bar.className="bar "+(v>=0?"bpos":"bneg");bar.style.width=pct+"%";const val=document.createElement("div");val.className="bval";val.textContent=v.toFixed(2);td.append(bar,val);}
+            tr.append(td);
+          });
+          boundaryBody.append(tr);
+        });
+        boundaryStatus.textContent=`日期 ${date} · 差值 = 实际 − 预测`;
+      }catch(err){console.error(err);boundaryStatus.textContent="边界信息加载失败："+(err.message||"网络异常");}
+    }
+    boundaryDate.addEventListener("change",loadBoundary);
+    boundaryDate.value="2026-07-27";
+    loadBoundary();
+    
     if(!sb){authOverlay.hidden=false;authSubmit.disabled=true;authError.textContent="页面组件加载失败（需访问 cdn.jsdelivr.net），请检查网络后刷新。";}else{sb.auth.onAuthStateChange((event,session)=>{if(session)onSignedIn(session);});sb.auth.getSession().then(({data:{session}})=>{if(session)onSignedIn(session);else authOverlay.hidden=false;});}
   </script>
 </body>
