@@ -266,6 +266,24 @@
     .boundary-cell .bval { position:relative; z-index:1; line-height:28px; text-align:center; font-weight:700; color:#15201c; padding:0 6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .boundary-cell.empty .bval { color:var(--muted); font-weight:400; }
     .boundary-table .hour-cell { width:80px; text-align:center; padding:0 8px; font-weight:700; color:var(--muted); background:var(--surface2); }
+    .similar-section { margin-top:22px; }
+    .similar-head { padding:18px 22px 4px; }
+    .similar-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .similar-controls { padding:6px 22px 12px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+    .similar-controls label { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); font-weight:700; white-space:nowrap; }
+    .similar-controls input { min-height:34px; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); font:inherit; }
+    .similar-status { padding:0 22px 8px; min-height:16px; color:var(--muted); font-size:12px; }
+    .similar-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:4px 22px 22px; }
+    .sim-card { border:1px solid var(--line); border-radius:10px; background:#fff; padding:10px 12px 8px; }
+    .sim-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+    .sim-head strong { font-size:13px; color:var(--ink); }
+    .sim-head button { min-height:26px; padding:3px 10px; font-size:12px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--muted); cursor:pointer; font-weight:700; }
+    .sim-head button:hover { border-color:var(--adjusted); color:var(--adjusted); }
+    .sim-card svg { display:block; width:100%; height:auto; }
+    .sim-legend { display:flex; gap:14px; font-size:12px; color:var(--muted); margin-top:4px; }
+    .sim-legend .lg { display:inline-flex; align-items:center; gap:5px; }
+    .sim-legend .lg i { width:16px; height:3px; border-radius:2px; display:inline-block; }
+    @media (max-width:1000px){ .similar-grid { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -293,6 +311,7 @@
         <button class="sidebar-subitem" type="button" data-target="sec-spread">价差展示</button>
         <button class="sidebar-subitem" type="button" data-target="sec-weather">气象预测对比</button>
         <button class="sidebar-subitem" type="button" data-target="sec-boundary">边界信息展示</button>
+        <button class="sidebar-subitem" type="button" data-target="sec-similar">相似日</button>
       </div>
       <button class="sidebar-item" id="tab-overview" type="button">全员总览</button>
     </nav>
@@ -394,7 +413,7 @@
         <p class="boundary-status" id="boundary-status" role="status"></p>
         <div class="boundary-table-wrap">
           <table class="boundary-table" id="boundary-table">
-            <thead><tr><th class="bh-hour">小时</th><th>价差(元/MWh)</th><th>省内A类电源(MW)</th><th>地方电源(MW)</th><th>粤港联络线(MW)</th><th>省内B类电源(MW)</th></tr></thead>
+            <thead><tr><th class="bh-hour">小时</th><th>价差(元/MWh)</th><th>统调负荷(MW)</th><th>省内A类电源(MW)</th><th>地方电源(MW)</th><th>粤港联络线(MW)</th><th>省内B类电源(MW)</th></tr></thead>
             <tbody id="boundary-body"></tbody>
           </table>
         </div>
@@ -420,6 +439,15 @@
             <div class="weather-legend" id="wlegend-right" aria-label="起报日图例"></div>
           </div>
         </div>
+      </section>
+      <section class="card similar-section" id="sec-similar" aria-labelledby="similar-title">
+        <div class="similar-head"><h2 id="similar-title">相似日</h2><p>对比标的日与相似日的预测信息（统调负荷 / 粤港联络线 / 温度 / 降水 / 风速 / 光照）· 自动相似 = 皮尔逊相关系数 − 欧氏距离（标的日前 95 天至前 5 天）</p></div>
+        <div class="similar-controls">
+          <label>标的日<input id="sim-target" type="date"></label>
+          <label>相似日<input id="sim-similar" type="date"></label>
+        </div>
+        <p class="similar-status" id="similar-status" role="status"></p>
+        <div class="similar-grid" id="similar-grid"></div>
       </section>
     </section>
     </div>
@@ -595,21 +623,21 @@
         ar.forEach(r=>{am[`${r.hour}_${r.var}`]=Number(r.value);});
         fr.forEach(r=>{fm[`${r.hour}_${r.var}`]=Number(r.value);});
         pr.forEach(r=>{pm[`${r.hour}_`]=r;});
-        const cols=["jingjiacha","a_power","local_power","yuekong","b_power"];
+        const cols=["jingjiacha","td_load","a_power","local_power","yuekong","b_power"];
         const maxAbs={};cols.forEach(c=>maxAbs[c]=0);
         const grid=[];
         for(let h=0;h<24;h++){
           const prow=pm[`${h}_`];
           const jingjia=prow?(Number(prow.real_time_price)-Number(prow.day_ahead_price)):null;
-          const row={h,jingjia,a:am[`${h}_a_power`],b:am[`${h}_b_power`],l:am[`${h}_local_power`],y:am[`${h}_yuekong`],af:fm[`${h}_a_power`],bf:fm[`${h}_b_power`],lf:fm[`${h}_local_power`],yf:fm[`${h}_yuekong`]};
-          ["jingjia","a","b","l","y"].forEach((k,i)=>{const v=(k==="jingjia")?row.jingjia:(k==="a"?row.a:k==="b"?row.b:k==="l"?row.l:row.y)-(k==="jingjia"?0:k==="a"?row.af:k==="b"?row.bf:k==="l"?row.lf:row.yf);if(v!=null&&!isNaN(v)){maxAbs[cols[i]]=Math.max(maxAbs[cols[i]],Math.abs(v));}});
+          const row={h,jingjia,a:am[`${h}_a_power`],b:am[`${h}_b_power`],l:am[`${h}_local_power`],y:am[`${h}_yuekong`],t:am[`${h}_td_load`],af:fm[`${h}_a_power`],bf:fm[`${h}_b_power`],lf:fm[`${h}_local_power`],yf:fm[`${h}_yuekong`],tf:fm[`${h}_td_load`]};
+          ["jingjia","t","a","b","l","y"].forEach((k,i)=>{const v=(k==="jingjia")?row.jingjia:(k==="t"?row.t:k==="a"?row.a:k==="b"?row.b:k==="l"?row.l:row.y)-(k==="jingjia"?0:k==="t"?row.tf:k==="a"?row.af:k==="b"?row.bf:k==="l"?row.lf:row.yf);if(v!=null&&!isNaN(v)){maxAbs[cols[i]]=Math.max(maxAbs[cols[i]],Math.abs(v));}});
           grid.push(row);
         }
         boundaryBody.replaceChildren();
         grid.forEach(row=>{
           const tr=document.createElement("tr");
           const htd=document.createElement("td");htd.className="hour-cell";htd.textContent=`${row.h}:00`;tr.append(htd);
-          const vals=[row.jingjia, (row.a??null)-(row.af??null), (row.l??null)-(row.lf??null), (row.y??null)-(row.yf??null), (row.b??null)-(row.bf??null)];
+          const vals=[row.jingjia, (row.t??null)-(row.tf??null), (row.a??null)-(row.af??null), (row.l??null)-(row.lf??null), (row.y??null)-(row.yf??null), (row.b??null)-(row.bf??null)];
           vals.forEach((v,i)=>{
             const td=document.createElement("td");td.className="boundary-cell";
             if(v==null||isNaN(v)){td.classList.add("empty");td.innerHTML='<div class="bval">—</div>';}
@@ -624,6 +652,30 @@
     boundaryDate.addEventListener("change",loadBoundary);
     boundaryDate.value="2026-07-27";
     loadBoundary();
+
+    // ---- 相似日 ----
+    const simTarget=document.querySelector("#sim-target"),simSimilar=document.querySelector("#sim-similar"),similarStatus=document.querySelector("#similar-status"),similarGrid=document.querySelector("#similar-grid");
+    const SIM_ITEMS=[
+      {key:"td_load",label:"统调负荷",unit:"MW",src:"boundary"},
+      {key:"yuekong",label:"粤港联络线",unit:"MW",src:"boundary"},
+      {key:"TMP",label:"温度",unit:"℃",src:"weather"},
+      {key:"RAINFALL",label:"降水",unit:"mm",src:"weather"},
+      {key:"WS",label:"风速",unit:"m/s",src:"weather"},
+      {key:"GHI",label:"光照",unit:"W/m²",src:"weather"}
+    ];
+    const SIM_W=500,SIM_H=260,SIM_PAD={l:44,r:16,t:14,b:34};
+    function addDaysStr(ds,delta){const[y,m,dd]=ds.split("-").map(Number);const d=new Date(y,m-1,dd);d.setDate(d.getDate()+delta);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+    function simChart(svg,s1,s2,unit){[...svg.children].forEach(ch=>ch.remove());const all=[...s1,...s2].map(x=>x.v).filter(v=>v!=null);if(!all.length){const t=svgElement("text",{x:SIM_W/2,y:SIM_H/2,class:"tick","text-anchor":"middle"});t.textContent="无数据";svg.append(t);return;}const rawMin=Math.min(...all),rawMax=Math.max(...all),span=Math.max(rawMax-rawMin,.0001),pad=span*.08,min=rawMin-pad,max=rawMax+pad,pw=SIM_W-SIM_PAD.l-SIM_PAD.r,ph=SIM_H-SIM_PAD.t-SIM_PAD.b,X=h=>SIM_PAD.l+h/24*pw,Y=v=>SIM_PAD.t+(max-v)/(max-min)*ph;for(let s=0;s<=4;s++){const v=min+(max-min)*s/4,y=Y(v);svg.append(svgElement("line",{x1:SIM_PAD.l,y1:y,x2:SIM_W-SIM_PAD.r,y2:y,class:"grid"}));const lab=svgElement("text",{x:SIM_PAD.l-6,y:y+4,class:"tick","text-anchor":"end"});lab.textContent=v.toFixed(v>=100?0:v>=10?1:2);svg.append(lab);}for(let h=0;h<=24;h+=3){const lab=svgElement("text",{x:X(h),y:SIM_H-SIM_PAD.b+14,class:"tick x-tick","text-anchor":"middle"});lab.textContent=h+":00";svg.append(lab);}svg.append(svgElement("line",{x1:SIM_PAD.l,y1:SIM_PAD.t,x2:SIM_PAD.l,y2:SIM_H-SIM_PAD.b,class:"axis"}));svg.append(svgElement("line",{x1:SIM_PAD.l,y1:SIM_H-SIM_PAD.b,x2:SIM_W-SIM_PAD.r,y2:SIM_H-SIM_PAD.b,class:"axis"}));[[s1,"#2563eb"],[s2,"#e11d48"]].forEach(([arr,color])=>{const pts=arr.filter(x=>x.v!=null).map(x=>[X(x.h),Y(x.v)]);if(pts.length>1){const path=pts.map((p,i)=>`${i?"L":"M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");svg.append(svgElement("path",{d:path,class:"w-curve",stroke:color}));}pts.forEach(([x,y])=>svg.append(svgElement("circle",{cx:x,cy:y,r:2.2,fill:color})));});}
+    async function simFetch(item,date){const hdr={apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`};let rows;if(item.src==="boundary"){rows=await fetch(`${SUPABASE_URL}/rest/v1/boundary_forecast?date=eq.${date}&var=eq.${item.key}&select=hour,value&order=hour.asc&limit=100`,{headers:hdr}).then(r=>r.json());}else{rows=await fetch(`${SUPABASE_URL}/rest/v1/weather_forecast?target_date=eq.${date}&var=eq.${item.key}&select=hour,value&order=forecast_date.desc,hour.asc&limit=24`,{headers:hdr}).then(r=>r.json());}const arr=new Array(24).fill(null);(Array.isArray(rows)?rows:[]).forEach(r=>{arr[Number(r.hour)]=Number(r.value);});return arr.map((v,h)=>({h,v}));}
+    function simScore(a,b){const av=[],bv=[];for(let h=0;h<24;h++){if(a[h]&&a[h].v!=null&&b[h]&&b[h].v!=null){av.push(a[h].v);bv.push(b[h].v);}}if(av.length<2)return -Infinity;const m1=av.reduce((s,x)=>s+x,0)/av.length,m2=bv.reduce((s,x)=>s+x,0)/bv.length;let num=0,d1=0,d2=0;for(let i=0;i<av.length;i++){num+=(av[i]-m1)*(bv[i]-m2);d1+=(av[i]-m1)**2;d2+=(bv[i]-m2)**2;}const pearson=(d1&&d2)?num/Math.sqrt(d1*d2):0;let dist=0;for(let i=0;i<av.length;i++)dist+=(av[i]-bv[i])**2;dist=Math.sqrt(dist);const mx=Math.max(...av.map(Math.abs),...bv.map(Math.abs),1);const euc=dist/(mx*Math.sqrt(av.length));return pearson-euc;}
+    async function loadSimilar(){const d1=simTarget.value,d2=simSimilar.value;if(!d1||!d2)return;similarStatus.textContent="正在加载相似日对比…";try{for(const item of SIM_ITEMS){const card=document.querySelector(`.sim-card[data-key="${item.key}"]`);if(!card)continue;const[a,b]=await Promise.all([simFetch(item,d1),simFetch(item,d2)]);simChart(card.querySelector("svg"),a,b,item.unit);}similarStatus.textContent=`标的日 ${d1} vs 相似日 ${d2} · 预测对比`;}catch(err){console.error(err);similarStatus.textContent="相似日加载失败："+(err.message||"网络异常");}}
+    async function autoSimilar(key){const d1=simTarget.value;if(!d1){similarStatus.textContent="请先选择标的日";return;}const item=SIM_ITEMS.find(x=>x.key===key);similarStatus.textContent=`正在自动搜索 ${item.label} 相似日（${d1} 前95~前5天）…`;const target=await simFetch(item,d1);let best=null,bestScore=-Infinity;for(let delta=-95;delta<=-5;delta++){const cand=addDaysStr(d1,delta);const s=await simFetch(item,cand);const score=simScore(target,s);if(score>bestScore){bestScore=score;best=cand;}}if(best){simSimilar.value=best;similarStatus.textContent=`${item.label} 自动相似完成：相似日=${best}（评分 ${bestScore.toFixed(3)}）`;loadSimilar();}else{similarStatus.textContent="未找到可用相似日";}}
+    function buildSimilarGrid(){SIM_ITEMS.forEach(item=>{const card=document.createElement("div");card.className="sim-card";card.dataset.key=item.key;const head=document.createElement("div");head.className="sim-head";const strong=document.createElement("strong");strong.textContent=`${item.label}（${item.unit}）`;const btn=document.createElement("button");btn.type="button";btn.textContent="自动相似";btn.addEventListener("click",()=>autoSimilar(item.key));head.append(strong,btn);const svg=svgElement("svg",{viewBox:`0 0 ${SIM_W} ${SIM_H}`});const legend=document.createElement("div");legend.className="sim-legend";legend.innerHTML=`<span class="lg"><i style="background:#2563eb"></i>标的日</span><span class="lg"><i style="background:#e11d48"></i>相似日</span>`;card.append(head,svg,legend);similarGrid.append(card);});}
+    buildSimilarGrid();
+    simTarget.value="2026-07-27";simSimilar.value="2026-07-26";
+    simTarget.addEventListener("change",loadSimilar);simSimilar.addEventListener("change",loadSimilar);
+    loadSimilar();
+
     
     if(!sb){authOverlay.hidden=false;authSubmit.disabled=true;authError.textContent="页面组件加载失败（需访问 cdn.jsdelivr.net），请检查网络后刷新。";}else{sb.auth.onAuthStateChange((event,session)=>{if(session)onSignedIn(session);});sb.auth.getSession().then(({data:{session}})=>{if(session)onSignedIn(session);else authOverlay.hidden=false;});}
   </script>
