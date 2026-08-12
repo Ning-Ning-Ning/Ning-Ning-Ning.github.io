@@ -127,6 +127,14 @@
     .overview-table.numeric-mode th:first-child,.overview-table.numeric-mode td:first-child { width:80px; min-width:80px; padding:9px 6px; text-align:center; }
     .overview-table .date-cell { cursor:pointer; }
     .overview-table tr:hover td:first-child { background:#eef2f0; }
+    .placeholder-module { padding:22px; border-bottom:1px solid var(--line); }
+    .placeholder-module:last-child { border-bottom:0; }
+    .placeholder-module h2 { margin:0 0 14px; font-size:16px; color:var(--ink); }
+    .placeholder-empty { min-height:120px; border:1px dashed var(--grid); border-radius:8px; }
+    .placeholder-module { padding:22px; border-bottom:1px solid var(--line); }
+    .placeholder-module:last-child { border-bottom:0; }
+    .placeholder-module h2 { margin:0 0 14px; font-size:16px; color:var(--ink); }
+    .placeholder-empty { min-height:120px; border:1px dashed var(--grid); border-radius:8px; }
     .overview-table tr.row-selected td:first-child { background:var(--adjusted); color:#fff; font-weight:700; }
     .overview-table tr.row-selected td:not(:first-child) { box-shadow:inset 0 0 0 2px var(--adjusted); }
     .chart-shell { position:relative; min-height:480px; padding:8px 20px 12px; }
@@ -315,6 +323,8 @@
         <button class="sidebar-subitem" type="button" data-target="sec-similar">相似日</button>
       </div>
       <button class="sidebar-item" id="tab-overview" type="button">全员总览</button>
+      <button class="sidebar-item" id="tab-longterm" type="button">中长期</button>
+      <button class="sidebar-item" id="tab-review" type="button">复盘统计</button>
     </nav>
     <div class="sidebar-foot" id="user-chip" hidden>
       <div class="sidebar-user">当前账号：<strong id="user-email"></strong></div>
@@ -471,6 +481,54 @@
         <table class="spread-table overview-table" id="overview-hourly-table"><thead id="overview-hourly-head"></thead><tbody id="overview-hourly-body"></tbody></table>
       </div>
     </section>
+    <section class="card" id="page-longterm" hidden aria-labelledby="longterm-title">
+      <div class="placeholder-module">
+        <h2>中长期持仓</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+      <div class="placeholder-module">
+        <h2>中长期申报</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+      <div class="placeholder-module">
+        <h2>气象数据分析</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+      <div class="placeholder-module">
+        <h2>价格统计</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+    </section>
+    <section class="card" id="page-review" hidden aria-labelledby="review-title">
+      <div class="placeholder-module">
+        <h2>复盘统计</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+    </section>
+    <section class="card" id="page-longterm" hidden aria-labelledby="longterm-title">
+      <div class="placeholder-module">
+        <h2>中长期持仓</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+      <div class="placeholder-module">
+        <h2>中长期申报</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+      <div class="placeholder-module">
+        <h2>气象数据分析</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+      <div class="placeholder-module">
+        <h2>价格统计</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+    </section>
+    <section class="card" id="page-review" hidden aria-labelledby="review-title">
+      <div class="placeholder-module">
+        <h2>复盘统计</h2>
+        <div class="placeholder-empty" aria-hidden="true"></div>
+      </div>
+    </section>
   </main>
   </div>
   </div>
@@ -490,7 +548,7 @@
     const priceChart=document.querySelector("#price-chart"),priceChartShell=document.querySelector("#price-chart-shell"),priceTooltip=document.querySelector("#price-tooltip"),priceDatePicker=document.querySelector("#price-date-picker"),priceStatus=document.querySelector("#price-status");
     const strategyMonth=document.querySelector("#strategy-month"),strategyLoad=document.querySelector("#strategy-load"),strategyMode=document.querySelector("#strategy-mode"),strategyStatus=document.querySelector("#strategy-status"),strategyTable=document.querySelector("#strategy-table"),strategyHeadRow=document.querySelector("#strategy-head-row"),strategyBody=document.querySelector("#strategy-body");
     const overviewMonth=document.querySelector("#overview-month"),overviewLoad=document.querySelector("#overview-load"),overviewMode=document.querySelector("#overview-mode"),overviewStatus=document.querySelector("#overview-status"),overviewSubstatus=document.querySelector("#overview-substatus"),overviewDailyTable=document.querySelector("#overview-daily-table"),overviewDailyHead=document.querySelector("#overview-daily-head"),overviewDailyBody=document.querySelector("#overview-daily-body"),overviewHourlyTable=document.querySelector("#overview-hourly-table"),overviewHourlyHead=document.querySelector("#overview-hourly-head"),overviewHourlyBody=document.querySelector("#overview-hourly-body");
-    const glyTabs=document.querySelector("#gly-tabs"),tabDeclaration=document.querySelector("#tab-declaration"),tabOverview=document.querySelector("#tab-overview"),pageDeclaration=document.querySelector("#page-declaration"),pageOverview=document.querySelector("#page-overview");
+    const glyTabs=document.querySelector("#gly-tabs"),tabDeclaration=document.querySelector("#tab-declaration"),tabOverview=document.querySelector("#tab-overview"),pageDeclaration=document.querySelector("#page-declaration"),pageOverview=document.querySelector("#page-overview"),pageLongterm=document.querySelector("#page-longterm"),pageReview=document.querySelector("#page-review"),tabLongterm=document.querySelector("#tab-longterm"),tabReview=document.querySelector("#tab-review");
     const spreadStart=document.querySelector("#spread-start"),spreadEnd=document.querySelector("#spread-end"),spreadLoad=document.querySelector("#spread-load"),spreadMode=document.querySelector("#spread-mode"),spreadStatus=document.querySelector("#spread-status"),spreadTable=document.querySelector("#spread-table"),spreadHeadRow=document.querySelector("#spread-head-row"),spreadBody=document.querySelector("#spread-body");
     const selectionToggle=document.querySelector("#selection-toggle"),selectionClear=document.querySelector("#selection-clear"),editor=document.querySelector("#editor"),selectedCount=document.querySelector("#selected-count"),pointInputs=document.querySelector("#point-inputs"),batchValue=document.querySelector("#batch-value"),batchApply=document.querySelector("#batch-apply"),editorClear=document.querySelector("#editor-clear"),editorCancel=document.querySelector("#editor-cancel"),editorSave=document.querySelector("#editor-save"),saveStatus=document.querySelector("#save-status"),modeDirectBtn=document.querySelector("#mode-direct"),modeRatioBtn=document.querySelector("#mode-ratio"),batchDirectRow=document.querySelector("#batch-direct"),batchRatioRow=document.querySelector("#batch-ratio"),batchRatioValue=document.querySelector("#batch-ratio-value"),batchRatioApply=document.querySelector("#batch-ratio-apply");
     let currentRows=[],priceRows=[],spreadRows=[],spreadNumeric=false,strategyBaseRows=[],strategyAdjustmentRows=[],strategyNumeric=false,selectedHours=new Set(),selectionMode=false,drag=null,scale=null,editorMode="direct",directDrafts={},ratioDrafts={},currentUser=null,booted=false,overviewBaseRows=[],overviewAccountData=[],overviewNumeric=false,overviewSelectedDate=null;
@@ -532,7 +590,7 @@
     async function loadStrategy(){if(!strategyMonth.value){setStrategyStatus("请选择月份。",true);return;}const {start,end}=strategyMonthRange();strategyLoad.disabled=true;setStrategyStatus("正在加载整月电费变化…");try{const data=await fetchStrategyData(start,end);strategyBaseRows=data.baseRows;strategyAdjustmentRows=data.adjustmentRows;renderStrategy();}catch(error){console.error(error);strategyBaseRows=[];strategyAdjustmentRows=[];strategyBody.replaceChildren();setStrategyStatus(error.message||"电费变化加载失败。",true);}finally{strategyLoad.disabled=false;}}
     function toggleStrategyMode(){strategyNumeric=!strategyNumeric;strategyTable.classList.toggle("numeric-mode",strategyNumeric);strategyMode.textContent=strategyNumeric?"只显示色块":"显示数字";strategyMode.classList.toggle("active",strategyNumeric);if(strategyBaseRows.length)renderStrategy();}
     function isAdminUser(){return currentUser&&normalizeUsername(displayName(currentUser))===ADMIN_USERNAME;}
-    function switchGlyPage(page){const showOverview=page==="overview";pageDeclaration.hidden=showOverview;pageOverview.hidden=!showOverview;tabDeclaration.classList.toggle("active",!showOverview);tabOverview.classList.toggle("active",showOverview);if(showOverview&&!overviewBaseRows.length&&overviewMonth.value)loadOverview();}
+    function switchGlyPage(page){const showOverview=page==="overview",showLong=page==="longterm",showReview=page==="review";pageDeclaration.hidden=showOverview||showLong||showReview;pageOverview.hidden=!showOverview;pageLongterm.hidden=!showLong;pageReview.hidden=!showReview;tabDeclaration.classList.toggle("active",!showOverview&&!showLong&&!showReview);tabOverview.classList.toggle("active",showOverview);tabLongterm.classList.toggle("active",showLong);tabReview.classList.toggle("active",showReview);if(showOverview&&!overviewBaseRows.length&&overviewMonth.value)loadOverview();}
     function overviewMonthRange(){const [year,month]=overviewMonth.value.split("-").map(Number),start=`${year}-${String(month).padStart(2,"0")}-01`,lastDay=new Date(year,month,0).getDate(),end=`${year}-${String(month).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;return{start,end};}
     function initializeOverviewRange(min,max){overviewMonth.min=min.slice(0,7);overviewMonth.max=max.slice(0,7);overviewMonth.value=clampDate(localDateOffset(0).slice(0,7),overviewMonth.min,overviewMonth.max);overviewMonth.disabled=false;overviewLoad.disabled=false;overviewMode.disabled=false;renderOverviewHeaders();}
     function setOverviewStatus(message,isError=false){overviewStatus.textContent=message;overviewStatus.classList.toggle("error",isError);}
@@ -567,7 +625,7 @@
     function editorValues(){if(editorMode==="direct"){return[...pointInputs.querySelectorAll("input")].map(input=>{const value=Number(input.value);if(input.value===""||!Number.isFinite(value)||value<0||value>1000)throw new Error(`第 ${Number(input.dataset.hour)+1} 时段请输入 0..1000 的有效数值`);return{hour:Number(input.dataset.hour),adjusted_value:value};});}const nullHours=[...selectedHours].filter(h=>currentRows[h].predicted===null);if(nullHours.length)throw new Error(`第 ${nullHours.map(h=>h+1).join("、")} 时段无预测值，无法按比例调整。请取消选择这些时段或切换到直接设置模式。`);return[...pointInputs.querySelectorAll("input")].map(input=>{const ratio=Number(input.value),hour=Number(input.dataset.hour);if(input.value===""||!Number.isFinite(ratio)||ratio<0||ratio>100)throw new Error(`第 ${hour+1} 时段比例必须在 0..100 之间`);const adjusted_value=parseFloat((currentRows[hour].predicted*ratio).toFixed(3));if(adjusted_value>1000)throw new Error(`第 ${hour+1} 时段计算结果 ${adjusted_value} MWh 超出上限 1000`);return{hour,adjusted_value};});}
     async function saveAdjustments(){try{const updates=editorValues();editorSave.disabled=true;saveStatus.className="save-status";saveStatus.textContent="正在保存…";const rows=updates.map(u=>({user_id:currentUser.id,username:normalizeUsername(displayName(currentUser)),curve_date:datePicker.value,hour:u.hour,adjusted_value:Math.round(u.adjusted_value*1000)/1000}));const {error}=await sb.from("user_adjustments").upsert(rows,{onConflict:"user_id,curve_date,hour"});if(error)throw new Error(error.message);clearSelection(false);await loadDate(datePicker.value);const {start,end}=strategyMonthRange();if(datePicker.value>=start&&datePicker.value<=end)await loadStrategy();if(!pageOverview.hidden&&overviewBaseRows.length){const oRange=overviewMonthRange();if(datePicker.value>=oRange.start&&datePicker.value<=oRange.end)await loadOverview();}}catch(error){console.error(error);saveStatus.className="save-status error";saveStatus.textContent=error.message||"保存失败";}finally{editorSave.disabled=false;}}
     selectionToggle.addEventListener("click",()=>setSelectionMode(!selectionMode));selectionClear.addEventListener("click",()=>clearSelection());editorClear.addEventListener("click",()=>clearSelection());editorCancel.addEventListener("click",()=>{directDrafts={};ratioDrafts={};updateEditor();saveStatus.textContent="";});modeDirectBtn.addEventListener("click",()=>{if(editorMode==="direct")return;editorMode="direct";saveStatus.textContent="";updateEditor();});modeRatioBtn.addEventListener("click",()=>{if(editorMode==="ratio")return;editorMode="ratio";saveStatus.textContent="";updateEditor();});batchApply.addEventListener("click",()=>{const value=Number(batchValue.value);if(batchValue.value===""||!Number.isFinite(value)||value<0||value>1000){saveStatus.className="save-status error";saveStatus.textContent="批量值必须在 0..1000 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});batchRatioApply.addEventListener("click",()=>{const value=Number(batchRatioValue.value);if(batchRatioValue.value===""||!Number.isFinite(value)||value<0||value>100){saveStatus.className="save-status error";saveStatus.textContent="批量比例必须在 0..100 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});editorSave.addEventListener("click",saveAdjustments);
-    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));priceDatePicker.addEventListener("change",event=>loadPriceDate(event.target.value));spreadLoad.addEventListener("click",loadSpread);spreadMode.addEventListener("click",toggleSpreadMode);strategyLoad.addEventListener("click",loadStrategy);strategyMode.addEventListener("click",toggleStrategyMode);tabDeclaration.addEventListener("click",()=>{document.querySelector("#declaration-subnav").classList.toggle("collapsed");tabDeclaration.classList.toggle("collapsed");switchGlyPage("declaration");});tabOverview.addEventListener("click",()=>switchGlyPage("overview"));overviewLoad.addEventListener("click",loadOverview);overviewMode.addEventListener("click",toggleOverviewMode);overviewMonth.addEventListener("change",()=>{overviewSelectedDate=null;loadOverview();});
+    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));priceDatePicker.addEventListener("change",event=>loadPriceDate(event.target.value));spreadLoad.addEventListener("click",loadSpread);spreadMode.addEventListener("click",toggleSpreadMode);strategyLoad.addEventListener("click",loadStrategy);strategyMode.addEventListener("click",toggleStrategyMode);tabDeclaration.addEventListener("click",()=>{document.querySelector("#declaration-subnav").classList.toggle("collapsed");tabDeclaration.classList.toggle("collapsed");switchGlyPage("declaration");});tabOverview.addEventListener("click",()=>switchGlyPage("overview"));tabLongterm.addEventListener("click",()=>switchGlyPage("longterm"));tabReview.addEventListener("click",()=>switchGlyPage("review"));tabLongterm.addEventListener("click",()=>switchGlyPage("longterm"));tabReview.addEventListener("click",()=>switchGlyPage("review"));overviewLoad.addEventListener("click",loadOverview);overviewMode.addEventListener("click",toggleOverviewMode);overviewMonth.addEventListener("change",()=>{overviewSelectedDate=null;loadOverview();});
     const authOverlay=document.querySelector("#auth-overlay"),authForm=document.querySelector("#auth-form"),authUsername=document.querySelector("#auth-username"),authError=document.querySelector("#auth-error"),authSubmit=document.querySelector("#auth-submit"),userChip=document.querySelector("#user-chip"),userEmail=document.querySelector("#user-email"),logoutBtn=document.querySelector("#logout-btn"),accountSwitchWrap=document.querySelector("#admin-switch-wrap"),accountSwitch=document.querySelector("#account-switch");
     const FIXED_ACCOUNTS=["gly","wanliyang","songningning","zhangchenyue","liangweiqi","liubingyan","liuziye","luna","songyihan","wangyanshu","xumanli","zhengkezhuo"];
     const ADMIN_USERNAME="gly";
