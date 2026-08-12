@@ -17,6 +17,24 @@
     .layout { display:flex; min-height:100vh; }
     .sidebar { width:232px; flex-shrink:0; background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column; padding:18px 12px; position:sticky; top:0; height:100vh; }
     .sidebar-brand { padding:6px 10px 18px; font-size:13.5px; font-weight:800; line-height:1.45; letter-spacing:.02em; color:var(--ink); }
+    .sidebar-brand { border:0; background:transparent; cursor:pointer; text-align:left; width:100%; position:relative; z-index:1; }
+    .sidebar-brand:active { transform:scale(.97); }
+    .sidebar-brand .logo { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#2fbf8f,#8b7cf8); display:grid; place-items:center; color:#fff; font-size:16px; font-weight:700; }
+    /* 点击特效 */
+    .brand-pop { animation:brandPop .55s cubic-bezier(.3,1.7,.5,1); }
+    @keyframes brandPop { 0%{transform:scale(1);} 35%{transform:scale(1.22) rotate(-4deg);} 65%{transform:scale(.9) rotate(3deg);} 100%{transform:scale(1) rotate(0);} }
+    .brand-rainbow { background:linear-gradient(90deg,#ff3b30,#ff9500,#ffcc00,#34c759,#5ac8fa,#af52de,#ff2d55); background-size:300% 100%; -webkit-background-clip:text; background-clip:text; color:transparent; animation:brandRB 1.2s linear infinite; }
+    @keyframes brandRB { to { background-position:300% 0; } }
+    .brand-glow { animation:brandGlow 1s ease-out; }
+    @keyframes brandGlow { 0%{text-shadow:0 0 6px rgba(255,204,0,.9),0 0 22px rgba(255,149,0,.8);} 100%{text-shadow:0 0 0 transparent;} }
+    .fx-particle { position:fixed; z-index:9999; width:7px; height:7px; border-radius:2px; pointer-events:none; animation:fxFly .9s ease-out forwards; }
+    @keyframes fxFly { to { transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.15); opacity:0; } }
+    .fx-ring { position:fixed; z-index:9998; width:24px; height:24px; border-radius:50%; pointer-events:none; border:4px solid #ffcc00; transform:translate(-50%,-50%); animation:fxRing .85s ease-out forwards; box-shadow:0 0 18px rgba(255,204,0,.8); }
+    @keyframes fxRing { to { width:260px; height:260px; border-width:1px; opacity:0; } }
+    .fx-flash { position:fixed; inset:0; z-index:9997; pointer-events:none; background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.98), rgba(255,204,0,.55) 28%, rgba(175,82,222,.25) 55%, transparent 75%); animation:fxFlash .7s ease-out forwards; }
+    @keyframes fxFlash { from{opacity:1;} to{opacity:0;} }
+    .fx-confetti { position:fixed; z-index:9996; pointer-events:none; animation:fxConf .9s ease-in forwards; }
+    @keyframes fxConf { to { transform:translateY(80vh) rotate(var(--rot)); opacity:0; } }
     .sidebar-brand .logo { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#2fbf8f,#8b7cf8); display:grid; place-items:center; color:#fff; font-size:16px; font-weight:700; }
     .sidebar-nav { display:grid; gap:3px; }
     .sidebar-subnav { display:grid; gap:2px; padding:2px 0 6px 12px; }
@@ -310,7 +328,9 @@
   </div>
   <div class="layout" id="app-layout" hidden>
   <aside class="sidebar">
-    <div class="sidebar-brand">模拟交易：售电公司日前电量申报</div>
+    <button class="sidebar-brand" id="brand-btn" type="button" title="点击切换 日前申报 / 中长期记录">
+      <span id="brand-text">模拟交易：售电公司日前电量申报</span>
+    </button>
     <nav class="sidebar-nav" id="gly-tabs" aria-label="页面切换">
       <button class="sidebar-item active" id="tab-declaration" type="button">日前申报<span class="sarrow">▾</span></button>
       <div class="sidebar-subnav" id="declaration-subnav">
@@ -625,7 +645,55 @@
     function editorValues(){if(editorMode==="direct"){return[...pointInputs.querySelectorAll("input")].map(input=>{const value=Number(input.value);if(input.value===""||!Number.isFinite(value)||value<0||value>1000)throw new Error(`第 ${Number(input.dataset.hour)+1} 时段请输入 0..1000 的有效数值`);return{hour:Number(input.dataset.hour),adjusted_value:value};});}const nullHours=[...selectedHours].filter(h=>currentRows[h].predicted===null);if(nullHours.length)throw new Error(`第 ${nullHours.map(h=>h+1).join("、")} 时段无预测值，无法按比例调整。请取消选择这些时段或切换到直接设置模式。`);return[...pointInputs.querySelectorAll("input")].map(input=>{const ratio=Number(input.value),hour=Number(input.dataset.hour);if(input.value===""||!Number.isFinite(ratio)||ratio<0||ratio>100)throw new Error(`第 ${hour+1} 时段比例必须在 0..100 之间`);const adjusted_value=parseFloat((currentRows[hour].predicted*ratio).toFixed(3));if(adjusted_value>1000)throw new Error(`第 ${hour+1} 时段计算结果 ${adjusted_value} MWh 超出上限 1000`);return{hour,adjusted_value};});}
     async function saveAdjustments(){try{const updates=editorValues();editorSave.disabled=true;saveStatus.className="save-status";saveStatus.textContent="正在保存…";const rows=updates.map(u=>({user_id:currentUser.id,username:normalizeUsername(displayName(currentUser)),curve_date:datePicker.value,hour:u.hour,adjusted_value:Math.round(u.adjusted_value*1000)/1000}));const {error}=await sb.from("user_adjustments").upsert(rows,{onConflict:"user_id,curve_date,hour"});if(error)throw new Error(error.message);clearSelection(false);await loadDate(datePicker.value);const {start,end}=strategyMonthRange();if(datePicker.value>=start&&datePicker.value<=end)await loadStrategy();if(!pageOverview.hidden&&overviewBaseRows.length){const oRange=overviewMonthRange();if(datePicker.value>=oRange.start&&datePicker.value<=oRange.end)await loadOverview();}}catch(error){console.error(error);saveStatus.className="save-status error";saveStatus.textContent=error.message||"保存失败";}finally{editorSave.disabled=false;}}
     selectionToggle.addEventListener("click",()=>setSelectionMode(!selectionMode));selectionClear.addEventListener("click",()=>clearSelection());editorClear.addEventListener("click",()=>clearSelection());editorCancel.addEventListener("click",()=>{directDrafts={};ratioDrafts={};updateEditor();saveStatus.textContent="";});modeDirectBtn.addEventListener("click",()=>{if(editorMode==="direct")return;editorMode="direct";saveStatus.textContent="";updateEditor();});modeRatioBtn.addEventListener("click",()=>{if(editorMode==="ratio")return;editorMode="ratio";saveStatus.textContent="";updateEditor();});batchApply.addEventListener("click",()=>{const value=Number(batchValue.value);if(batchValue.value===""||!Number.isFinite(value)||value<0||value>1000){saveStatus.className="save-status error";saveStatus.textContent="批量值必须在 0..1000 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});batchRatioApply.addEventListener("click",()=>{const value=Number(batchRatioValue.value);if(batchRatioValue.value===""||!Number.isFinite(value)||value<0||value>100){saveStatus.className="save-status error";saveStatus.textContent="批量比例必须在 0..100 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});editorSave.addEventListener("click",saveAdjustments);
-    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));priceDatePicker.addEventListener("change",event=>loadPriceDate(event.target.value));spreadLoad.addEventListener("click",loadSpread);spreadMode.addEventListener("click",toggleSpreadMode);strategyLoad.addEventListener("click",loadStrategy);strategyMode.addEventListener("click",toggleStrategyMode);tabDeclaration.addEventListener("click",()=>{document.querySelector("#declaration-subnav").classList.toggle("collapsed");tabDeclaration.classList.toggle("collapsed");switchGlyPage("declaration");});tabOverview.addEventListener("click",()=>switchGlyPage("overview"));tabLongterm.addEventListener("click",()=>switchGlyPage("longterm"));tabReview.addEventListener("click",()=>switchGlyPage("review"));tabLongterm.addEventListener("click",()=>switchGlyPage("longterm"));tabReview.addEventListener("click",()=>switchGlyPage("review"));overviewLoad.addEventListener("click",loadOverview);overviewMode.addEventListener("click",toggleOverviewMode);overviewMonth.addEventListener("change",()=>{overviewSelectedDate=null;loadOverview();});
+    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));priceDatePicker.addEventListener("change",event=>loadPriceDate(event.target.value));spreadLoad.addEventListener("click",loadSpread);spreadMode.addEventListener("click",toggleSpreadMode);strategyLoad.addEventListener("click",loadStrategy);strategyMode.addEventListener("click",toggleStrategyMode);tabDeclaration.addEventListener("click",()=>{document.querySelector("#declaration-subnav").classList.toggle("collapsed");tabDeclaration.classList.toggle("collapsed");switchGlyPage("declaration");});tabOverview.addEventListener("click",()=>switchGlyPage("overview"));tabLongterm.addEventListener("click",()=>switchGlyPage("longterm"));tabReview.addEventListener("click",()=>switchGlyPage("review"));
+    // ---- 品牌炫酷按钮：切换 日前申报 / 中长期记录 ----
+    const brandBtn=document.querySelector("#brand-btn"),brandText=document.querySelector("#brand-text"),declSubnav=document.querySelector("#declaration-subnav");
+    let brandMode="decl";
+    function launchBrandFx(btn){
+      const r=btn.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const colors=["#ff3b30","#ff9500","#ffcc00","#34c759","#5ac8fa","#af52de","#ff2d55","#00c7be"];
+      for(let i=0;i<42;i++){
+        const sp=document.createElement("span");sp.className="fx-particle";
+        const a=Math.random()*Math.PI*2,dist=70+Math.random()*150;
+        sp.style.background=colors[i%colors.length];
+        sp.style.left=(cx-3.5)+"px";sp.style.top=(cy-3.5)+"px";
+        sp.style.setProperty("--dx",(Math.cos(a)*dist)+"px");
+        sp.style.setProperty("--dy",(Math.sin(a)*dist-45)+"px");
+        sp.style.setProperty("--rot",(Math.random()*720-360)+"deg");
+        sp.style.animationDuration=(0.65+Math.random()*0.5)+"s";
+        document.body.append(sp);setTimeout(()=>sp.remove(),1400);
+      }
+      for(let i=0;i<10;i++){
+        const cf=document.createElement("span");cf.className="fx-confetti";
+        const w=4+Math.random()*6;
+        cf.style.width=w+"px";cf.style.height=(w*0.45)+"px";
+        cf.style.left=(cx-20+Math.random()*40)+"px";cf.style.top=(cy+Math.random()*20)+"px";
+        cf.style.background=colors[(i*3)%colors.length];
+        cf.style.setProperty("--rot",(Math.random()*360-180)+"deg");
+        document.body.append(cf);setTimeout(()=>cf.remove(),1300);
+      }
+      const ring=document.createElement("div");ring.className="fx-ring";ring.style.left=cx+"px";ring.style.top=cy+"px";
+      document.body.append(ring);setTimeout(()=>ring.remove(),950);
+      const flash=document.createElement("div");flash.className="fx-flash";
+      document.body.append(flash);setTimeout(()=>flash.remove(),800);
+      btn.classList.add("brand-pop","brand-glow");setTimeout(()=>btn.classList.remove("brand-pop","brand-glow"),650);
+    }
+    function applyBrandMode(){
+      const long=brandMode==="long";
+      brandText.textContent=long?"模拟交易：中长期记录":"模拟交易：售电公司日前电量申报";
+      tabDeclaration.hidden=long;tabOverview.hidden=long;
+      tabLongterm.hidden=!long;tabReview.hidden=!long;
+      declSubnav.hidden=long;
+    }
+    brandBtn.addEventListener("click",()=>{
+      launchBrandFx(brandBtn);
+      brandText.classList.add("brand-rainbow");
+      setTimeout(()=>brandText.classList.remove("brand-rainbow"),1300);
+      brandMode=brandMode==="decl"?"long":"decl";
+      applyBrandMode();
+      switchGlyPage(brandMode==="long"?"longterm":"declaration");
+    });
+    applyBrandMode();overviewLoad.addEventListener("click",loadOverview);overviewMode.addEventListener("click",toggleOverviewMode);overviewMonth.addEventListener("change",()=>{overviewSelectedDate=null;loadOverview();});
     const authOverlay=document.querySelector("#auth-overlay"),authForm=document.querySelector("#auth-form"),authUsername=document.querySelector("#auth-username"),authError=document.querySelector("#auth-error"),authSubmit=document.querySelector("#auth-submit"),userChip=document.querySelector("#user-chip"),userEmail=document.querySelector("#user-email"),logoutBtn=document.querySelector("#logout-btn"),accountSwitchWrap=document.querySelector("#admin-switch-wrap"),accountSwitch=document.querySelector("#account-switch");
     const FIXED_ACCOUNTS=["gly","wanliyang","songningning","zhangchenyue","liangweiqi","liubingyan","liuziye","luna","songyihan","wangyanshu","xumanli","zhengkezhuo"];
     const ADMIN_USERNAME="gly";
