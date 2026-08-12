@@ -183,10 +183,10 @@
     .status { position:absolute; inset:0; display:grid; place-items:center; padding:32px; background:rgba(255,255,255,.92); color:var(--muted); text-align:center; }
     .status.error,.save-status.error { color:var(--danger); }
     [hidden] { display:none !important; }
-    .editor { margin:0 20px 20px; border:1px solid #3b3254; border-radius:12px; background:#171b1a; padding:18px; }
+    .editor { margin:0 20px 20px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:18px; }
     .editor-head,.editor-actions,.batch-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
     .editor-warning { margin:8px 0 16px; color:var(--danger); font-size:13px; }
-    .batch-row { justify-content:flex-start; border-radius:9px; background:#211d30; padding:12px; }
+    .batch-row { justify-content:flex-start; border-radius:9px; background:var(--surface2); padding:12px; }
     .batch-row input { width:180px; }
     .point-inputs { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin:16px 0; }
     .point-input { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:700; }
@@ -201,11 +201,11 @@
     th { position:sticky; top:0; z-index:1; background:var(--surface2); color:var(--muted); font-size:12px; }
     .fallback { color:var(--adjusted); font-size:11px; }
     .select-cell { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
-    .mode-selector { display:flex; gap:0; margin:10px 0 16px; border:1px solid #3b3254; border-radius:8px; overflow:hidden; }
+    .mode-selector { display:flex; gap:0; margin:10px 0 16px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
     .mode-btn { flex:1; min-height:38px; border:none; border-radius:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s,color .15s; }
-    .mode-btn:hover { background:#211d30; }
+    .mode-btn:hover { background:var(--surface2); }
     .mode-btn.active { background:var(--adjusted); color:#fff; }
-    .mode-btn + .mode-btn { border-left:1px solid #3b3254; }
+    .mode-btn + .mode-btn { border-left:1px solid var(--line); }
     .ratio-info { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:12px; color:var(--muted); }
     .ratio-info input { width:80px; }
     .ratio-preview { font-weight:700; color:var(--adjusted); white-space:nowrap; }
