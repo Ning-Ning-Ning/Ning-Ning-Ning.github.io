@@ -36,6 +36,12 @@
     .fx-confetti { position:fixed; z-index:9996; pointer-events:none; animation:fxConf .9s ease-in forwards; }
     /* 全屏特效层（20 种逆天特效移植） */
     canvas#fx { position:fixed; inset:0; z-index:9995; pointer-events:none; }
+    .fx-announce { position:fixed; left:50%; top:22%; z-index:10000; transform:translate(-50%,-50%) scale(.5); opacity:0; font-size:44px; font-weight:900; letter-spacing:4px; color:#ffd2a1; text-shadow:0 0 30px rgba(255,150,60,.7),0 4px 18px rgba(0,0,0,.45); pointer-events:none; transition:transform .45s cubic-bezier(.2,1.4,.4,1),opacity .45s; text-align:center; white-space:nowrap; }
+    .fx-announce.show { transform:translate(-50%,-50%) scale(1); opacity:1; }
+    .fx-announce span { display:block; font-size:13px; letter-spacing:6px; color:#d8a37f; margin-top:8px; font-weight:500; }
+    
+    .fx-announce.show { transform:translate(-50%,-50%) scale(1); opacity:1; }
+    .fx-announce span { display:block; font-size:13px; letter-spacing:6px; color:#d8a37f; margin-top:8px; font-weight:500; }
     @keyframes pixFly { to { transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.2); opacity:0; } }
     /* 全屏特效层（20 种逆天特效移植） */
     canvas#fx { position:fixed; inset:0; z-index:9995; pointer-events:none; }
@@ -599,14 +605,22 @@
       fctx.globalCompositeOperation="source-over";
     }
     let shakeAmp=0;
+    let fxAnnounceEl=null,fxAnnounceTimer=null;
+    function fxAnnounce(big,small){
+      if(!fxAnnounceEl){fxAnnounceEl=document.createElement("div");fxAnnounceEl.id="fx-announce";fxAnnounceEl.className="fx-announce";document.body.appendChild(fxAnnounceEl);}
+      fxAnnounceEl.innerHTML=`${big}<span>${small||""}</span>`;
+      fxAnnounceEl.classList.remove("show");void fxAnnounceEl.offsetWidth;fxAnnounceEl.classList.add("show");
+      clearTimeout(fxAnnounceTimer);fxAnnounceTimer=setTimeout(()=>fxAnnounceEl.classList.remove("show"),2100);
+    }
     function fxEarthquake(){
-      shakeAmp=20;
-      for(let i=0;i<160;i++){
-        const up=rnd(-520,-220);
-        spawn({x:rnd(0,FW),y:rnd(FH*0.5,FH),vx:rnd(-260,260),vy:up,px:0,py:0,t:0,life:rnd(1,2.2),size:rnd(1.5,5),h:rnd(20,40),s:12,l:rnd(30,55),g:780,fric:0.99,rot:Math.random()*TAU,vr:rnd(-12,12),type:"rect"});
+      shakeAmp=26;
+      fxAnnounce("🏚 大地震","快扶稳桌子！");
+      for(let i=0;i<220;i++){
+        const up=rnd(-560,-240);
+        spawn({x:rnd(0,FW),y:rnd(FH*0.45,FH),vx:rnd(-300,300),vy:up,px:0,py:0,t:0,life:rnd(1.2,2.6),size:rnd(1.8,6),h:rnd(20,40),s:12,l:rnd(28,58),g:820,fric:0.99,rot:Math.random()*TAU,vr:rnd(-16,16),type:"rect"});
       }
-      for(let i=0;i<120;i++){
-        spawn({x:rnd(0,FW),y:rnd(0,FH),vx:rnd(-160,160),vy:rnd(-160,160),px:0,py:0,t:0,life:rnd(0.6,1.4),size:rnd(1,3),h:35,s:30,l:rnd(45,60),g:200,fric:0.97});
+      for(let i=0;i<160;i++){
+        spawn({x:rnd(0,FW),y:rnd(0,FH),vx:rnd(-180,180),vy:rnd(-180,180),px:0,py:0,t:0,life:rnd(0.7,1.6),size:rnd(1,3.4),h:35,s:30,l:rnd(42,62),g:220,fric:0.97});
       }
     }
     function btnPixelate(el){
@@ -633,6 +647,22 @@
       fctx.setTransform(FDPR,0,0,FDPR,sx*FDPR,sy*FDPR);
       updatePool(dt);drawPool();
       requestAnimationFrame(fxFrame);
+    // ---- 滚动联动：二级菜单高亮跟随当前可见模块 ----
+    const subItems=[...document.querySelectorAll("#declaration-subnav .sidebar-subitem")];
+    function syncSubmenu(){
+      if(!subItems.length)return;
+      if(pageDeclaration.hidden){subItems.forEach(b=>b.classList.remove("active"));return;}
+      const mark=window.scrollY+140;
+      let cur=null;
+      subItems.forEach(b=>{
+        const el=document.getElementById(b.dataset.target);
+        if(el&&el.getBoundingClientRect().top+window.scrollY<=mark)cur=b;
+      });
+      subItems.forEach(b=>b.classList.toggle("active",b===cur));
+    }
+    window.addEventListener("scroll",()=>{requestAnimationFrame(syncSubmenu);},{passive:true});
+    window.addEventListener("load",()=>{setTimeout(syncSubmenu,300);});
+
     }
     requestAnimationFrame(fxFrame);
 
