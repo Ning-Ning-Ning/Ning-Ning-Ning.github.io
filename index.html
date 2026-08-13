@@ -36,12 +36,7 @@
     .fx-confetti { position:fixed; z-index:9996; pointer-events:none; animation:fxConf .9s ease-in forwards; }
     /* 全屏特效层（20 种逆天特效移植） */
     canvas#fx { position:fixed; inset:0; z-index:9995; pointer-events:none; }
-    .fx-announce { position:fixed; left:50%; top:22%; z-index:10000; transform:translate(-50%,-50%) scale(.5); opacity:0; font-size:44px; font-weight:900; letter-spacing:4px; color:#ffd2a1; text-shadow:0 0 30px rgba(255,150,60,.7),0 4px 18px rgba(0,0,0,.45); pointer-events:none; transition:transform .45s cubic-bezier(.2,1.4,.4,1),opacity .45s; text-align:center; white-space:nowrap; }
-    .fx-announce.show { transform:translate(-50%,-50%) scale(1); opacity:1; }
-    .fx-announce span { display:block; font-size:13px; letter-spacing:6px; color:#d8a37f; margin-top:8px; font-weight:500; }
     
-    .fx-announce.show { transform:translate(-50%,-50%) scale(1); opacity:1; }
-    .fx-announce span { display:block; font-size:13px; letter-spacing:6px; color:#d8a37f; margin-top:8px; font-weight:500; }
     @keyframes pixFly { to { transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.2); opacity:0; } }
     /* 全屏特效层（20 种逆天特效移植） */
     canvas#fx { position:fixed; inset:0; z-index:9995; pointer-events:none; }
@@ -605,16 +600,8 @@
       fctx.globalCompositeOperation="source-over";
     }
     let shakeAmp=0;
-    let fxAnnounceEl=null,fxAnnounceTimer=null;
-    function fxAnnounce(big,small){
-      if(!fxAnnounceEl){fxAnnounceEl=document.createElement("div");fxAnnounceEl.id="fx-announce";fxAnnounceEl.className="fx-announce";document.body.appendChild(fxAnnounceEl);}
-      fxAnnounceEl.innerHTML=`${big}<span>${small||""}</span>`;
-      fxAnnounceEl.classList.remove("show");void fxAnnounceEl.offsetWidth;fxAnnounceEl.classList.add("show");
-      clearTimeout(fxAnnounceTimer);fxAnnounceTimer=setTimeout(()=>fxAnnounceEl.classList.remove("show"),2100);
-    }
     function fxEarthquake(){
       shakeAmp=26;
-      fxAnnounce("🏚 大地震","快扶稳桌子！");
       for(let i=0;i<220;i++){
         const up=rnd(-560,-240);
         spawn({x:rnd(0,FW),y:rnd(FH*0.45,FH),vx:rnd(-300,300),vy:up,px:0,py:0,t:0,life:rnd(1.2,2.6),size:rnd(1.8,6),h:rnd(20,40),s:12,l:rnd(28,58),g:820,fric:0.99,rot:Math.random()*TAU,vr:rnd(-16,16),type:"rect"});
