@@ -34,6 +34,12 @@
     .fx-flash { position:fixed; inset:0; z-index:9997; pointer-events:none; background:radial-gradient(circle at 50% 42%, rgba(255,255,255,.98), rgba(255,204,0,.55) 28%, rgba(175,82,222,.25) 55%, transparent 75%); animation:fxFlash .7s ease-out forwards; }
     @keyframes fxFlash { from{opacity:1;} to{opacity:0;} }
     .fx-confetti { position:fixed; z-index:9996; pointer-events:none; animation:fxConf .9s ease-in forwards; }
+    /* 全屏特效层（20 种逆天特效移植） */
+    canvas#fx { position:fixed; inset:0; z-index:9995; pointer-events:none; }
+    @keyframes pixFly { to { transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.2); opacity:0; } }
+    /* 全屏特效层（20 种逆天特效移植） */
+    canvas#fx { position:fixed; inset:0; z-index:9995; pointer-events:none; }
+    @keyframes pixFly { to { transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.2); opacity:0; } }
     @keyframes fxConf { to { transform:translateY(80vh) rotate(var(--rot)); opacity:0; } }
     .sidebar-brand .logo { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,#2fbf8f,#8b7cf8); display:grid; place-items:center; color:#fff; font-size:16px; font-weight:700; }
     .sidebar-nav { display:grid; gap:3px; }
@@ -552,8 +558,84 @@
   </main>
   </div>
   </div>
+  <canvas id="fx"></canvas>
   <script>
     "use strict";
+    // ---- 全屏特效系统（移植自「20 种逆天特效」：大地震 + 按钮像素崩解）----
+    const TAU=Math.PI*2;
+    const rnd=(a,b)=>a+Math.random()*(b-a);
+    const irnd=(a,b)=>Math.floor(rnd(a,b+1));
+    const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+    const fxCanvas=document.createElement("canvas");fxCanvas.id="fx";document.body.appendChild(fxCanvas);
+    const fctx=fxCanvas.getContext("2d");
+    let FW=0,FH=0,FDPR=Math.min(window.devicePixelRatio||1,2);
+    function fxResize(){FW=window.innerWidth;FH=window.innerHeight;fxCanvas.width=FW*FDPR;fxCanvas.height=FH*FDPR;}
+    window.addEventListener("resize",fxResize);fxResize();
+    const pool=[];const MAXP=4000;
+    function spawn(p){pool.push(p);if(pool.length>MAXP)pool.splice(0,pool.length-MAXP);}
+    function updatePool(dt){
+      for(let i=pool.length-1;i>=0;i--){
+        const p=pool[i];p.px=p.x;p.py=p.y;
+        if(p.g){p.vy+=p.g*dt;}
+        if(p.fric){const f=Math.pow(p.fric,dt*60);p.vx*=f;p.vy*=f;}
+        p.x+=p.vx*dt;p.y+=p.vy*dt;p.t+=dt;
+        if(p.t>=p.life)pool.splice(i,1);
+      }
+    }
+    function drawPool(){
+      fctx.globalCompositeOperation="lighter";
+      for(const p of pool){
+        const a=1-p.t/p.life;if(a<=0)continue;
+        const col=`hsla(${p.h},${p.s||95}%,${p.l||60}%,`;
+        if(p.type==="rect"){
+          fctx.globalCompositeOperation="source-over";
+          fctx.save();fctx.translate(p.x,p.y);fctx.rotate(p.rot||0);
+          fctx.fillStyle=col+(a*0.85)+")";fctx.fillRect(-p.size,-p.size*0.6,p.size*2,p.size*1.2);
+          fctx.restore();fctx.globalCompositeOperation="lighter";continue;
+        }
+        fctx.fillStyle=col+(a*0.95)+")";
+        fctx.beginPath();fctx.arc(p.x,p.y,p.size*0.95,0,TAU);fctx.fill();
+      }
+      fctx.globalCompositeOperation="source-over";
+    }
+    let shakeAmp=0;
+    function fxEarthquake(){
+      shakeAmp=20;
+      for(let i=0;i<160;i++){
+        const up=rnd(-520,-220);
+        spawn({x:rnd(0,FW),y:rnd(FH*0.5,FH),vx:rnd(-260,260),vy:up,px:0,py:0,t:0,life:rnd(1,2.2),size:rnd(1.5,5),h:rnd(20,40),s:12,l:rnd(30,55),g:780,fric:0.99,rot:Math.random()*TAU,vr:rnd(-12,12),type:"rect"});
+      }
+      for(let i=0;i<120;i++){
+        spawn({x:rnd(0,FW),y:rnd(0,FH),vx:rnd(-160,160),vy:rnd(-160,160),px:0,py:0,t:0,life:rnd(0.6,1.4),size:rnd(1,3),h:35,s:30,l:rnd(45,60),g:200,fric:0.97});
+      }
+    }
+    function btnPixelate(el){
+      const r=el.getBoundingClientRect();if(!r.width||!r.height)return;
+      const cols=9,rows=Math.max(3,Math.round(cols*r.height/r.width)),cw=r.width/cols,ch=r.height/rows;
+      const cs=getComputedStyle(el);
+      const bg=(cs.backgroundImage&&cs.backgroundImage!=="none")?cs.backgroundImage:cs.backgroundColor;
+      for(let iy=0;iy<rows;iy++)for(let ix=0;ix<cols;ix++){
+        const d=document.createElement("div");
+        d.style.cssText=`position:fixed;z-index:9999;pointer-events:none;left:${r.left+ix*cw}px;top:${r.top+iy*ch}px;width:${cw+1}px;height:${ch+1}px;background:${bg};`;
+        d.style.setProperty("--dx",(Math.random()*2-1)*(60+Math.random()*90)+"px");
+        d.style.setProperty("--dy",(Math.random()*2-1)*(60+Math.random()*90)+"px");
+        d.style.setProperty("--rot",(Math.random()*360-180)+"deg");
+        d.style.animation="pixFly .7s ease-out forwards";
+        document.body.appendChild(d);setTimeout(()=>d.remove(),800);
+      }
+    }
+    let fxLast=0;
+    function fxFrame(ts){
+      const dt=Math.min((ts-fxLast)/1000,0.05);fxLast=ts;
+      fctx.setTransform(1,0,0,1,0,0);fctx.clearRect(0,0,FW,FH);
+      let sx=0,sy=0;
+      if(shakeAmp>0.1){sx=(Math.random()*2-1)*shakeAmp;sy=(Math.random()*2-1)*shakeAmp;shakeAmp*=Math.pow(0.0015,dt);if(shakeAmp<0.2)shakeAmp=0;}
+      fctx.setTransform(FDPR,0,0,FDPR,sx*FDPR,sy*FDPR);
+      updatePool(dt);drawPool();
+      requestAnimationFrame(fxFrame);
+    }
+    requestAnimationFrame(fxFrame);
+
     const SUPABASE_URL="https://kputrrbbcmxbnhwhxvoo.supabase.co";
     const SUPABASE_KEY="sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
     const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
@@ -610,7 +692,7 @@
     async function loadStrategy(){if(!strategyMonth.value){setStrategyStatus("请选择月份。",true);return;}const {start,end}=strategyMonthRange();strategyLoad.disabled=true;setStrategyStatus("正在加载整月电费变化…");try{const data=await fetchStrategyData(start,end);strategyBaseRows=data.baseRows;strategyAdjustmentRows=data.adjustmentRows;renderStrategy();}catch(error){console.error(error);strategyBaseRows=[];strategyAdjustmentRows=[];strategyBody.replaceChildren();setStrategyStatus(error.message||"电费变化加载失败。",true);}finally{strategyLoad.disabled=false;}}
     function toggleStrategyMode(){strategyNumeric=!strategyNumeric;strategyTable.classList.toggle("numeric-mode",strategyNumeric);strategyMode.textContent=strategyNumeric?"只显示色块":"显示数字";strategyMode.classList.toggle("active",strategyNumeric);if(strategyBaseRows.length)renderStrategy();}
     function isAdminUser(){return currentUser&&normalizeUsername(displayName(currentUser))===ADMIN_USERNAME;}
-    function switchGlyPage(page){const showOverview=page==="overview",showLong=page==="longterm",showReview=page==="review";pageDeclaration.hidden=showOverview||showLong||showReview;pageOverview.hidden=!showOverview;pageLongterm.hidden=!showLong;pageReview.hidden=!showReview;tabDeclaration.classList.toggle("active",!showOverview&&!showLong&&!showReview);tabOverview.classList.toggle("active",showOverview);tabLongterm.classList.toggle("active",showLong);tabReview.classList.toggle("active",showReview);if(showOverview&&!overviewBaseRows.length&&overviewMonth.value)loadOverview();}
+    function switchGlyPage(page){const showOverview=page==="overview",showLong=page==="longterm",showReview=page==="review";pageDeclaration.hidden=showOverview||showLong||showReview;pageOverview.hidden=!showOverview;pageLongterm.hidden=!showLong;pageReview.hidden=!showReview;tabDeclaration.classList.remove("active");tabOverview.classList.remove("active");tabLongterm.classList.remove("active");tabReview.classList.remove("active");if(showOverview)tabOverview.classList.add("active");else if(showLong)tabLongterm.classList.add("active");else if(showReview)tabReview.classList.add("active");else tabDeclaration.classList.add("active");if(showOverview&&!overviewBaseRows.length&&overviewMonth.value)loadOverview();}
     function overviewMonthRange(){const [year,month]=overviewMonth.value.split("-").map(Number),start=`${year}-${String(month).padStart(2,"0")}-01`,lastDay=new Date(year,month,0).getDate(),end=`${year}-${String(month).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;return{start,end};}
     function initializeOverviewRange(min,max){overviewMonth.min=min.slice(0,7);overviewMonth.max=max.slice(0,7);overviewMonth.value=clampDate(localDateOffset(0).slice(0,7),overviewMonth.min,overviewMonth.max);overviewMonth.disabled=false;overviewLoad.disabled=false;overviewMode.disabled=false;renderOverviewHeaders();}
     function setOverviewStatus(message,isError=false){overviewStatus.textContent=message;overviewStatus.classList.toggle("error",isError);}
@@ -645,39 +727,11 @@
     function editorValues(){if(editorMode==="direct"){return[...pointInputs.querySelectorAll("input")].map(input=>{const value=Number(input.value);if(input.value===""||!Number.isFinite(value)||value<0||value>1000)throw new Error(`第 ${Number(input.dataset.hour)+1} 时段请输入 0..1000 的有效数值`);return{hour:Number(input.dataset.hour),adjusted_value:value};});}const nullHours=[...selectedHours].filter(h=>currentRows[h].predicted===null);if(nullHours.length)throw new Error(`第 ${nullHours.map(h=>h+1).join("、")} 时段无预测值，无法按比例调整。请取消选择这些时段或切换到直接设置模式。`);return[...pointInputs.querySelectorAll("input")].map(input=>{const ratio=Number(input.value),hour=Number(input.dataset.hour);if(input.value===""||!Number.isFinite(ratio)||ratio<0||ratio>100)throw new Error(`第 ${hour+1} 时段比例必须在 0..100 之间`);const adjusted_value=parseFloat((currentRows[hour].predicted*ratio).toFixed(3));if(adjusted_value>1000)throw new Error(`第 ${hour+1} 时段计算结果 ${adjusted_value} MWh 超出上限 1000`);return{hour,adjusted_value};});}
     async function saveAdjustments(){try{const updates=editorValues();editorSave.disabled=true;saveStatus.className="save-status";saveStatus.textContent="正在保存…";const rows=updates.map(u=>({user_id:currentUser.id,username:normalizeUsername(displayName(currentUser)),curve_date:datePicker.value,hour:u.hour,adjusted_value:Math.round(u.adjusted_value*1000)/1000}));const {error}=await sb.from("user_adjustments").upsert(rows,{onConflict:"user_id,curve_date,hour"});if(error)throw new Error(error.message);clearSelection(false);await loadDate(datePicker.value);const {start,end}=strategyMonthRange();if(datePicker.value>=start&&datePicker.value<=end)await loadStrategy();if(!pageOverview.hidden&&overviewBaseRows.length){const oRange=overviewMonthRange();if(datePicker.value>=oRange.start&&datePicker.value<=oRange.end)await loadOverview();}}catch(error){console.error(error);saveStatus.className="save-status error";saveStatus.textContent=error.message||"保存失败";}finally{editorSave.disabled=false;}}
     selectionToggle.addEventListener("click",()=>setSelectionMode(!selectionMode));selectionClear.addEventListener("click",()=>clearSelection());editorClear.addEventListener("click",()=>clearSelection());editorCancel.addEventListener("click",()=>{directDrafts={};ratioDrafts={};updateEditor();saveStatus.textContent="";});modeDirectBtn.addEventListener("click",()=>{if(editorMode==="direct")return;editorMode="direct";saveStatus.textContent="";updateEditor();});modeRatioBtn.addEventListener("click",()=>{if(editorMode==="ratio")return;editorMode="ratio";saveStatus.textContent="";updateEditor();});batchApply.addEventListener("click",()=>{const value=Number(batchValue.value);if(batchValue.value===""||!Number.isFinite(value)||value<0||value>1000){saveStatus.className="save-status error";saveStatus.textContent="批量值必须在 0..1000 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});batchRatioApply.addEventListener("click",()=>{const value=Number(batchRatioValue.value);if(batchRatioValue.value===""||!Number.isFinite(value)||value<0||value>100){saveStatus.className="save-status error";saveStatus.textContent="批量比例必须在 0..100 之间";return;}pointInputs.querySelectorAll("input").forEach(input=>{input.value=String(value);input.dispatchEvent(new Event("input"));});saveStatus.className="save-status";saveStatus.textContent="已应用到输入框，点击保存后写入数据库。";});editorSave.addEventListener("click",saveAdjustments);
-    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));priceDatePicker.addEventListener("change",event=>loadPriceDate(event.target.value));spreadLoad.addEventListener("click",loadSpread);spreadMode.addEventListener("click",toggleSpreadMode);strategyLoad.addEventListener("click",loadStrategy);strategyMode.addEventListener("click",toggleStrategyMode);tabDeclaration.addEventListener("click",()=>{document.querySelector("#declaration-subnav").classList.toggle("collapsed");tabDeclaration.classList.toggle("collapsed");switchGlyPage("declaration");});tabOverview.addEventListener("click",()=>switchGlyPage("overview"));tabLongterm.addEventListener("click",()=>switchGlyPage("longterm"));tabReview.addEventListener("click",()=>switchGlyPage("review"));
+    chart.addEventListener("pointerdown",beginSelection);chart.addEventListener("pointermove",moveSelection);chart.addEventListener("pointerup",endSelection);chart.addEventListener("pointercancel",event=>{if(drag&&drag.pointerId===event.pointerId){drag.box.remove();drag=null;}});datePicker.addEventListener("change",event=>loadDate(event.target.value));priceDatePicker.addEventListener("change",event=>loadPriceDate(event.target.value));spreadLoad.addEventListener("click",loadSpread);spreadMode.addEventListener("click",toggleSpreadMode);strategyLoad.addEventListener("click",loadStrategy);strategyMode.addEventListener("click",toggleStrategyMode);tabDeclaration.addEventListener("click",()=>{btnPixelate(tabDeclaration);document.querySelector("#declaration-subnav").classList.toggle("collapsed");tabDeclaration.classList.toggle("collapsed");switchGlyPage("declaration");});tabOverview.addEventListener("click",()=>{btnPixelate(tabOverview);switchGlyPage("overview");});tabLongterm.addEventListener("click",()=>{btnPixelate(tabLongterm);switchGlyPage("longterm");});tabReview.addEventListener("click",()=>{btnPixelate(tabReview);switchGlyPage("review");});
     // ---- 品牌炫酷按钮：切换 日前申报 / 中长期记录 ----
     const brandBtn=document.querySelector("#brand-btn"),brandText=document.querySelector("#brand-text"),declSubnav=document.querySelector("#declaration-subnav");
     let brandMode="decl";
-    function launchBrandFx(btn){
-      const r=btn.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-      const colors=["#ff3b30","#ff9500","#ffcc00","#34c759","#5ac8fa","#af52de","#ff2d55","#00c7be"];
-      for(let i=0;i<42;i++){
-        const sp=document.createElement("span");sp.className="fx-particle";
-        const a=Math.random()*Math.PI*2,dist=70+Math.random()*150;
-        sp.style.background=colors[i%colors.length];
-        sp.style.left=(cx-3.5)+"px";sp.style.top=(cy-3.5)+"px";
-        sp.style.setProperty("--dx",(Math.cos(a)*dist)+"px");
-        sp.style.setProperty("--dy",(Math.sin(a)*dist-45)+"px");
-        sp.style.setProperty("--rot",(Math.random()*720-360)+"deg");
-        sp.style.animationDuration=(0.65+Math.random()*0.5)+"s";
-        document.body.append(sp);setTimeout(()=>sp.remove(),1400);
-      }
-      for(let i=0;i<10;i++){
-        const cf=document.createElement("span");cf.className="fx-confetti";
-        const w=4+Math.random()*6;
-        cf.style.width=w+"px";cf.style.height=(w*0.45)+"px";
-        cf.style.left=(cx-20+Math.random()*40)+"px";cf.style.top=(cy+Math.random()*20)+"px";
-        cf.style.background=colors[(i*3)%colors.length];
-        cf.style.setProperty("--rot",(Math.random()*360-180)+"deg");
-        document.body.append(cf);setTimeout(()=>cf.remove(),1300);
-      }
-      const ring=document.createElement("div");ring.className="fx-ring";ring.style.left=cx+"px";ring.style.top=cy+"px";
-      document.body.append(ring);setTimeout(()=>ring.remove(),950);
-      const flash=document.createElement("div");flash.className="fx-flash";
-      document.body.append(flash);setTimeout(()=>flash.remove(),800);
-      btn.classList.add("brand-pop","brand-glow");setTimeout(()=>btn.classList.remove("brand-pop","brand-glow"),650);
-    }
+    function launchBrandFx(btn){fxEarthquake();}
     function applyBrandMode(){
       const long=brandMode==="long";
       brandText.textContent=long?"模拟交易：中长期记录":"模拟交易：售电公司日前电量申报";
