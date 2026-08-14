@@ -12,7 +12,7 @@
       --font-sans:Arial,"Microsoft YaHei",sans-serif; --font-display:Arial,"Microsoft YaHei",sans-serif;
       --primary:#6554c0; --primary-ink:#fff;
       --brand-a:#2fbf8f; --brand-b:#8b7cf8;
-      --radius-card:16px; --radius-btn:8px; --radius-sm:6px;
+      --radius-card:16px; --radius-btn:8px; --radius-box:8px; --radius-sm:6px;
       --shadow-card:0 14px 40px rgba(29,51,43,.08); --shadow-lg:0 14px 40px rgba(29,51,43,.12);
       --overlay-bg:rgba(255,255,255,.92); --selection-fill:rgba(101,84,192,.13); --swatch-border:rgba(0,0,0,.08);
       font-family:var(--font-sans);
@@ -30,27 +30,44 @@
       --font-display:"Palatino Linotype","Tiempos","Georgia","Songti SC","SimSun",serif;
       --primary:#d97757; --primary-ink:#fff;
       --brand-a:#d97757; --brand-b:#b95a3d;
-      --radius-card:12px; --radius-btn:9px; --radius-sm:6px;
+      --radius-card:12px; --radius-btn:9px; --radius-box:9px; --radius-sm:6px;
       --shadow-card:0 6px 24px rgba(80,60,40,.10); --shadow-lg:0 10px 32px rgba(80,60,40,.14);
       --overlay-bg:rgba(250,249,245,.92); --selection-fill:rgba(217,119,87,.16); --swatch-border:rgba(60,50,40,.10);
     }
-    /* ===== UI 风格主题：Apple（Human Interface Guidelines）===== */
+    /* ===== UI 风格主题：Apple（Human Interface Guidelines · Pinguo 设计系统导出）===== */
     html[data-theme="apple"] {
       color-scheme: light;
-      --page:#f2f2f7; --surface:#ffffff; --surface2:#e9e9ed; --ink:#1d1d1f; --muted:#6e6e73; --grid:#e0e0e6; --line:#d2d2d7;
-      --actual:#34c759; --predicted:#ff9500; --adjusted:#af52de; --day-ahead:#ff9500; --real-time:#007aff; --focus:#0071e3; --danger:#ff3b30;
-      --increase:#ff3b30; --decrease:#34c759; --increase-ink:#c4001d; --decrease-ink:#1d8a3d; --zero-bg:#f5f5f7; --zero-ink:#6e6e73;
-      --nav-hover:#f2f2f7; --nav-active-bg:#e8f1fe; --nav-active-ink:#0071e3; --primary-soft:#e8f1fe;
-      --tooltip-bg:#2c2c2e; --tooltip-note:#c7c7cc; --cell-empty:#fafafa; --cell-empty-ink:#8e8e93; --crosshair:#aeaeb2;
-      --sim-target:#0071e3; --sim-similar:#ff375f; --w-right:#af52de; --w-hl-stroke:#fff;
-      --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
-      --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
-      --primary:#0071e3; --primary-ink:#fff;
-      --brand-a:#0071e3; --brand-b:#5ac8fa;
-      --radius-card:20px; --radius-btn:12px; --radius-sm:8px;
-      --shadow-card:0 4px 20px rgba(0,0,0,.06); --shadow-lg:0 8px 28px rgba(0,0,0,.10);
-      --overlay-bg:rgba(242,242,247,.92); --selection-fill:rgba(0,113,227,.14); --swatch-border:rgba(0,0,0,.10);
+      /* 背景层：Silver Mist #f5f5f7 / 白卡片 / 次级 #f2f2f7 */
+      --page:#f5f5f7; --surface:#ffffff; --surface2:#f2f2f7; --ink:#1d1d1f; --muted:#6e6e73; --grid:#e5e5ea; --line:#e5e5ea;
+      /* 数据系列色锚定 HIG System Colors（chart-1..5 / brand-500） */
+      --actual:#34c759; --predicted:#ff9500; --adjusted:#af52de; --day-ahead:#ff9500; --real-time:#007aff; --focus:#007aff; --danger:#ff3b30;
+      /* 增减语义 = System Red/Green */
+      --increase:#ff3b30; --decrease:#34c759; --increase-ink:#c4001d; --decrease-ink:#1d8a3d; --zero-bg:#f2f2f7; --zero-ink:#8e8e93;
+      /* 导航：sidebar 用系统灰 #f2f2f7，active 用 brand-50 蓝底 */
+      --nav-hover:#f2f2f7; --nav-active-bg:#e8f2ff; --nav-active-ink:#007aff; --primary-soft:#e8f2ff;
+      --tooltip-bg:#1c1c1e; --tooltip-note:#aeaeb2; --cell-empty:#f5f5f7; --cell-empty-ink:#8e8e93; --crosshair:#aeaeb2;
+      --sim-target:#007aff; --sim-similar:#ff3b30; --w-right:#af52de; --w-hl-stroke:#fff;
+      /* 字体：DM Sans 界面/展示 + JetBrains Mono 数字 */
+      --font-sans:"DM Sans",-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+      --font-display:"DM Sans",-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+      --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      /* 主色 = System Blue #007aff；品牌渐变蓝系 */
+      --primary:#007aff; --primary-ink:#fff;
+      --brand-a:#007aff; --brand-b:#5ac8fa;
+      /* 圆角：卡片 1.2rem，按钮全胶囊，容器 14px */
+      --radius-card:1.2rem; --radius-btn:999px; --radius-box:14px; --radius-sm:8px;
+      /* 阴影 whisper-light：静息 1px 边框感，悬浮 8px 深 */
+      --shadow-card:0 1px 2px 0 rgba(0,0,0,.05),0 1px 3px -1px rgba(0,0,0,.05);
+      --shadow-lg:0 8px 24px -8px rgba(0,0,0,.08),0 4px 8px -4px rgba(0,0,0,.05);
+      --overlay-bg:rgba(245,245,247,.92); --selection-fill:rgba(0,122,255,.14); --swatch-border:rgba(0,0,0,.10);
     }
+    /* Apple 动效：cubic-bezier(0.32,0.72,0,1)，350ms 过渡带 */
+    html[data-theme="apple"].theme-anim, html[data-theme="apple"].theme-anim * { transition-duration:.35s !important; transition-timing-function:cubic-bezier(.32,.72,0,1) !important; }
+    /* Apple 规范：侧边栏用系统灰 #f2f2f7（--sidebar），与白卡片区分 */
+    html[data-theme="apple"] .sidebar { background:var(--surface2); }
+    /* Apple 规范：导航 hover 用 sidebar-accent #e5e5ea；数字表格用 JetBrains Mono */
+    html[data-theme="apple"] .sidebar-item:hover:not(.active) { background:#e5e5ea; }
+    html[data-theme="apple"] .spread-cell, html[data-theme="apple"] .boundary-cell .bval, html[data-theme="apple"] .boundary-table .hour-cell { font-family:var(--font-mono); }
     /* 主题切换平滑过渡（仅切换瞬间启用） */
     html.theme-anim, html.theme-anim * { transition:background-color .4s ease,color .4s ease,border-color .4s ease,box-shadow .4s ease !important; }
     * { box-sizing:border-box; }
@@ -82,7 +99,7 @@
     .sidebar-user { color:var(--muted); font-size:13px; padding:0 6px; line-height:1.6; }
     .sidebar-user strong { color:var(--ink); }
     .sidebar-admin { padding:0 6px; }
-    .sidebar-admin select { width:100%; min-height:34px; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface); color:var(--ink); padding:4px 8px; font:inherit; }
+    .sidebar-admin select { width:100%; min-height:34px; border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); color:var(--ink); padding:4px 8px; font:inherit; }
     .sidebar-foot button { min-height:36px; }
     /* UI 风格切换（分段控件） */
     .theme-switch { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; padding:3px; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface2); }
@@ -95,7 +112,7 @@
     .content main { width:min(1120px,calc(100% - 32px)); margin:32px auto; }
     h2 { margin:0; font-size:19px; font-family:var(--font-display); }
     .date-control { display:grid; gap:7px; min-width:190px; color:var(--muted); font-size:13px; font-weight:700; }
-    input[type="date"],input[type="number"] { min-height:42px; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
+    input[type="date"],input[type="number"] { min-height:42px; border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
     input[type="date"] { width:100%; }
     button { min-height:40px; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface); color:var(--ink); padding:8px 14px; font:inherit; font-weight:700; cursor:pointer; }
     button:hover { background:var(--surface2); }
@@ -146,7 +163,7 @@
     .spread-swatch.increase { background:var(--increase); }
     .spread-status { min-height:20px; margin:0 0 10px; color:var(--muted); font-size:13px; }
     .spread-status.error { color:var(--danger); }
-    .spread-table-wrap { overflow-x:auto; overflow-y:visible; border:1px solid var(--line); border-radius:var(--radius-btn); }
+    .spread-table-wrap { overflow-x:auto; overflow-y:visible; border:1px solid var(--line); border-radius:var(--radius-box); }
     .spread-table { min-width:920px; table-layout:fixed; border-collapse:separate; border-spacing:3px; padding:3px; }
     .spread-table th,.spread-table td { width:30px; height:24px; padding:0; border:0; border-radius:3px; text-align:center; font-size:0; }
     .spread-table th { height:28px; color:var(--muted); font-size:10px; font-weight:700; }
@@ -179,7 +196,7 @@
     .placeholder-module { padding:22px; border-bottom:1px solid var(--line); }
     .placeholder-module:last-child { border-bottom:0; }
     .placeholder-module h2 { margin:0 0 14px; font-size:16px; color:var(--ink); }
-    .placeholder-empty { min-height:120px; border:1px dashed var(--grid); border-radius:var(--radius-btn); display:grid; place-items:center; color:var(--muted); font-size:13px; }
+    .placeholder-empty { min-height:120px; border:1px dashed var(--grid); border-radius:var(--radius-box); display:grid; place-items:center; color:var(--muted); font-size:13px; }
     .overview-table tr.row-selected td:first-child { background:var(--adjusted); color:#fff; font-weight:700; }
     .overview-table tr.row-selected td:not(:first-child) { box-shadow:inset 0 0 0 2px var(--adjusted); }
     .chart-shell { position:relative; min-height:480px; padding:8px 20px 12px; }
@@ -210,7 +227,7 @@
     .status { position:absolute; inset:0; display:grid; place-items:center; padding:32px; background:var(--overlay-bg); color:var(--muted); text-align:center; }
     .status.error,.save-status.error { color:var(--danger); }
     [hidden] { display:none !important; }
-    .editor { margin:0 20px 20px; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface); padding:18px; }
+    .editor { margin:0 20px 20px; border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); padding:18px; }
     .editor-head,.editor-actions,.batch-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
     .editor-warning { margin:8px 0 16px; color:var(--danger); font-size:13px; }
     .batch-row { justify-content:flex-start; border-radius:9px; background:var(--surface2); padding:12px; }
@@ -228,7 +245,7 @@
     th { position:sticky; top:0; z-index:1; background:var(--surface2); color:var(--muted); font-size:12px; }
     .fallback { color:var(--adjusted); font-size:11px; }
     .select-cell { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
-    .mode-selector { display:flex; gap:0; margin:10px 0 16px; border:1px solid var(--line); border-radius:var(--radius-btn); overflow:hidden; }
+    .mode-selector { display:flex; gap:0; margin:10px 0 16px; border:1px solid var(--line); border-radius:var(--radius-box); overflow:hidden; }
     .mode-btn { flex:1; min-height:38px; border:none; border-radius:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:background .15s,color .15s; }
     .mode-btn:hover { background:var(--surface2); }
     .mode-btn.active { background:var(--primary); color:var(--primary-ink); }
@@ -244,7 +261,7 @@
     .auth-subtitle { margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.6; }
     .auth-form { display:grid; gap:12px; }
     .auth-form label { display:grid; gap:6px; color:var(--muted); font-size:13px; font-weight:700; }
-    .auth-form input { min-height:42px; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
+    .auth-form input { min-height:42px; border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); color:var(--ink); padding:8px 11px; font:inherit; }
     .auth-hint { font-weight:400; }
     .auth-hint-gap { margin:14px 0 0; }
     .auth-error { margin:0; min-height:18px; color:var(--danger); font-size:13px; }
@@ -294,7 +311,7 @@
     .weather-legend .wlegend-item { display:inline-flex; align-items:center; gap:5px; cursor:pointer; user-select:none; }
     .weather-legend .wlegend-item .wlegend-swatch { width:18px; height:4px; border-radius:2px; }
     .weather-legend .wlegend-item.off { opacity:.35; text-decoration:line-through; }
-    .weather-chart-shell { position:relative; border:1px solid var(--line); border-radius:var(--radius-btn); padding:6px 12px 10px; background:var(--surface); height:360px; }
+    .weather-chart-shell { position:relative; border:1px solid var(--line); border-radius:var(--radius-box); padding:6px 12px 10px; background:var(--surface); height:360px; }
     #wchart-left,#wchart-right { width:100%; height:100%; display:block; }
     .w-curve { fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
     .w-hl { pointer-events:none; }
@@ -326,7 +343,7 @@
     .similar-controls input { min-height:34px; padding:4px 8px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); color:var(--ink); font:inherit; }
     .similar-status { padding:0 22px 8px; min-height:16px; color:var(--muted); font-size:12px; }
     .similar-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:4px 22px 22px; }
-    .sim-card { position:relative; border:1px solid var(--line); border-radius:var(--radius-btn); background:var(--surface); padding:10px 12px 8px; }
+    .sim-card { position:relative; border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); padding:10px 12px 8px; }
     .sim-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
     .sim-head strong { font-size:13px; color:var(--ink); font-family:var(--font-display); }
     .sim-head button { min-height:26px; padding:3px 10px; font-size:12px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); color:var(--muted); cursor:pointer; font-weight:700; }
