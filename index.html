@@ -420,8 +420,7 @@
     // ---- 品牌炫酷按钮：切换 日前申报 / 中长期记录 ----
     const brandBtn=document.querySelector("#brand-btn"),brandText=document.querySelector("#brand-text"),declSubnav=document.querySelector("#declaration-subnav");
     let brandMode="decl";
-    let lastQuakeAt=0;
-    function launchBrandFx(btn){const now=Date.now();if(now-lastQuakeAt<1600){shakeAmp=Math.max(shakeAmp,6);return;}lastQuakeAt=now;fxEarthquake();}
+    function launchBrandFx(btn){fxEarthquake();}
     function applyBrandMode(){
       const long=brandMode==="long";
       brandText.textContent=long?"模拟交易：中长期记录":"模拟交易：售电公司日前电量申报";
