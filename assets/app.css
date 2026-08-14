@@ -64,12 +64,14 @@
     .legend-line.adjusted { border-color:var(--adjusted); border-top-style:dashed; }
     .legend-line.day-ahead { border-color:var(--day-ahead); }
     .legend-line.real-time { border-color:var(--real-time); }
-    .price-section { border-top:1px solid var(--line); padding-bottom:8px; }
-    .price-section-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:20px 24px 0; }
+    .price-section { margin-top:22px; padding:20px 24px 24px; }
+    .price-section-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:0; }
     .price-section-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
-    .price-status { min-height:18px; margin:8px 24px 0; color:var(--muted); font-size:13px; }
+    .price-status { min-height:18px; margin:8px 0 0; color:var(--muted); font-size:13px; }
     .price-status.error { color:var(--danger); }
+    .price-section .legend { padding-inline:0; }
     .price-chart-shell { position:relative; min-height:350px; padding:8px 20px 12px; }
+    .price-section .price-chart-shell { padding-inline:0; }
     #price-chart { display:block; width:100%; height:auto; min-height:300px; }
     .price-curve { fill:none; stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
     .price-curve.day-ahead { stroke:var(--day-ahead); }
@@ -77,7 +79,7 @@
     .price-point { fill:var(--surface); stroke-width:2; pointer-events:none; }
     .price-point.day-ahead { stroke:var(--day-ahead); }
     .price-point.real-time { stroke:var(--real-time); }
-    .spread-section { border-top:1px solid var(--line); padding:22px 24px 24px; }
+    .spread-section { margin-top:22px; padding:22px 24px 24px; }
     .spread-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:16px; }
     .spread-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
     .spread-controls { display:flex; align-items:end; flex-wrap:wrap; gap:10px; }
@@ -207,14 +209,14 @@
       .sidebar-user,.sidebar-admin { display:none; }
       main { width:min(100% - 20px,1120px); margin:22px auto; }
       .date-control { width:100%; }
-      .chart-tools,.legend,.price-section-head { padding-inline:16px; }
+      .chart-tools,.legend { padding-inline:16px; }
       .chart-head { align-items:stretch; flex-direction:column; padding:16px 16px 0; }
       .chart-head .date-control { width:100%; }
       .price-section-head { align-items:stretch; flex-direction:column; }
       .price-section-head .date-control { width:100%; }
       .price-chart-shell,.chart-shell { padding-inline:6px; overflow-x:auto; }
       .price-chart-shell { min-height:320px; }
-      .spread-section { padding-inline:14px; }
+      .spread-section,.price-section { padding-inline:14px; }
       .spread-head { align-items:stretch; flex-direction:column; }
       .overview-head { align-items:stretch; flex-direction:column; padding-inline:14px; }
       .spread-controls { align-items:stretch; }
