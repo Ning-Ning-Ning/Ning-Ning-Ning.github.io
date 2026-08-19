@@ -155,7 +155,7 @@
         </div>
       </section>
       <section class="card weather-section" id="sec-weather" aria-labelledby="weather-title">
-        <div class="weather-head"><div><h2 id="weather-title">气象预测对比</h2><p>远景气象逐小时数据 · 广东省中心（广州 23.13°N, 113.28°E）· 左图对比各起报日，右图查看指定小时</p></div></div>
+        <div class="weather-head"><div><h2 id="weather-title">气象预测对比</h2><p>广东省中心（广州 23.13°N, 113.28°E）· 左图对比各起报日，右图查看指定小时</p></div></div>
         <div class="weather-panel">
           <div class="weather-col">
             <div class="weather-controls">
@@ -214,9 +214,39 @@
         <h2>中长期申报</h2>
         <div class="placeholder-empty"><span>功能规划中，敬请期待</span></div>
       </div>
-      <div class="placeholder-module">
+      <div class="placeholder-module lt-weather-module">
         <h2>气象数据分析</h2>
-        <div class="placeholder-empty"><span>功能规划中，敬请期待</span></div>
+        <!-- 分日预测：日期范围 + 4 图（温度/降雨/风速/光照），统一下拉选时段 -->
+        <div class="lt-weather-block">
+          <div class="lt-block-head">
+            <div><h3>分日预测</h3><p>按日展示气象预测（默认全天算术平均，可选 24 个时段）· 广东省中心（广州 23.13°N, 113.28°E）</p></div>
+            <div class="lt-range-controls">
+              <label>开始日期<input id="lt-day-start" type="date"></label>
+              <label>结束日期<input id="lt-day-end" type="date"></label>
+              <label>时段<select id="lt-day-hour"><option value="avg">全天平均</option></select></label>
+              <button class="primary" id="lt-day-load" type="button">加载</button>
+            </div>
+          </div>
+          <p class="lt-status" id="lt-day-status" role="status">请选择日期范围后加载。</p>
+          <div class="lt-day-grid">
+            <div class="lt-chart-card"><div class="lt-chart-head"><strong>温度</strong><span class="lt-chart-unit">℃</span></div><svg id="lt-day-TMP" viewBox="0 0 500 240" role="img" aria-label="温度分日预测"></svg></div>
+            <div class="lt-chart-card"><div class="lt-chart-head"><strong>降雨</strong><span class="lt-chart-unit">mm</span></div><svg id="lt-day-RAINFALL" viewBox="0 0 500 240" role="img" aria-label="降雨分日预测"></svg></div>
+            <div class="lt-chart-card"><div class="lt-chart-head"><strong>风速</strong><span class="lt-chart-unit">m/s</span></div><svg id="lt-day-WS" viewBox="0 0 500 240" role="img" aria-label="风速分日预测"></svg></div>
+            <div class="lt-chart-card"><div class="lt-chart-head"><strong>光照</strong><span class="lt-chart-unit">W/m²</span></div><svg id="lt-day-GHI" viewBox="0 0 500 240" role="img" aria-label="光照分日预测"></svg></div>
+          </div>
+        </div>
+        <!-- 分时预测：相似日 4 图（温度/降雨/风速/光照）复制 -->
+        <div class="lt-weather-block">
+          <div class="lt-block-head">
+            <div><h3>分时预测</h3><p>对比标的日与相似日逐小时预测（温度 / 降水 / 风速 / 光照）· 自动相似 = 皮尔逊相关系数 − 欧氏距离（标的日前 95 天至前 5 天）</p></div>
+            <div class="lt-range-controls">
+              <label>标的日<input id="lt-sim-target" type="date"></label>
+              <label>相似日<input id="lt-sim-similar" type="date"></label>
+            </div>
+          </div>
+          <p class="lt-status" id="lt-sim-status" role="status">选择标的日与相似日后查看逐小时对比。</p>
+          <div class="similar-grid lt-sim-grid" id="lt-sim-grid"></div>
+        </div>
       </div>
       <div class="placeholder-module">
         <h2>价格统计</h2>
@@ -392,7 +422,7 @@
     async function loadStrategy(){const tk=tokenOf("strategy");if(!strategyMonth.value){setStrategyStatus("请选择月份。",true);return;}const {start,end}=strategyMonthRange();strategyLoad.disabled=true;setStrategyStatus("正在加载整月电费变化…");try{const data=await fetchStrategyData(start,end);if(isStale("strategy",tk))return;strategyBaseRows=data.baseRows;strategyAdjustmentRows=data.adjustmentRows;renderStrategy();}catch(error){if(isStale("strategy",tk))return;console.error(error);strategyBaseRows=[];strategyAdjustmentRows=[];strategyBody.replaceChildren();setStrategyStatus(error.message||"电费变化加载失败。",true);}finally{if(!isStale("strategy",tk))strategyLoad.disabled=false;}}
     function toggleStrategyMode(){strategyNumeric=!strategyNumeric;strategyTable.classList.toggle("numeric-mode",strategyNumeric);strategyMode.textContent=strategyNumeric?"只显示色块":"显示数字";strategyMode.classList.toggle("active",strategyNumeric);if(strategyBaseRows.length)renderStrategy();}
     function isAdminUser(){return currentUser&&normalizeUsername(displayName(currentUser))===ADMIN_USERNAME;}
-    function switchGlyPage(page){hideAllTooltips();const showOverview=page==="overview",showLong=page==="longterm",showReview=page==="review";pageDeclaration.hidden=showOverview||showLong||showReview;pageOverview.hidden=!showOverview;pageLongterm.hidden=!showLong;pageReview.hidden=!showReview;tabDeclaration.classList.remove("active");tabOverview.classList.remove("active");tabLongterm.classList.remove("active");tabReview.classList.remove("active");if(showOverview)tabOverview.classList.add("active");else if(showLong)tabLongterm.classList.add("active");else if(showReview)tabReview.classList.add("active");else tabDeclaration.classList.add("active");if(showOverview&&!overviewBaseRows.length&&overviewMonth.value)loadOverview();}
+    function switchGlyPage(page){hideAllTooltips();const showOverview=page==="overview",showLong=page==="longterm",showReview=page==="review";pageDeclaration.hidden=showOverview||showLong||showReview;pageOverview.hidden=!showOverview;pageLongterm.hidden=!showLong;pageReview.hidden=!showReview;tabDeclaration.classList.remove("active");tabOverview.classList.remove("active");tabLongterm.classList.remove("active");tabReview.classList.remove("active");if(showOverview)tabOverview.classList.add("active");else if(showLong)tabLongterm.classList.add("active");else if(showReview)tabReview.classList.add("active");else tabDeclaration.classList.add("active");if(showOverview&&!overviewBaseRows.length&&overviewMonth.value)loadOverview();if(showLong&&typeof loadLtWeather==="function")loadLtWeather();}
     function overviewMonthRange(){const [year,month]=overviewMonth.value.split("-").map(Number),start=`${year}-${String(month).padStart(2,"0")}-01`,lastDay=new Date(year,month,0).getDate(),end=`${year}-${String(month).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;return{start,end};}
     function initializeOverviewRange(min,max){overviewMonth.min=min.slice(0,7);overviewMonth.max=max.slice(0,7);overviewMonth.value=clampDate(localDateOffset(0).slice(0,7),overviewMonth.min,overviewMonth.max);overviewMonth.disabled=false;overviewLoad.disabled=false;overviewMode.disabled=false;renderOverviewHeaders();}
     function setOverviewStatus(message,isError=false){overviewStatus.textContent=message;overviewStatus.classList.toggle("error",isError);}
@@ -583,6 +613,33 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     simTarget.value="2026-07-27";simSimilar.value="2026-07-26";
     simTarget.addEventListener("change",loadSimilar);simSimilar.addEventListener("change",loadSimilar);
     loadSimilar();
+
+    // ---- 中长期-气象数据分析（分日预测 + 分时预测）----
+    const LT_WEATHER_ITEMS=[
+      {key:"TMP",label:"温度",unit:"℃"},
+      {key:"RAINFALL",label:"降雨",unit:"mm"},
+      {key:"WS",label:"风速",unit:"m/s"},
+      {key:"GHI",label:"光照",unit:"W/m²"}
+    ];
+    const LT_W=500,LT_H=240,LT_PAD={l:56,r:14,t:14,b:32};
+    const ltDayStart=document.querySelector("#lt-day-start"),ltDayEnd=document.querySelector("#lt-day-end"),ltDayHour=document.querySelector("#lt-day-hour"),ltDayLoad=document.querySelector("#lt-day-load"),ltDayStatus=document.querySelector("#lt-day-status");
+    const ltDaySvgs={};LT_WEATHER_ITEMS.forEach(item=>{ltDaySvgs[item.key]=document.querySelector(`#lt-day-${item.key}`);});
+    let ltDayCache=null;
+    for(let h=0;h<24;h++){const o=document.createElement("option");o.value=String(h);o.textContent=`${h}:00–${h+1}:00`;ltDayHour.append(o);}
+    function ltDayChart(svg,dates,values,unit){[...svg.children].forEach(c=>c.remove());const all=values.filter(v=>v!=null);if(!all.length){const t=svgElement("text",{x:LT_W/2,y:LT_H/2,class:"tick","text-anchor":"middle"});t.textContent="无数据";svg.append(t);return;}const rawMin=Math.min(...all),rawMax=Math.max(...all),span=Math.max(rawMax-rawMin,.0001),pad=span*.08,min=rawMin-pad,max=rawMax+pad,pw=LT_W-LT_PAD.l-LT_PAD.r,ph=LT_H-LT_PAD.t-LT_PAD.b,X=i=>LT_PAD.l+(dates.length===1?pw/2:i/(dates.length-1)*pw),Y=v=>LT_PAD.t+(max-v)/(max-min)*ph;for(let s=0;s<=4;s++){const v=min+(max-min)*s/4,y=Y(v);svg.append(svgElement("line",{x1:LT_PAD.l,y1:y,x2:LT_W-LT_PAD.r,y2:y,class:"grid"}));const lab=svgElement("text",{x:LT_PAD.l-6,y:y+4,class:"tick","text-anchor":"end"});lab.textContent=v.toFixed(v>=100?0:v>=10?1:2);svg.append(lab);}const step=Math.max(1,Math.ceil(dates.length/8));for(let i=0;i<dates.length;i+=step){const lab=svgElement("text",{x:X(i),y:LT_H-LT_PAD.b+14,class:"tick x-tick","text-anchor":"middle"});lab.textContent=dates[i].slice(5);svg.append(lab);}svg.append(svgElement("line",{x1:LT_PAD.l,y1:LT_PAD.t,x2:LT_PAD.l,y2:LT_H-LT_PAD.b,class:"axis"}));svg.append(svgElement("line",{x1:LT_PAD.l,y1:LT_H-LT_PAD.b,x2:LT_W-LT_PAD.r,y2:LT_H-LT_PAD.b,class:"axis"}));const color=cssVar("--primary");const pts=values.map((v,i)=>v!=null?[X(i),Y(v)]:null).filter(Boolean);if(pts.length>1){const path=pts.map((p,i)=>`${i?"L":"M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");svg.append(svgElement("path",{d:path,class:"w-curve",stroke:color}));}pts.forEach(([x,y])=>svg.append(svgElement("circle",{cx:x,cy:y,r:2.6,fill:color})));const hit=svgElement("rect",{x:LT_PAD.l,y:LT_PAD.t,width:pw,height:ph,fill:"transparent",class:"hit-area"});svg.append(hit);const card=svg.closest(".lt-chart-card");let tip=card.querySelector(".tooltip");if(!tip){tip=document.createElement("div");tip.className="tooltip";tip.setAttribute("role","status");tip.hidden=true;card.append(tip);}svg.onpointermove=e=>{const r=svg.getBoundingClientRect(),sx=(e.clientX-r.left)/r.width*LT_W;let i=Math.min(dates.length-1,Math.max(0,Math.round((sx-LT_PAD.l)/pw*(dates.length-1))));svg.querySelectorAll(".crosshair,.w-hl").forEach(el=>el.remove());svg.append(svgElement("line",{x1:X(i),y1:LT_PAD.t,x2:X(i),y2:LT_H-LT_PAD.b,class:"crosshair"}));const v=values[i];if(v!=null){svg.append(svgElement("circle",{cx:X(i),cy:Y(v),r:4,fill:color,class:"w-hl",stroke:cssVar("--w-hl-stroke"),"stroke-width":1.5}));tip.innerHTML=`<strong>${dates[i]}</strong><div class="tooltip-row"><span>${unit}</span><span>${v.toFixed(2)} ${unit}</span></div>`;placeTooltip(tip,r.left+(X(i)/LT_W)*r.width,r.top+(Y(v)/LT_H)*r.height);}else tip.hidden=true;};svg.onpointerleave=()=>{tip.hidden=true;svg.querySelectorAll(".crosshair,.w-hl").forEach(el=>el.remove());};}
+    function renderDayForecast(dates,results){ltDayCache={dates,results};const hourSel=ltDayHour.value;LT_WEATHER_ITEMS.forEach(item=>{const rows=results[item.key];const values=rows.map(r=>{if(hourSel==="avg"){const vals=r.arr.map(x=>x.v).filter(v=>v!=null);return vals.length?vals.reduce((s,x)=>s+x,0)/vals.length:null;}const h=Number(hourSel);const hit=r.arr[h];return hit&&hit.v!=null?hit.v:null;});ltDayChart(ltDaySvgs[item.key],dates,values,item.unit);});}
+    async function loadDayForecast(){const tk=tokenOf("ltday");const s=ltDayStart.value,e=ltDayEnd.value;if(!s||!e){ltDayStatus.textContent="请选择日期范围";return;}if(s>e){ltDayStatus.textContent="开始日期不能晚于结束日期";return;}ltDayLoad.disabled=true;ltDayStatus.textContent="正在加载分日预测…";try{const dates=[];for(let d=s;d<=e;){dates.push(d);d=addDays(d,1);}const results={};for(const item of LT_WEATHER_ITEMS){if(isStale("ltday",tk))return;const arrs=await Promise.all(dates.map(d=>simFetch({key:item.key,src:"weather"},d)));results[item.key]=dates.map((d,i)=>({date:d,arr:arrs[i]}));}if(isStale("ltday",tk))return;renderDayForecast(dates,results);ltDayStatus.textContent=`分日预测 ${s} ~ ${e} · 共 ${dates.length} 天`+(ltDayHour.value==="avg"?" · 全天平均":` · ${ltDayHour.value}:00–${+ltDayHour.value+1}:00 时段`);}catch(err){if(isStale("ltday",tk))return;console.error(err);ltDayStatus.textContent="分日预测加载失败："+(err.message||"网络异常");}finally{if(!isStale("ltday",tk))ltDayLoad.disabled=false;}}
+    ltDayStart.value=localTomorrow();ltDayEnd.value=addDays(localTomorrow(),19);
+    ltDayLoad.addEventListener("click",loadDayForecast);
+    ltDayHour.addEventListener("change",()=>{if(ltDayCache){renderDayForecast(ltDayCache.dates,ltDayCache.results);ltDayStatus.textContent=`分日预测 ${ltDayCache.dates[0]} ~ ${ltDayCache.dates[ltDayCache.dates.length-1]} · 共 ${ltDayCache.dates.length} 天`+(ltDayHour.value==="avg"?" · 全天平均":` · ${ltDayHour.value}:00–${+ltDayHour.value+1}:00 时段`);}});
+    // 分时预测：复用相似日的 simFetch/simChart/simScore，绑定中长期专用控件
+    const LT_SIM_ITEMS=LT_WEATHER_ITEMS.map(item=>({...item,src:"weather",label:item.label==="降雨"?"降水":item.label}));
+    const ltSimTarget=document.querySelector("#lt-sim-target"),ltSimSimilar=document.querySelector("#lt-sim-similar"),ltSimStatus=document.querySelector("#lt-sim-status"),ltSimGrid=document.querySelector("#lt-sim-grid");
+    function buildLtSimGrid(){LT_SIM_ITEMS.forEach(item=>{const card=document.createElement("div");card.className="sim-card";card.dataset.key=item.key;const tt=document.createElement("div");tt.className="tooltip";tt.setAttribute("role","status");tt.hidden=true;card.append(tt);const head=document.createElement("div");head.className="sim-head";const strong=document.createElement("strong");strong.textContent=`${item.label}（${item.unit}）`;const btn=document.createElement("button");btn.type="button";btn.textContent="自动相似";btn.addEventListener("click",()=>ltAutoSimilar(item.key));head.append(strong,btn);const svg=svgElement("svg",{viewBox:`0 0 ${SIM_W} ${SIM_H}`});const legend=document.createElement("div");legend.className="sim-legend";legend.innerHTML=`<span class="lg"><i style="background:${cssVar("--sim-target")}"></i>标的日</span><span class="lg"><i style="background:${cssVar("--sim-similar")}"></i>相似日</span>`;card.append(head,svg,legend);ltSimGrid.append(card);});}
+    async function ltLoadSimilar(){const tk=tokenOf("ltsim");const d1=ltSimTarget.value,d2=ltSimSimilar.value;if(!d1||!d2)return;ltSimStatus.textContent="正在加载分时预测…";try{for(const item of LT_SIM_ITEMS){const card=document.querySelector(`#lt-sim-grid .sim-card[data-key="${item.key}"]`);if(!card)continue;const[a,b]=await Promise.all([simFetch(item,d1),simFetch(item,d2)]);if(isStale("ltsim",tk))return;simChart(card.querySelector("svg"),a,b,item.unit);}if(isStale("ltsim",tk))return;ltSimStatus.textContent=`标的日 ${d1} vs 相似日 ${d2} · 预测对比`;}catch(err){if(isStale("ltsim",tk))return;console.error(err);ltSimStatus.textContent="分时预测加载失败："+(err.message||"网络异常");}}
+    async function ltAutoSimilar(key){const tk=tokenOf("ltsim");const d1=ltSimTarget.value;if(!d1){ltSimStatus.textContent="请先选择标的日";return;}const item=LT_SIM_ITEMS.find(x=>x.key===key);ltSimStatus.textContent=`正在自动搜索 ${item.label} 相似日（${d1} 前95~前5天）…`;const target=await simFetch(item,d1);if(isStale("ltsim",tk))return;const cands=[];for(let delta=-95;delta<=-5;delta++){const cand=addDaysStr(d1,delta);const s=await simFetch(item,cand);if(isStale("ltsim",tk))return;const comp=simScore(target,s);if(comp)cands.push({cand,pearson:comp.pearson,euc:comp.euc});}if(!cands.length){ltSimStatus.textContent="未找到可用相似日（标的日前 95~前 5 天无该指标数据）";return;}const maxEuc=Math.max(...cands.map(x=>x.euc));let best=null,bestScore=-Infinity;cands.forEach(x=>{const score=x.pearson-(maxEuc>0?x.euc/maxEuc:0);if(score>bestScore){bestScore=score;best=x.cand;}});ltSimSimilar.value=best;ltSimStatus.textContent=`${item.label} 自动相似完成：相似日=${best}（评分 ${bestScore.toFixed(3)} · 皮尔逊${cands.find(x=>x.cand===best).pearson.toFixed(3)} − 欧氏${maxEuc>0?(cands.find(x=>x.cand===best).euc/maxEuc).toFixed(3):"0"}）`;ltLoadSimilar();}
+    let ltLoaded=false;
+    function loadLtWeather(){if(ltLoaded)return;ltLoaded=true;buildLtSimGrid();ltSimTarget.value="2026-07-27";ltSimSimilar.value="2026-07-26";ltSimTarget.addEventListener("change",ltLoadSimilar);ltSimSimilar.addEventListener("change",ltLoadSimilar);ltLoadSimilar();loadDayForecast();}
 
     
     // ---- 应用初始化与鉴权 ----
