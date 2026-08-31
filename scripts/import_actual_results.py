@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""导入「实际运行结果」Excel：日前/实时统一结算价 + 实际用电量 → daily_curves
+"""导入「实际运行结果」Excel：日前/实时统一结算价 → daily_curves
 文件结构：企业名称 | 数据项 | 00:00 ... 23:00（转置结构，24 列时段）
-数据项行：日前统一结算价 / 实时统一结算价 / 日前成交电量 / 实际用电量
-铁律：UPSERT + COALESCE 空值保护，不覆盖 DB 已存在值；精度 电价 2 位、电量 3 位。
+数据项行：日前统一结算价 / 实时统一结算价（实际用电量不再导入，2026-08-31 起）
+铁律：UPSERT + COALESCE 空值保护，不覆盖 DB 已存在值；精度 电价 2 位。
 """
 import os, re, glob, time, openpyxl
 from urllib.parse import quote, unquote
@@ -13,7 +13,6 @@ SRC_DIR = r'D:/A广交数据'
 
 ROW_DA = '日前统一结算价'
 ROW_RT = '实时统一结算价'
-ROW_ACT = '实际用电量'
 
 
 def build_url():
@@ -24,7 +23,7 @@ def build_url():
 
 
 def parse_file(f):
-    """返回 (date, [(hour, da, rt, act), ...], skip_reason)"""
+    """返回 (date, [(hour, da, rt), ...], skip_reason)"""
     name = os.path.basename(f)
     m = re.search(r'\((\d{4}-\d{2}-\d{2})\)', name)
     if not m or '实际运行结果' not in name:
@@ -59,7 +58,7 @@ def parse_file(f):
                 return v
         return None
 
-    row_da, row_rt, row_act = get_row(ROW_DA), get_row(ROW_RT), get_row(ROW_ACT)
+    row_da, row_rt = get_row(ROW_DA), get_row(ROW_RT)
     if row_da is None or row_rt is None:
         return date, [], f'缺行(日前={row_da is not None}, 实时={row_rt is not None})'
 
@@ -77,10 +76,9 @@ def parse_file(f):
             continue
         da = num(row_da[2 + i], 2) if row_da else None
         rt = num(row_rt[2 + i], 2) if row_rt else None
-        act = num(row_act[2 + i], 3) if row_act else None
-        if da is None and rt is None and act is None:
-            continue  # 全空跳过，保留 DB 原值
-        out.append((hour, da, rt, act))
+        if da is None and rt is None:
+            continue  # 双空跳过，保留 DB 原值
+        out.append((hour, da, rt))
     if not out:
         return date, [], '文件为空/全时段无数据'
     return date, out, None
@@ -109,66 +107,61 @@ def main():
         fname = os.path.basename(f)
         date, rows, err = parse_file(f)
         if date is None or err:
-            report.append((fname, f'跳过：{err}', '-', '-', '-', '-'))
+            report.append((fname, f'跳过：{err}', '-', '-', '-'))
             print(f'[跳过] {fname}: {err}')
             continue
 
         # 日期范围检查
         if date < str(db_min) or date > str(db_max):
-            report.append((fname, '日期超出范围跳过', date, '-', '-', '-'))
+            report.append((fname, '日期超出范围跳过', date, '-', '-'))
             print(f'[超出范围] {fname}: {date}')
             continue
 
         # 导入前 DB 现状
         cur.execute("""
             SELECT COUNT(*) FILTER (WHERE day_ahead_price IS NULL),
-                   COUNT(*) FILTER (WHERE real_time_price IS NULL),
-                   COUNT(*) FILTER (WHERE actual_value IS NULL)
+                   COUNT(*) FILTER (WHERE real_time_price IS NULL)
             FROM public.daily_curves WHERE date = %s
         """, (date,))
-        da_null, rt_null, act_null = cur.fetchone()
+        da_null, rt_null = cur.fetchone()
 
         # UPSERT（COALESCE 空值保护）
-        da_put = rt_put = act_put = 0
-        for hour, da, rt, act in rows:
+        da_put = rt_put = 0
+        for hour, da, rt in rows:
             cur.execute("""
-                INSERT INTO public.daily_curves (date, hour, day_ahead_price, real_time_price, actual_value)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO public.daily_curves (date, hour, day_ahead_price, real_time_price)
+                VALUES (%s, %s, %s, %s)
                 ON CONFLICT (date, hour) DO UPDATE
                 SET day_ahead_price = COALESCE(EXCLUDED.day_ahead_price, public.daily_curves.day_ahead_price),
-                    real_time_price = COALESCE(EXCLUDED.real_time_price, public.daily_curves.real_time_price),
-                    actual_value     = COALESCE(EXCLUDED.actual_value, public.daily_curves.actual_value)
-            """, (date, hour, da, rt, act))
+                    real_time_price = COALESCE(EXCLUDED.real_time_price, public.daily_curves.real_time_price)
+            """, (date, hour, da, rt))
             if da is not None:
                 da_put += 1
             if rt is not None:
                 rt_put += 1
-            if act is not None:
-                act_put += 1
 
-        report.append((fname, '已更新', date, f'日前{da_put}/24', f'实时{rt_put}/24', f'实际{act_put}/24'))
-        print(f'[更新] {fname}: {date} 日前{da_put} 实时{rt_put} 实际{act_put}'
-              f' (导入前空: 日前{da_null} 实时{rt_null} 实际{act_null})')
+        report.append((fname, '已更新', date, f'日前{da_put}/24', f'实时{rt_put}/24'))
+        print(f'[更新] {fname}: {date} 日前{da_put} 实时{rt_put}'
+              f' (导入前空: 日前{da_null} 实时{rt_null})')
 
     # 复核
-    print('\n--- 复核 (date | 日前空 | 实时空 | 实际空) ---')
+    print('\n--- 复核 (date | 日前空 | 实时空) ---')
     for fname, status, date, *_ in report:
         if status != '已更新':
             continue
         cur.execute("""
             SELECT COUNT(*) FILTER (WHERE day_ahead_price IS NULL),
-                   COUNT(*) FILTER (WHERE real_time_price IS NULL),
-                   COUNT(*) FILTER (WHERE actual_value IS NULL)
+                   COUNT(*) FILTER (WHERE real_time_price IS NULL)
             FROM public.daily_curves WHERE date = %s
         """, (date,))
         r = cur.fetchone()
-        print(f'  {date}: 日前空={r[0]} 实时空={r[1]} 实际空={r[2]}')
+        print(f'  {date}: 日前空={r[0]} 实时空={r[1]}')
 
     cur.close()
     conn.close()
 
     print('\n=== 导入报告 ===')
-    print('文件 | 状态 | 日期 | 日前 | 实时 | 实际')
+    print('文件 | 状态 | 日期 | 日前 | 实时')
     for r in report:
         print(' | '.join(r))
     print('=== END ===')
