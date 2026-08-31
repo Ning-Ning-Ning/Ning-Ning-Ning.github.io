@@ -2,7 +2,7 @@
     :root {
       color-scheme: light;
       --page:#f4f7f6; --surface:#fff; --surface2:#eef1ef; --ink:#15201c; --muted:#66736e; --grid:#dfe7e3; --line:#dde5e1;
-      --actual:#087f5b; --predicted:#b85c00; --adjusted:#6554c0; --day-ahead:#c2410c; --real-time:#2563eb; --focus:#075d45; --danger:#a63d40;
+      --actual:#087f5b; --predicted:#b85c00; --adjusted:#6554c0; --ratio:#0891b2; --day-ahead:#c2410c; --real-time:#2563eb; --focus:#075d45; --danger:#a63d40;
       --increase:#dc2626; --decrease:#16a34a; --increase-ink:#7f1d1d; --decrease-ink:#14532d; --zero-bg:#f1f5f3; --zero-ink:#52615b;
       --nav-hover:#f1f4f2; --nav-active-bg:#ece8ff; --nav-active-ink:#493a9e; --primary-soft:#eeebff;
       --tooltip-bg:#15201c; --tooltip-note:#d6d0ff; --cell-empty:#f8faf9; --cell-empty-ink:#86938d; --crosshair:#82928b;
@@ -21,7 +21,7 @@
     html[data-theme="claude"] {
       color-scheme: light;
       --page:#faf9f5; --surface:#ffffff; --surface2:#f2f0ea; --ink:#1f1e1d; --muted:#6f6c66; --grid:#e9e6df; --line:#e3e0d8;
-      --actual:#0e8345; --predicted:#c26a1d; --adjusted:#7c5cd6; --day-ahead:#c2410c; --real-time:#3b6fd4; --focus:#d97757; --danger:#c0392b;
+      --actual:#0e8345; --predicted:#c26a1d; --adjusted:#7c5cd6; --ratio:#2f7f86; --day-ahead:#c2410c; --real-time:#3b6fd4; --focus:#d97757; --danger:#c0392b;
       --increase:#c0392b; --decrease:#0e8345; --increase-ink:#8a2217; --decrease-ink:#0a5c31; --zero-bg:#f4f2ec; --zero-ink:#6f6c66;
       --nav-hover:#f1eee8; --nav-active-bg:#f6eee7; --nav-active-ink:#a4531f; --primary-soft:#f6eee7;
       --tooltip-bg:#2b2a26; --tooltip-note:#e8d5c5; --cell-empty:#f8f7f3; --cell-empty-ink:#8a8780; --crosshair:#9a968e;
@@ -40,7 +40,7 @@
       /* 背景层：Silver Mist #f5f5f7 / 白卡片 / 次级 #f2f2f7 */
       --page:#f5f5f7; --surface:#ffffff; --surface2:#f2f2f7; --ink:#1d1d1f; --muted:#6e6e73; --grid:#e5e5ea; --line:#e5e5ea;
       /* 数据系列色锚定 HIG System Colors（chart-1..5 / brand-500） */
-      --actual:#34c759; --predicted:#ff9500; --adjusted:#af52de; --day-ahead:#ff9500; --real-time:#007aff; --focus:#007aff; --danger:#ff3b30;
+      --actual:#34c759; --predicted:#ff9500; --adjusted:#af52de; --ratio:#5ac8fa; --day-ahead:#ff9500; --real-time:#007aff; --focus:#007aff; --danger:#ff3b30;
       /* 增减语义 = System Red/Green */
       --increase:#ff3b30; --decrease:#34c759; --increase-ink:#c4001d; --decrease-ink:#1d8a3d; --zero-bg:#f2f2f7; --zero-ink:#8e8e93;
       /* 导航：sidebar 用系统灰 #f2f2f7，active 用 brand-50 蓝底 */
@@ -133,6 +133,7 @@
     .legend-line.adjusted { border-color:var(--adjusted); border-top-style:dashed; }
     .legend-line.day-ahead { border-color:var(--day-ahead); }
     .legend-line.real-time { border-color:var(--real-time); }
+    .legend-bar { width:18px; height:12px; border-radius:2px; background:color-mix(in srgb,var(--ratio) 38%,transparent); border:1px solid var(--ratio); }
     .price-section { margin-top:22px; padding:20px 24px 24px; }
     .price-section-head { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:0; }
     .price-section-head p { margin:6px 0 0; color:var(--muted); font-size:13px; }
@@ -236,6 +237,10 @@
     .point.actual { stroke:var(--actual); }
     .point.predicted { stroke:var(--predicted); }
     .point.adjusted { stroke:var(--adjusted); }
+    .ratio-bar { fill:color-mix(in srgb,var(--ratio) 28%,transparent); stroke:var(--ratio); stroke-width:1; pointer-events:none; }
+    .ratio-bar.ratio-clipped { fill:color-mix(in srgb,var(--ratio) 50%,transparent); stroke-width:1.5; }
+    .ratio-axis { stroke:var(--ratio); }
+    .ratio-tick,.ratio-axis-title { fill:var(--ratio); }
     .selected-ring { fill:none; stroke:var(--adjusted); stroke-width:3; pointer-events:none; }
     .selection-box { fill:var(--selection-fill); stroke:var(--adjusted); stroke-width:1.5; stroke-dasharray:6 4; pointer-events:none; }
     .hit-area { fill:transparent; cursor:crosshair; }
