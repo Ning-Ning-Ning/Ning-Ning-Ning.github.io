@@ -220,7 +220,7 @@
     @media (max-width:1000px){ .lt-day-grid { grid-template-columns:1fr; } }
     .overview-table tr.row-selected td:first-child { background:var(--adjusted); color:#fff; font-weight:700; }
     .overview-table tr.row-selected td:not(:first-child) { box-shadow:inset 0 0 0 2px var(--adjusted); }
-    .chart-shell { position:relative; min-height:480px; padding:8px 20px 12px; }
+    .chart-shell { position:relative; min-height:720px; padding:8px 20px 12px; }
     .chart-shell.selecting { user-select:none; }
     .chart-shell.selecting #chart { touch-action:none; cursor:crosshair; }
     #chart { display:block; width:100%; height:auto; min-height:380px; }
