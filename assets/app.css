@@ -225,6 +225,7 @@
     .chart-shell.selecting #chart { touch-action:none; cursor:crosshair; }
     #chart { display:block; width:100%; height:auto; min-height:380px; }
     .grid { stroke:var(--grid); stroke-width:1; }
+    .ratio-grid { stroke:var(--ratio); stroke-width:1; stroke-dasharray:6 4; opacity:.6; }
     .axis { stroke:var(--muted); stroke-width:1; }
     .tick { fill:var(--muted); font-size:13px; }
     .x-tick { font-size:13px; font-weight:700; }
