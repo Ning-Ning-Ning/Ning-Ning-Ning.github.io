@@ -258,8 +258,17 @@
     <section class="card" id="page-reviewtable" hidden aria-labelledby="reviewtable-title">
       <div class="placeholder-module" id="lt-review-module">
         <h2>复盘表excel文件</h2>
-        <p class="lt-status" id="rv-status" role="status">按月份管理复盘表（自 2026 年 7 月起），每月一行。</p>
-        <div class="rv-month-list" id="rv-month-list"></div>
+        <p class="lt-status" id="rv-status" role="status">按月份下载模板或上传交易记录（自 2026 年 7 月起）。</p>
+        <div class="rv-columns">
+          <div class="rv-col">
+            <h3>模板下载</h3>
+            <div class="rv-col-list" id="rv-download-list"></div>
+          </div>
+          <div class="rv-col">
+            <h3>交易记录上传</h3>
+            <div class="rv-col-list" id="rv-upload-list"></div>
+          </div>
+        </div>
       </div>
     </section>
     <section class="card" id="page-review" hidden aria-labelledby="review-title">
@@ -653,10 +662,11 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     let ltLoaded=false;
     function loadLtWeather(){if(ltLoaded)return;ltLoaded=true;buildLtSimGrid();ltSimTarget.value="2026-07-27";ltSimSimilar.value="2026-07-26";ltSimTarget.addEventListener("change",ltLoadSimilar);ltSimSimilar.addEventListener("change",ltLoadSimilar);ltLoadSimilar();loadDayForecast();}
 
-    // ---- 复盘表excel文件（按月份，每月一行；上传暂未启用）----
-    const rvMonthList=document.querySelector("#rv-month-list"),rvStatus=document.querySelector("#rv-status");
+    // ---- 复盘表excel文件（两列：模板下载 | 交易记录上传；上传暂未启用）----
+    const rvDownloadList=document.querySelector("#rv-download-list"),rvUploadList=document.querySelector("#rv-upload-list"),rvStatus=document.querySelector("#rv-status");
     const RV_FILES={"2026-07":"【模拟】广东7月复盘表 - 售电.xlsx","2026-08":"【模拟】广东8月复盘表 - 售电.xlsx","2026-09":"【模拟】广东9月复盘表 - 售电.xlsx"};
-    function buildRvMonths(){rvMonthList.replaceChildren();const now=new Date(),cur=now.getFullYear()*12+now.getMonth(),start=2026*12+6;for(let m=start;m<=cur;m++){const y=Math.floor(m/12),mo=m%12+1,label=`${y}-${String(mo).padStart(2,"0")}`;const row=document.createElement("div");row.className="rv-month-row";const span=document.createElement("span");span.className="rv-month-label";span.textContent=label;const dl=document.createElement("button");dl.className="primary";dl.type="button";dl.textContent="下载";const fname=RV_FILES[label];if(fname){dl.addEventListener("click",()=>{const a=document.createElement("a");a.href=`review/${label}.xlsx`;a.download=fname;document.body.append(a);a.click();a.remove();});}else{dl.disabled=true;dl.title="该月复盘表暂未上传";}const up=document.createElement("button");up.type="button";up.textContent="上传";row.append(span,dl,up);rvMonthList.append(row);}}
+    function rvMonthRow(list,label,btnText,btnClass,onClick,disabledTitle){const row=document.createElement("div");row.className="rv-month-row";const span=document.createElement("span");span.className="rv-month-label";span.textContent=label;const btn=document.createElement("button");btn.className=btnClass;btn.type="button";btn.textContent=btnText;if(onClick)btn.addEventListener("click",onClick);else{btn.disabled=true;btn.title=disabledTitle||"";}row.append(span,btn);list.append(row);}
+    function buildRvMonths(){rvDownloadList.replaceChildren();rvUploadList.replaceChildren();const now=new Date(),cur=now.getFullYear()*12+now.getMonth(),start=2026*12+6;for(let m=start;m<=cur;m++){const y=Math.floor(m/12),mo=m%12+1,label=`${y}-${String(mo).padStart(2,"0")}`;const fname=RV_FILES[label];rvMonthRow(rvDownloadList,label,"下载","primary",fname?()=>{const a=document.createElement("a");a.href=`review/${label}.xlsx`;a.download=fname;document.body.append(a);a.click();a.remove();}:null,"该月复盘表模板暂未上传");rvMonthRow(rvUploadList,label,"上传","",null,"交易记录上传暂未开放");}}
     buildRvMonths();
     
     // ---- 应用初始化与鉴权 ----
