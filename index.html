@@ -207,6 +207,19 @@
       </div>
     </section>
     <section class="card" id="page-longterm" hidden aria-labelledby="longterm-title">
+      <div class="placeholder-module" id="lt-review-module">
+        <h2>复盘表下载上传</h2>
+        <div class="lt-review-toolbar">
+          <button class="primary" id="rv-download" type="button">下载复盘表模板</button>
+          <label class="primary rv-upload-label" for="rv-upload">上传复盘表</label>
+          <input id="rv-upload" type="file" accept=".csv,text/csv" hidden>
+          <span class="rv-filename" id="rv-filename"></span>
+        </div>
+        <p class="lt-status" id="rv-status" role="status">下载模板填写后上传（CSV，UTF-8；Excel 请另存为 CSV）。</p>
+        <div class="spread-table-wrap rv-preview-wrap" id="rv-preview-wrap" hidden>
+          <table class="spread-table" id="rv-preview-table"><thead id="rv-preview-head"></thead><tbody id="rv-preview-body"></tbody></table>
+        </div>
+      </div>
       <div class="placeholder-module">
         <h2>中长期持仓</h2>
         <div class="placeholder-empty"><span>功能规划中，敬请期待</span></div>
@@ -645,6 +658,13 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     let ltLoaded=false;
     function loadLtWeather(){if(ltLoaded)return;ltLoaded=true;buildLtSimGrid();ltSimTarget.value="2026-07-27";ltSimSimilar.value="2026-07-26";ltSimTarget.addEventListener("change",ltLoadSimilar);ltSimSimilar.addEventListener("change",ltLoadSimilar);ltLoadSimilar();loadDayForecast();}
 
+    // ---- 中长期-复盘表下载上传 ----
+    const rvDownload=document.querySelector("#rv-download"),rvUpload=document.querySelector("#rv-upload"),rvFilename=document.querySelector("#rv-filename"),rvStatus=document.querySelector("#rv-status"),rvPreviewWrap=document.querySelector("#rv-preview-wrap"),rvPreviewHead=document.querySelector("#rv-preview-head"),rvPreviewBody=document.querySelector("#rv-preview-body");
+    function rvTemplateCsv(){const cols=["日期"];for(let h=0;h<24;h++)cols.push(String(h).padStart(2,"0")+":00");const rows=[cols.join(",")];let d=localTomorrow();for(let i=0;i<7;i++){rows.push(d+Array(24).fill("").map(x=>",").join(""));d=addDaysStr(d,1);}return "\ufeff"+rows.join("\r\n")+"\r\n";}
+    rvDownload.addEventListener("click",()=>{const blob=new Blob([rvTemplateCsv()],{type:"text/csv;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="复盘表模板_"+localTomorrow()+".csv";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);rvStatus.textContent="模板已下载：日期行（明天起 7 天）× 24 时段列，填写后上传。";});
+    function rvParseCsv(text){const rows=[];let row=[],cell="",q=false;for(let i=0;i<text.length;i++){const ch=text[i];if(q){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=ch;}else if(ch==='"')q=true;else if(ch===","){row.push(cell);cell="";}else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cell);cell="";if(row.length>1||row[0]!=="")rows.push(row);row=[];}else cell+=ch;}if(cell!==""||row.length){row.push(cell);if(row.length>1||row[0]!=="")rows.push(row);}return rows;}
+    function rvRenderPreview(rows){rvPreviewHead.replaceChildren();rvPreviewBody.replaceChildren();const head=document.createElement("tr");rows[0].forEach(c=>{const th=document.createElement("th");th.textContent=c;head.append(th);});rvPreviewHead.append(head);rows.slice(1,11).forEach(r=>{const tr=document.createElement("tr");for(let i=0;i<rows[0].length;i++){const td=document.createElement("td");td.textContent=r[i]!=null?r[i]:"";tr.append(td);}rvPreviewBody.append(tr);});rvPreviewWrap.hidden=false;}
+    rvUpload.addEventListener("change",()=>{const file=rvUpload.files&&rvUpload.files[0];if(!file)return;rvFilename.textContent=file.name;if(!/\.csv$/i.test(file.name)){rvStatus.textContent="仅支持 CSV 文件（Excel 请「另存为 → CSV UTF-8」后再上传）。";rvPreviewWrap.hidden=true;return;}const reader=new FileReader();reader.onload=()=>{try{let text=String(reader.result);if(text.charCodeAt(0)===0xfeff)text=text.slice(1);const rows=rvParseCsv(text).filter(r=>r.some(c=>String(c).trim()!==""));if(!rows.length){rvStatus.textContent="文件为空，请检查内容。";rvPreviewWrap.hidden=true;return;}const head=rows[0].map(c=>String(c).trim());if(head[0]!=="日期"||head.length<25){rvStatus.textContent="格式不符：首列应为「日期」，且共 25 列（日期 + 24 时段）。当前 "+head.length+" 列。";rvPreviewWrap.hidden=true;return;}const badRows=[];rows.slice(1).forEach((r,ri)=>{const dv=r[0];if(!/^\d{4}-\d{2}-\d{2}$/.test(String(dv).trim()))badRows.push(ri+2);});rvRenderPreview(rows);rvStatus.textContent=`解析成功：${rows.length-1} 行数据 × 24 时段`+(badRows.length?`（警告：第 ${badRows.slice(0,5).join("、")} 行日期格式异常）`:"（日期格式全部正确）");}catch(err){console.error(err);rvStatus.textContent="解析失败："+(err.message||"文件读取异常");rvPreviewWrap.hidden=true;}};reader.onerror=()=>{rvStatus.textContent="文件读取失败，请重试。";};reader.readAsText(file,"utf-8");});
     
     // ---- 应用初始化与鉴权 ----
     if(!sb){authOverlay.hidden=false;authSubmit.disabled=true;authError.textContent="页面组件加载失败（需访问 cdn.jsdelivr.net），请检查网络后刷新。";}else{sb.auth.onAuthStateChange((event,session)=>{if(session)onSignedIn(session);});sb.auth.getSession().then(({data:{session}})=>{if(session)onSignedIn(session);else authOverlay.hidden=false;});}
