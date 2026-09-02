@@ -199,21 +199,21 @@
     .placeholder-module h2 { margin:0 0 14px; font-size:16px; color:var(--ink); }
     .placeholder-empty { min-height:120px; border:1px dashed var(--grid); border-radius:var(--radius-box); display:grid; place-items:center; color:var(--muted); font-size:13px; }
     /* 复盘表excel文件（两列：模板下载 | 交易记录上传） */
-    .rv-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; max-width:820px; }
+    .rv-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; max-width:1080px; }
     .rv-col { border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); padding:14px 16px 16px; }
     .rv-col h3 { margin:0 0 12px; font-size:14px; color:var(--ink); font-family:var(--font-display); }
     .rv-col-list { display:grid; gap:8px; }
     .rv-month-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--grid); border-radius:var(--radius-sm); background:var(--surface2); transition:border-color .18s, box-shadow .18s; }
     .rv-month-row:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }
     .rv-month-label { flex:1; font-weight:700; color:var(--ink); font-family:var(--font-display); }
-    .rv-month-time { display:block; margin-top:2px; font-size:11px; font-weight:500; color:var(--muted); font-family:var(--font-mono,monospace); }
+    .rv-month-time { font-size:11px; font-weight:500; color:var(--muted); font-family:var(--font-mono,monospace); white-space:nowrap; }
     .rv-month-row button.rv-btn-del { color:var(--danger); border-color:color-mix(in srgb,var(--danger) 40%,transparent); }
     .rv-month-row button.rv-btn-del:hover:not(:disabled) { border-color:var(--danger); box-shadow:0 4px 12px color-mix(in srgb,var(--danger) 25%,transparent); }
     .rv-month-row button { min-height:32px; padding:4px 16px; font-size:13px; transition:transform .18s, box-shadow .18s, filter .18s; }
     .rv-month-row button:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.14); filter:brightness(1.06); }
     .rv-month-row button:active:not(:disabled) { transform:translateY(0); box-shadow:0 1px 4px rgba(0,0,0,.1); }
     .rv-month-row button:disabled { opacity:.45; cursor:not-allowed; }
-    @media (max-width:720px){ .rv-columns { grid-template-columns:1fr; } }
+    @media (max-width:720px){ .rv-columns { grid-template-columns:1fr; } .rv-month-row { flex-wrap:wrap; } .rv-month-time { white-space:normal; } }
     /* 中长期-气象数据分析（分日预测 + 分时预测） */
     .lt-weather-module { padding:0; }
     .lt-weather-block { padding:22px 24px 24px; border-bottom:1px solid var(--line); }
