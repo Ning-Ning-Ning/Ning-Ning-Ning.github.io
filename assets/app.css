@@ -215,6 +215,15 @@
     .rv-all-btn:hover:not(:disabled) { border-color:var(--primary); transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.08); filter:brightness(1.05); }
     .rv-all-btn:active:not(:disabled) { transform:translateY(0); }
     .rv-all-btn:disabled { opacity:.45; cursor:not-allowed; }
+    /* 上传日志弹窗（页面内，非浏览器弹窗） */
+    .rv-modal-overlay { position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; }
+    .rv-modal-overlay[hidden] { display:none; }
+    .rv-modal { width:min(520px,92vw); background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-box); box-shadow:0 12px 40px rgba(0,0,0,.18); padding:16px 18px; }
+    .rv-modal h3 { margin:0 0 10px; font-size:14px; color:var(--ink); font-family:var(--font-display); }
+    .rv-modal-logs { max-height:240px; overflow-y:auto; background:var(--surface2); border:1px solid var(--grid); border-radius:var(--radius-sm); padding:10px 12px; font-family:var(--font-mono,monospace); font-size:12px; line-height:1.7; color:var(--ink); }
+    .rv-modal-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
+    .rv-modal-note { font-size:12px; font-weight:600; color:var(--primary); }
+    .rv-modal-foot button { min-height:28px; padding:4px 16px; font-size:13px; }
     .rv-col-list { display:grid; gap:8px; }
     .rv-month-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--grid); border-radius:var(--radius-sm); background:var(--surface2); transition:border-color .18s, box-shadow .18s; }
     .rv-month-row:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }
