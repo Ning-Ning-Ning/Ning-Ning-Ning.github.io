@@ -198,12 +198,11 @@
     .placeholder-module:last-child { border-bottom:0; }
     .placeholder-module h2 { margin:0 0 14px; font-size:16px; color:var(--ink); }
     .placeholder-empty { min-height:120px; border:1px dashed var(--grid); border-radius:var(--radius-box); display:grid; place-items:center; color:var(--muted); font-size:13px; }
-    /* 中长期-复盘表下载上传 */
-    .lt-review-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:6px; }
-    .lt-review-toolbar .primary { min-height:34px; padding:6px 16px; cursor:pointer; }
-    .rv-upload-label { display:inline-flex; align-items:center; }
-    .rv-filename { color:var(--muted); font-size:13px; }
-    .rv-preview-wrap { margin-top:8px; max-height:360px; overflow:auto; }
+    /* 复盘表下载上传（按月份，每月一行） */
+    .rv-month-list { display:grid; gap:10px; max-width:420px; }
+    .rv-month-row { display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); }
+    .rv-month-label { flex:1; font-weight:700; color:var(--ink); font-family:var(--font-display); }
+    .rv-month-row button { min-height:32px; padding:4px 16px; font-size:13px; }
     /* 中长期-气象数据分析（分日预测 + 分时预测） */
     .lt-weather-module { padding:0; }
     .lt-weather-block { padding:22px 24px 24px; border-bottom:1px solid var(--line); }
