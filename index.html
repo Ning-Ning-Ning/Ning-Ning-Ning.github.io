@@ -653,9 +653,10 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     let ltLoaded=false;
     function loadLtWeather(){if(ltLoaded)return;ltLoaded=true;buildLtSimGrid();ltSimTarget.value="2026-07-27";ltSimSimilar.value="2026-07-26";ltSimTarget.addEventListener("change",ltLoadSimilar);ltSimSimilar.addEventListener("change",ltLoadSimilar);ltLoadSimilar();loadDayForecast();}
 
-    // ---- 中长期-复盘表下载上传（按月份，每月一行；下载/上传按钮暂未启用）----
+    // ---- 复盘表下载上传（按月份，每月一行；上传暂未启用）----
     const rvMonthList=document.querySelector("#rv-month-list"),rvStatus=document.querySelector("#rv-status");
-    function buildRvMonths(){rvMonthList.replaceChildren();const now=new Date(),cur=now.getFullYear()*12+now.getMonth(),start=2026*12+6;for(let m=start;m<=cur;m++){const y=Math.floor(m/12),mo=m%12+1,label=`${y}-${String(mo).padStart(2,"0")}`;const row=document.createElement("div");row.className="rv-month-row";const span=document.createElement("span");span.className="rv-month-label";span.textContent=label;const dl=document.createElement("button");dl.className="primary";dl.type="button";dl.textContent="下载";const up=document.createElement("button");up.type="button";up.textContent="上传";row.append(span,dl,up);rvMonthList.append(row);}}
+    const RV_FILES={"2026-07":"【模拟】广东7月复盘表 - 售电.xlsx","2026-08":"【模拟】广东8月复盘表 - 售电.xlsx","2026-09":"【模拟】广东9月复盘表 - 售电.xlsx"};
+    function buildRvMonths(){rvMonthList.replaceChildren();const now=new Date(),cur=now.getFullYear()*12+now.getMonth(),start=2026*12+6;for(let m=start;m<=cur;m++){const y=Math.floor(m/12),mo=m%12+1,label=`${y}-${String(mo).padStart(2,"0")}`;const row=document.createElement("div");row.className="rv-month-row";const span=document.createElement("span");span.className="rv-month-label";span.textContent=label;const dl=document.createElement("button");dl.className="primary";dl.type="button";dl.textContent="下载";const fname=RV_FILES[label];if(fname){dl.addEventListener("click",()=>{const a=document.createElement("a");a.href=`review/${label}.xlsx`;a.download=fname;document.body.append(a);a.click();a.remove();});}else{dl.disabled=true;dl.title="该月复盘表暂未上传";}const up=document.createElement("button");up.type="button";up.textContent="上传";row.append(span,dl,up);rvMonthList.append(row);}}
     buildRvMonths();
     
     // ---- 应用初始化与鉴权 ----
