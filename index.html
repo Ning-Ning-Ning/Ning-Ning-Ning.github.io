@@ -503,9 +503,9 @@
       });
     })();
     const authOverlay=document.querySelector("#auth-overlay"),authForm=document.querySelector("#auth-form"),authUsername=document.querySelector("#auth-username"),authError=document.querySelector("#auth-error"),authSubmit=document.querySelector("#auth-submit"),userChip=document.querySelector("#user-chip"),userEmail=document.querySelector("#user-email"),logoutBtn=document.querySelector("#logout-btn"),accountSwitchWrap=document.querySelector("#admin-switch-wrap"),accountSwitch=document.querySelector("#account-switch");
-    const FIXED_ACCOUNTS=["gly","wanliyang","songningning","zhangchenyue","liangweiqi","liubingyan","liuziye","luna","songyihan","wangyanshu","xumanli","zhengkezhuo"];
+    const FIXED_ACCOUNTS=["gly","wanliyang","songningning","zhangchenyue","liangweiqi","liubingyan","liuziye","luna","songyihan","wangyanshu","xumanli","zhengkezhuo","zhangqiong"];
     const ADMIN_USERNAME="gly";
-    const ACCOUNT_NAMES={wanliyang:"万里洋",songningning:"宋宁宁",zhangchenyue:"张辰月",liangweiqi:"梁为琦",liubingyan:"刘炳言",liuziye:"刘子叶",luna:"鲁娜",songyihan:"宋逸涵",wangyanshu:"王衍舒",xumanli:"徐曼丽",zhengkezhuo:"郑克卓"};
+    const ACCOUNT_NAMES={wanliyang:"万里洋",songningning:"宋宁宁",zhangchenyue:"张辰月",liangweiqi:"梁为琦",liubingyan:"刘炳言",liuziye:"刘子叶",luna:"鲁娜",songyihan:"宋逸涵",wangyanshu:"王衍舒",xumanli:"徐曼丽",zhengkezhuo:"郑克卓",zhangqiong:"张琼"};
     function accountName(username){return ACCOUNT_NAMES[username]||username;}
     const OVERVIEW_ACCOUNTS=FIXED_ACCOUNTS.filter(name=>name!==ADMIN_USERNAME);
     function synthEmail(username){return`${username.trim().toLowerCase()}@curve.local`;}
