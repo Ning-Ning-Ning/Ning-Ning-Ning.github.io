@@ -202,6 +202,10 @@
     .rv-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; max-width:1080px; }
     .rv-col { border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface); padding:14px 16px 16px; }
     .rv-col h3 { margin:0 0 12px; font-size:14px; color:var(--ink); font-family:var(--font-display); }
+    .rv-col-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
+    .rv-col-head h3 { margin:0; }
+    .rv-acct-wrap { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); white-space:nowrap; }
+    .rv-acct-wrap select { min-height:28px; padding:2px 8px; font-size:12px; }
     .rv-col-list { display:grid; gap:8px; }
     .rv-month-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--grid); border-radius:var(--radius-sm); background:var(--surface2); transition:border-color .18s, box-shadow .18s; }
     .rv-month-row:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }

@@ -266,7 +266,12 @@
             <div class="rv-col-list" id="rv-download-list"></div>
           </div>
           <div class="rv-col">
-            <h3>交易记录上传</h3>
+            <div class="rv-col-head">
+              <h3>交易记录上传</h3>
+              <label class="rv-acct-wrap" id="rv-acct-wrap" hidden>查看账号
+                <select id="rv-account-switch"></select>
+              </label>
+            </div>
             <div class="rv-col-list" id="rv-upload-list"></div>
           </div>
         </div>
@@ -535,10 +540,10 @@
     function isReadOnlyView(){return activeViewingUsername()!==normalizeUsername(displayName(currentUser));}
     function updateReadOnlyUI(){const me=normalizeUsername(displayName(currentUser)),admin=me===ADMIN_USERNAME,editableStart=localTomorrow(),editableEnd=addDays(editableStart,4),dateLocked=!admin&&(datePicker.value<editableStart||datePicker.value>editableEnd),readonly=isReadOnlyView()||dateLocked;if(readonly&&selectionMode)setSelectionMode(false);selectionToggle.disabled=readonly;if(readonly)clearSelection(false);renderTableChecks();document.querySelectorAll("#data-body input[type=checkbox]").forEach(box=>{box.disabled=readonly||(currentRows[Number(box.dataset.hour)]?.adjusted===null);});const note=document.querySelector("#selection-note");if(isReadOnlyView())note.textContent="管理员查看模式：只能查看该账号数据，不可编辑。";else if(dateLocked)note.textContent=`仅可调整明天起 5 天（${editableStart} 至 ${editableEnd}）的用电量，其他日期只读。`;else note.textContent="开启后拖动画框；只会选中调整后用电量点。";}
     function translateAuthError(message){if(/invalid login credentials/i.test(message))return"该用户名不存在，或账号未开通。";if(/rate limit/i.test(message))return"操作过于频繁，请稍后再试。";if(/network|fetch/i.test(message))return"网络异常，请稍后再试。";return message;}
-    function fillAccountSwitch(){accountSwitch.replaceChildren();FIXED_ACCOUNTS.forEach(name=>{const opt=document.createElement("option");opt.value=name;opt.textContent=name===ADMIN_USERNAME?"管理员":name;accountSwitch.append(opt);});accountSwitch.value=displayName(currentUser);}
-    function onSignedIn(session){currentUser=session.user;authOverlay.hidden=true;userChip.hidden=false;userEmail.textContent=displayName(session.user)===ADMIN_USERNAME?"***":displayName(session.user);if(isAdminUser()){accountSwitchWrap.hidden=false;fillAccountSwitch();}else{accountSwitchWrap.hidden=true;}document.querySelector("#app-layout").hidden=false;glyTabs.hidden=false;if(!booted){booted=true;initialize();}rvLoadUploads();}
+    function fillAccountSwitch(){accountSwitch.replaceChildren();FIXED_ACCOUNTS.forEach(name=>{const opt=document.createElement("option");opt.value=name;opt.textContent=name===ADMIN_USERNAME?"管理员":name;accountSwitch.append(opt);});accountSwitch.value=displayName(currentUser);if(rvAccountSelect){rvAccountSelect.replaceChildren();FIXED_ACCOUNTS.forEach(name=>{const opt=document.createElement("option");opt.value=name;opt.textContent=name===ADMIN_USERNAME?"管理员":accountName(name);rvAccountSelect.append(opt);});rvAccountSelect.value=accountSwitch.value;}}
+    function onSignedIn(session){currentUser=session.user;authOverlay.hidden=true;userChip.hidden=false;userEmail.textContent=displayName(session.user)===ADMIN_USERNAME?"***":displayName(session.user);if(isAdminUser()){accountSwitchWrap.hidden=false;rvAcctWrap.hidden=false;fillAccountSwitch();}else{accountSwitchWrap.hidden=true;rvAcctWrap.hidden=true;}document.querySelector("#app-layout").hidden=false;glyTabs.hidden=false;if(!booted){booted=true;initialize();}rvLoadUploads();}
     authForm.addEventListener("submit",async event=>{event.preventDefault();if(!sb)return;const username=normalizeUsername(authUsername.value);if(!FIXED_ACCOUNTS.includes(username)){authError.textContent="该用户名不在固定账号列表中，请联系管理员开通。";return;}authSubmit.disabled=true;authError.textContent="";try{const {error}=await sb.auth.signInWithPassword({email:synthEmail(username),password:accountPassword(username)});if(error)throw error;}catch(err){authError.textContent=translateAuthError(err.message||"操作失败");}finally{authSubmit.disabled=false;}});
-    async function switchAccount(){if(displayName(currentUser)!==ADMIN_USERNAME)return;const target=normalizeUsername(accountSwitch.value);if(!target)return;userEmail.textContent=target===ADMIN_USERNAME?"***":`***（查看 ${target}）`;if(!pageReviewTable.hidden){rvRefreshButtons();rvSetStatus(target===ADMIN_USERNAME?"当前查看管理员本人的交易记录":`当前查看 ${accountName(target)} 的交易记录（只读，可下载）`);}clearSelection(false);if(datePicker.value){await loadDate(datePicker.value);}if(strategyMonth.value){const {start,end}=strategyMonthRange();await loadStrategy();}if(!pageOverview.hidden&&overviewMonth.value)await loadOverview();if(!pageReviewTable.hidden){rvRefreshButtons();if(rvStatus)rvSetStatus(`当前查看 ${target==="gly"?"管理员":accountName(target)} 的交易记录（只读）`);}setStatus("");}
+    async function switchAccount(){if(displayName(currentUser)!==ADMIN_USERNAME)return;const target=normalizeUsername(accountSwitch.value);if(!target)return;userEmail.textContent=target===ADMIN_USERNAME?"***":`***（查看 ${target}）`;if(rvAccountSelect)rvAccountSelect.value=accountSwitch.value;if(!pageReviewTable.hidden){rvRefreshButtons();rvSetStatus(target===ADMIN_USERNAME?"当前查看管理员本人的交易记录":`当前查看 ${accountName(target)} 的交易记录（只读，可下载）`);}clearSelection(false);if(datePicker.value){await loadDate(datePicker.value);}if(strategyMonth.value){const {start,end}=strategyMonthRange();await loadStrategy();}if(!pageOverview.hidden&&overviewMonth.value)await loadOverview();if(!pageReviewTable.hidden){rvRefreshButtons();if(rvStatus)rvSetStatus(`当前查看 ${target==="gly"?"管理员":accountName(target)} 的交易记录（只读）`);}setStatus("");}
     accountSwitch.addEventListener("change",switchAccount);
     logoutBtn.addEventListener("click",async()=>{logoutBtn.disabled=true;await sb.auth.signOut();location.reload();});
     // ---- 气象预测对比（GFS · 广东省中心）----
@@ -665,7 +670,7 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     function loadLtWeather(){if(ltLoaded)return;ltLoaded=true;buildLtSimGrid();ltSimTarget.value="2026-07-27";ltSimSimilar.value="2026-07-26";ltSimTarget.addEventListener("change",ltLoadSimilar);ltSimSimilar.addEventListener("change",ltLoadSimilar);ltLoadSimilar();loadDayForecast();}
 
     // ---- 复盘表excel文件（模板下载 | 交易记录按账号上传/解析/下载）----
-    const rvDownloadList=document.querySelector("#rv-download-list"),rvUploadList=document.querySelector("#rv-upload-list"),rvStatus=document.querySelector("#rv-status"),rvFileInput=document.querySelector("#rv-file-input");
+    const rvDownloadList=document.querySelector("#rv-download-list"),rvUploadList=document.querySelector("#rv-upload-list"),rvStatus=document.querySelector("#rv-status"),rvFileInput=document.querySelector("#rv-file-input"),rvAccountSelect=document.querySelector("#rv-account-switch"),rvAcctWrap=document.querySelector("#rv-acct-wrap");
     const RV_FILES={"2026-07":"【模拟】广东7月复盘表 - 售电.xlsx","2026-08":"【模拟】广东8月复盘表 - 售电.xlsx","2026-09":"【模拟】广东9月复盘表 - 售电.xlsx"};
     let rvUploadMonth=null,rvUploadMeta={};
     function rvSetStatus(message,isError=false){rvStatus.textContent=message;rvStatus.classList.toggle("error",isError);}
@@ -678,6 +683,7 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     function rvRefreshButtons(){const u=activeViewingUsername()||"";document.querySelectorAll("#rv-upload-list .rv-month-row").forEach(row=>{const month=row.dataset.month,meta=rvUploadMeta[`${u}|${month}`];const dl=row.querySelector(".rv-btn-dl"),up=row.querySelector(".rv-btn-up"),del=row.querySelector(".rv-btn-del"),tm=row.querySelector(".rv-month-time");if(tm)tm.textContent=meta?`上传于 ${rvFmtTime(meta.uploaded_at)}`:"未上传";if(dl){dl.disabled=!meta;dl.title=meta?`下载 ${meta.file_name}`:"该月尚未上传交易记录";}if(up){const locked=isReadOnlyView();up.disabled=locked;up.title=locked?"管理员查看模式不可上传，请切回本人账号":"上传该月交易记录 excel（将覆盖该月已有记录）";}if(del){const locked=isReadOnlyView();del.disabled=!meta||locked;del.title=!meta?"没有可删除的上传文件":locked?"管理员查看模式不可删除，请切回本人账号":`删除 ${meta.file_name}（解析数据将保留）`;}});}
     async function rvLoadUploads(){try{const {data,error}=await sb.from("review_uploads").select("username,month,file_name,uploaded_at");if(error)throw error;const meta={};data.forEach(r=>{meta[`${r.username}|${r.month}`]={file_name:r.file_name,uploaded_at:r.uploaded_at};});rvUploadMeta=meta;rvRefreshButtons();}catch(err){console.error(err);rvSetStatus("交易记录列表加载失败："+(err.message||"网络异常"),true);}}
     rvFileInput.addEventListener("change",()=>{const f=rvFileInput.files&&rvFileInput.files[0];rvFileInput.value="";if(f)rvHandleFile(f);});
+    rvAccountSelect.addEventListener("change",()=>{if(!accountSwitch)return;accountSwitch.value=rvAccountSelect.value;switchAccount();});
     buildRvMonths();
     
     // ---- 应用初始化与鉴权 ----
