@@ -204,6 +204,8 @@
     .rv-col h3 { margin:0 0 12px; font-size:14px; color:var(--ink); font-family:var(--font-display); }
     .rv-col-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
     .rv-col-head h3 { margin:0; }
+    .rv-acct-bar { display:flex; justify-content:flex-end; margin:0 0 10px; }
+    .rv-acct-bar[hidden] { display:none; }
     .rv-acct-wrap { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); white-space:nowrap; }
     .rv-acct-wrap select { min-height:28px; padding:2px 8px; font-size:12px; }
     .rv-col-list { display:grid; gap:8px; }

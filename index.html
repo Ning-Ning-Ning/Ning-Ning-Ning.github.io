@@ -260,18 +260,18 @@
       <div class="placeholder-module" id="lt-review-module">
         <h2>复盘表excel文件</h2>
         <p class="lt-status" id="rv-status" role="status">模板下载为公共文件；交易记录按账号独立上传、解析并保留原文件，可随时下载。管理员可下载所有账号上传的表格。</p>
+        <div class="rv-acct-bar" id="rv-acct-bar" hidden>
+          <label class="rv-acct-wrap" id="rv-acct-wrap">查看账号
+            <select id="rv-account-switch"></select>
+          </label>
+        </div>
         <div class="rv-columns">
           <div class="rv-col">
             <h3>模板下载</h3>
             <div class="rv-col-list" id="rv-download-list"></div>
           </div>
           <div class="rv-col">
-            <div class="rv-col-head">
-              <h3>交易记录上传</h3>
-              <label class="rv-acct-wrap" id="rv-acct-wrap" hidden>查看账号
-                <select id="rv-account-switch"></select>
-              </label>
-            </div>
+            <h3>交易记录上传</h3>
             <div class="rv-col-list" id="rv-upload-list"></div>
           </div>
         </div>
@@ -670,7 +670,7 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     function loadLtWeather(){if(ltLoaded)return;ltLoaded=true;buildLtSimGrid();ltSimTarget.value="2026-07-27";ltSimSimilar.value="2026-07-26";ltSimTarget.addEventListener("change",ltLoadSimilar);ltSimSimilar.addEventListener("change",ltLoadSimilar);ltLoadSimilar();loadDayForecast();}
 
     // ---- 复盘表excel文件（模板下载 | 交易记录按账号上传/解析/下载）----
-    const rvDownloadList=document.querySelector("#rv-download-list"),rvUploadList=document.querySelector("#rv-upload-list"),rvStatus=document.querySelector("#rv-status"),rvFileInput=document.querySelector("#rv-file-input"),rvAccountSelect=document.querySelector("#rv-account-switch"),rvAcctWrap=document.querySelector("#rv-acct-wrap");
+    const rvDownloadList=document.querySelector("#rv-download-list"),rvUploadList=document.querySelector("#rv-upload-list"),rvStatus=document.querySelector("#rv-status"),rvFileInput=document.querySelector("#rv-file-input"),rvAccountSelect=document.querySelector("#rv-account-switch"),rvAcctWrap=document.querySelector("#rv-acct-bar");
     const RV_FILES={"2026-07":"【模拟】广东7月复盘表 - 售电.xlsx","2026-08":"【模拟】广东8月复盘表 - 售电.xlsx","2026-09":"【模拟】广东9月复盘表 - 售电.xlsx"};
     let rvUploadMonth=null,rvUploadMeta={};
     function rvSetStatus(message,isError=false){rvStatus.textContent=message;rvStatus.classList.toggle("error",isError);}
