@@ -257,6 +257,8 @@
     .rvw-table td.rvw-item { font-weight:600; }
     .rvw-table td.rvw-lvl1 { padding-left:32px; font-weight:500; }
     .rvw-table td.rvw-lvl2 { padding-left:56px; font-weight:400; }
+    .rvw-table tr.rvw-hdr td { font-weight:700; }
+    .rvw-table tr.rvw-hdr td.rvw-item { font-weight:700; }
     .rvw-table tr:first-child th:nth-child(2), .rvw-table td:nth-child(2) { position:sticky; left:260px; z-index:2; font-weight:600; color:var(--ink); }
     .rvw-table tr:first-child th:nth-child(2) { z-index:5; background:var(--surface2); }
     .rvw-table tr:not(:first-child):hover td { background:color-mix(in srgb,var(--primary) 5%,var(--surface)); }
