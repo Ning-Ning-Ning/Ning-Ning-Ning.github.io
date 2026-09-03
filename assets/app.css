@@ -224,6 +224,20 @@
     .rv-modal-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
     .rv-modal-note { font-size:12px; font-weight:600; color:var(--primary); }
     .rv-modal-foot button { min-height:28px; padding:4px 16px; font-size:13px; }
+    /* 复盘统计（月度汇总数据展示） */
+    .rvw-controls { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 12px; }
+    .rvw-month-wrap { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); white-space:nowrap; }
+    .rvw-month-wrap select { min-height:28px; padding:2px 8px; font-size:12px; }
+    .rvw-hint { font-size:12px; color:var(--muted); }
+    .rvw-scroll { overflow:auto; max-height:70vh; max-width:100%; border:1px solid var(--grid); border-radius:var(--radius-sm); }
+    .rvw-table { border-collapse:separate; border-spacing:0; font-size:12px; min-width:100%; }
+    .rvw-table th, .rvw-table td { border-bottom:1px solid var(--grid); border-right:1px solid var(--grid); padding:5px 10px; text-align:right; white-space:nowrap; background:var(--surface); }
+    .rvw-table thead th, .rvw-table tr:first-child th { position:sticky; top:0; z-index:3; background:var(--surface2); font-weight:700; color:var(--ink); text-align:center; }
+    .rvw-table th:first-child, .rvw-table td.rvw-item { position:sticky; left:0; z-index:2; text-align:left; background:var(--surface2); font-weight:600; color:var(--ink); min-width:150px; }
+    .rvw-table thead th:first-child, .rvw-table tr:first-child th.rvw-item { z-index:4; }
+    .rvw-table tbody tr:hover td { background:color-mix(in srgb,var(--primary) 6%,var(--surface)); }
+    .rvw-table td.rvw-na { color:var(--muted); }
+    .rvw-empty { padding:26px; border:1px dashed var(--grid); border-radius:var(--radius-box); color:var(--muted); font-size:13px; text-align:center; }
     .rv-col-list { display:grid; gap:8px; }
     .rv-month-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--grid); border-radius:var(--radius-sm); background:var(--surface2); transition:border-color .18s, box-shadow .18s; }
     .rv-month-row:hover { border-color:var(--primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }
