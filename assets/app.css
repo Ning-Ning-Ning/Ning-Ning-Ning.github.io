@@ -235,10 +235,14 @@
     .rvw-actions button:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); box-shadow:0 2px 8px rgba(0,0,0,.06); }
     .rvw-actions button:disabled { opacity:.45; cursor:not-allowed; }
     .pstat-head-month { margin-left:auto; }
-    .pstat-month-chips { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 8px; }
-    .pstat-month-chips button { min-height:22px; padding:2px 10px; font-size:11px; border:1px solid var(--grid); border-radius:999px; background:var(--surface); color:var(--muted); cursor:pointer; transition:border-color .15s, color .15s, background .15s; }
-    .pstat-month-chips button:hover { border-color:var(--primary); color:var(--primary); }
-    .pstat-month-chips button.on { background:color-mix(in srgb,var(--primary) 12%,var(--surface)); border-color:var(--primary); color:var(--primary); font-weight:700; }
+    .pstat-msel { position:relative; margin-left:auto; }
+    .pstat-msel-btn { min-height:28px; padding:4px 14px; font-size:12px; border:1px solid var(--grid); border-radius:8px; background:var(--surface); color:var(--ink); cursor:pointer; transition:border-color .15s, color .15s; }
+    .pstat-msel-btn:hover { border-color:var(--primary); color:var(--primary); }
+    .pstat-msel-panel { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:150px; max-height:264px; overflow:auto; padding:6px; border:1px solid var(--grid); border-radius:8px; background:var(--surface); box-shadow:0 10px 26px rgba(0,0,0,.12); }
+    .pstat-msel-item { display:flex; align-items:center; gap:8px; padding:4px 8px; font-size:12px; color:var(--ink); border-radius:6px; cursor:pointer; white-space:nowrap; }
+    .pstat-msel-item:hover { background:var(--surface2); }
+    .pstat-sep { stroke:var(--grid); stroke-width:1; stroke-dasharray:4 4; }
+    .pstat-month-label { font-size:11px; font-weight:700; fill:var(--ink); }
     .pstat-whisker { stroke:var(--day-ahead); stroke-width:1.5; }
     .pstat-box { fill:color-mix(in srgb,var(--day-ahead) 15%,transparent); stroke:var(--day-ahead); stroke-width:1.5; }
     .pstat-med { stroke:var(--day-ahead); stroke-width:2.5; }
