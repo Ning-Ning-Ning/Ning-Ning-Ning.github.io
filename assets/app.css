@@ -248,7 +248,7 @@
     .pstat-med { stroke:var(--day-ahead); stroke-width:2.5; }
     .pstat-chart-card { margin-top:12px; }
     .pstat-chart-card svg { width:100%; height:auto; display:block; }
-    .rvw-scroll { overflow:auto; max-height:70vh; max-width:100%; border-radius:var(--radius-sm); }
+    .rvw-scroll { overflow-x:auto; max-width:100%; border-radius:var(--radius-sm); }
     .rvw-table { border-collapse:separate; border-spacing:0; font-size:12px; min-width:100%; }
     .rvw-table th, .rvw-table td { border-bottom:1px solid color-mix(in srgb,var(--grid) 40%,transparent); padding:5px 10px; text-align:right; white-space:nowrap; background:var(--surface); font-variant-numeric:tabular-nums; }
     .rvw-table tr:first-child th { position:sticky; top:0; z-index:3; background:var(--surface2); font-weight:700; color:var(--ink); text-align:center; border-bottom:1px solid var(--grid); }
@@ -259,7 +259,8 @@
     .rvw-table td.rvw-lvl2 { padding-left:56px; font-weight:400; }
     .rvw-table tr.rvw-hdr td { font-weight:700; }
     .rvw-table tr.rvw-hdr td.rvw-item { font-weight:700; }
-    .rvw-table tr.rvw-sec td { border-top:2px solid var(--grid); }
+    .rvw-table tr.rvw-sec td { border-top:none; padding-top:14px; }
+    .rvw-table tr:has(+ .rvw-sec) td { border-bottom:none; }
     .rvw-table tr:first-child th:nth-child(2), .rvw-table td:nth-child(2) { position:sticky; left:260px; z-index:2; font-weight:600; color:var(--ink); }
     .rvw-table tr:first-child th:nth-child(2) { z-index:5; background:var(--surface2); }
     .rvw-table tr:not(:first-child):hover td { background:color-mix(in srgb,var(--primary) 5%,var(--surface)); }
