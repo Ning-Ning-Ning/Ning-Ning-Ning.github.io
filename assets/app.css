@@ -268,6 +268,10 @@
     .rvw-table th.rvw-hl, .rvw-table td.rvw-hl { background:color-mix(in srgb,var(--primary) 8%,var(--surface)); }
     .rvw-table tr:first-child th.rvw-hl { background:color-mix(in srgb,var(--primary) 8%,var(--surface2)); }
     .rvw-table td.rvw-hlc { background:color-mix(in srgb,var(--primary) 13%,var(--surface)) !important; font-weight:700; }
+    .rvw-cards { display:flex; flex-direction:column; gap:12px; }
+    .rvw-card { border:0.5px solid var(--grid); border-radius:var(--radius-sm); overflow:hidden; background:var(--surface); }
+    .rvw-card-head { padding:8px 12px; background:var(--surface2); font-weight:700; color:var(--ink); font-size:13px; }
+    .rvw-card-wrap { overflow-x:auto; }
     .rvw-empty { padding:26px; border:1px dashed var(--grid); border-radius:var(--radius-box); color:var(--muted); font-size:13px; text-align:center; }
     .rv-col-list { display:grid; gap:8px; }
     .rv-month-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--grid); border-radius:var(--radius-sm); background:var(--surface2); transition:border-color .18s, box-shadow .18s; }
