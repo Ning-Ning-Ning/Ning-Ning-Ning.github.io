@@ -238,7 +238,9 @@ def sync_obs(auth, cookie, obs_start: date, obs_end: date):
             skipped.extend(segment_dates)
             current = segment_end + timedelta(days=1)
             continue
-        api_start = current - timedelta(days=2)
+        # 72h 窗口需正好覆盖本段 3 天（cur..cur+2）：startTime 次日 00:00 起算，故取 cur-1
+        # （原为 cur-2，窗口只覆盖 cur-1..cur+1，导致每段第 3 天永久缺失，2026-09-16 修）
+        api_start = current - timedelta(days=1)
         data = fetch_data(auth, cookie, api_start, 72)
         rows = parse_flat_json(data, api_start)
         # 按 obs_date 分组入库
