@@ -288,13 +288,19 @@
     .sim-wrap { width:1120px; max-width:100%; margin:0 auto; }
     .sim-top { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:12px; align-items:start; }
     .sim-right { display:flex; flex-direction:column; gap:12px; min-width:0; }
+    .sim-left { display:flex; flex-direction:column; gap:12px; min-width:0; }
     .sim-bottom { display:grid; grid-template-columns:minmax(0,1fr) 640px; gap:12px; margin-top:12px; align-items:start; }
     .sim-table-wrap { max-height:280px; overflow:auto; }
     .sim-table { font-variant-numeric:tabular-nums; table-layout:auto; width:100%; }
     .sim-table th, .sim-table td { text-align:center; white-space:nowrap; width:auto; min-width:0; padding:6px 10px; }
     .sim-table th:first-child, .sim-table td:first-child { position:static; width:auto; }
-    #sim-my-orders { font-size:11px; table-layout:fixed; }
-    #sim-my-orders th, #sim-my-orders td { padding:4px 2px; overflow:hidden; text-overflow:ellipsis; }
+    #sim-my-orders { font-size:12px; table-layout:fixed; }
+    #sim-my-orders th, #sim-my-orders td { padding:6px 6px; overflow:hidden; text-overflow:ellipsis; }
+    #sim-my-orders th:nth-child(1), #sim-my-orders td:nth-child(1) { width:70px; }
+    #sim-my-orders th:nth-child(2), #sim-my-orders td:nth-child(2) { width:90px; }
+    #sim-my-orders th:nth-child(3), #sim-my-orders td:nth-child(3) { width:120px; }
+    #sim-my-orders th:nth-child(4), #sim-my-orders td:nth-child(4) { width:90px; }
+    #sim-my-orders th:nth-child(5), #sim-my-orders td:nth-child(5) { width:90px; }
     #sim-my-orders button { font-size:11px; padding:2px 6px; }
     #sim-trades { font-size:12px; }
     #sim-trades th, #sim-trades td { padding:6px 8px; }

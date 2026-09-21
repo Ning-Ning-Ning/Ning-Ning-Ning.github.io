@@ -53,7 +53,7 @@ with sync_playwright() as p:
     check(f"固定宽度不拉伸（wrap {lay['wrapW']}px ≤ 1130）", 0 < lay["wrapW"] <= 1130)
     check(f"上下两块结构（下块在下且左图右盘口，下部分 {"两列" if lay['bottomCols'].count(' ')==1 else lay['bottomCols']}）",
           lay["stacked"] and lay["topH"] > 100 and lay["bottomCols"].count(" ") == 1)
-    check(f"分时图折线+量柱渲染（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 1 and lay["bars"] > 10 and lay["dot"] >= 1)
+    check(f"分时图折线渲染且无成交量柱（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 1 and lay["bars"] == 0 and lay["dot"] >= 1)
     check(f"买五卖五 10 档 + 中间价行 ({lay['asks']}/{lay['bids']}/{lay['mid']})", lay["asks"] == 5 and lay["bids"] == 5 and lay["mid"])
     check(f"成交明细表头为本人成交口径（{lay['tradeHead']}）", "方向" in lay["tradeHead"] and "对手方" in lay["tradeHead"])
     check(f"分账号盈亏表有数据（{lay['pnl']} 行）", lay["pnl"] >= 1)
