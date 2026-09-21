@@ -32,13 +32,13 @@ with sync_playwright() as p:
     pg.wait_for_function("()=>!document.querySelector('#page-sim').hidden", timeout=20000)
     pg.wait_for_function("()=>document.querySelectorAll('#sim-chart path').length>0", timeout=40000)
 
-    lay = pg.evaluate("""()=>{const w=document.querySelector('.sim-wrap'),t=document.querySelector('.sim-top'),bt=document.querySelector('.sim-bottom');
+    lay = pg.evaluate("""()=>{const w=document.querySelector('.sim-wrap'),t=document.querySelector('.sim-top'),bt=document.querySelector('.sim-other-card'),oc=document.querySelector('.sim-other');
       const asks=[...document.querySelectorAll('#sim-book .sim-book-row')].filter(e=>e.classList.contains('ask')).length;
       const bids=[...document.querySelectorAll('#sim-book .sim-book-row')].filter(e=>e.classList.contains('bid')).length;
       return {wrapW:w?Math.round(w.getBoundingClientRect().width):0,
         topH:t?Math.round(t.getBoundingClientRect().height):0,
         stacked:!!(t&&bt&&bt.getBoundingClientRect().top>=t.getBoundingClientRect().bottom-2),
-        bottomCols:bt?getComputedStyle(bt).gridTemplateColumns:'' ,
+        bottomCols:oc?getComputedStyle(oc).gridTemplateColumns:'' ,
         asks,bids,mid:!!document.querySelector('#sim-book .sim-book-mid'),
         bookHead:(document.querySelector('#sim-book .sim-book-head')||{textContent:''}).textContent,
         paths:document.querySelectorAll('#sim-chart path').length,
@@ -52,8 +52,8 @@ with sync_playwright() as p:
         meta:document.querySelector('#sim-meta').textContent};}""")
     print("  ", lay)
     check(f"固定宽度不拉伸（wrap {lay['wrapW']}px ≤ 1130）", 0 < lay["wrapW"] <= 1130)
-    check(f"上下两块结构（下块在下且左图右盘口，下部分 {"两列" if lay['bottomCols'].count(' ')==1 else lay['bottomCols']}）",
-          lay["stacked"] and lay["topH"] > 100 and lay["bottomCols"].count(" ") == 1)
+    check(f"上下两块结构（上排 图+盘口/下单，下排通栏「其他」{"三列" if lay['bottomCols'].count(' ')==2 else lay['bottomCols']}）",
+          lay["stacked"] and lay["topH"] > 100 and lay["bottomCols"].count(" ") == 2)
     check(f"分时图纯折线（含面积填充+最新价标签）无成交量柱（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 2 and lay["bars"] == 0 and lay["dot"] >= 2)
     check(f"买五卖五 10 档 + 中间价行 ({lay['asks']}/{lay['bids']}/{lay['mid']})", lay["asks"] == 5 and lay["bids"] == 5 and lay["mid"])
     check(f"买五卖五表头含单位（{lay['bookHead']}）", "电价（元/MWh）" in lay["bookHead"] and "电量（MWh）" in lay["bookHead"])
@@ -72,7 +72,7 @@ with sync_playwright() as p:
     # 1) 高价买单 → 立即成交
     mp = market_price()
     pg.fill("#sim-qty", "5")
-    pg.fill("#sim-price", str(round(mp + 20, 1)))
+    pg.fill("#sim-price", str(round(mp + 100, 1)))
     pg.click("#sim-submit")
     pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已成交')", timeout=30000)
     print("   成交提示:", pg.locator("#sim-hint").text_content())
@@ -87,7 +87,7 @@ with sync_playwright() as p:
     mp = market_price()
     pg.click("#sim-sell")
     pg.fill("#sim-qty", "3")
-    pg.fill("#sim-price", str(round(mp - 20, 1)))
+    pg.fill("#sim-price", str(round(mp - 100, 1)))
     pg.click("#sim-submit")
     pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已成交')", timeout=30000)
     check("低价卖单成交", True)
@@ -113,7 +113,7 @@ with sync_playwright() as p:
     pg.wait_for_timeout(800)
     pnl = pg.evaluate("()=>[...document.querySelectorAll('#sim-pnl tr')].slice(1).map(tr=>[...tr.children].map(td=>td.textContent))")
     print("   盈亏表:", pnl[:3])
-    check("分账号盈亏表含净持仓与盈亏数值", len(pnl) >= 1 and len(pnl[0]) == 6 and pnl[0][1] != "—")
+    check("分账号盈亏表含净持仓与盈亏数值", len(pnl) >= 1 and len(pnl[0]) == 5 and pnl[0][1] != "—")
 
     pg.evaluate("()=>document.querySelector('#page-sim').scrollIntoView({block:'start'})")
     pg.wait_for_timeout(400)
