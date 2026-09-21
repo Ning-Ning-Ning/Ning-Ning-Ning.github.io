@@ -311,6 +311,8 @@
     .sim-book-row { display:grid; grid-template-columns:44px 1fr 1fr; gap:8px; padding:5px 0; font-size:13px; }
     .sim-book-row.ask .sim-book-price, .sim-book-row.ask .sim-book-side { color:var(--decrease); }
     .sim-book-row.bid .sim-book-price, .sim-book-row.bid .sim-book-side { color:var(--increase); }
+    .sim-book-head { display:grid; grid-template-columns:44px 1fr 1fr; gap:8px; padding:4px 0 6px; border-bottom:0.5px solid var(--grid); font-size:11px; color:var(--muted); }
+    .sim-book-head .sim-book-price, .sim-book-head .sim-book-qty { text-align:right; }
     .sim-book-side { text-align:left; }
     .sim-book-price, .sim-book-qty { text-align:right; }
     .sim-book-mid { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:8px 0; margin:4px 0; border-top:0.5px solid var(--grid); border-bottom:0.5px solid var(--grid); font-size:13px; }

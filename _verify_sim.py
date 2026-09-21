@@ -40,6 +40,7 @@ with sync_playwright() as p:
         stacked:!!(t&&bt&&bt.getBoundingClientRect().top>=t.getBoundingClientRect().bottom-2),
         bottomCols:bt?getComputedStyle(bt).gridTemplateColumns:'' ,
         asks,bids,mid:!!document.querySelector('#sim-book .sim-book-mid'),
+        bookHead:(document.querySelector('#sim-book .sim-book-head')||{textContent:''}).textContent,
         paths:document.querySelectorAll('#sim-chart path').length,
         bars:document.querySelectorAll('#sim-chart rect').length,
         dot:document.querySelectorAll('#sim-chart circle').length,
@@ -55,6 +56,7 @@ with sync_playwright() as p:
           lay["stacked"] and lay["topH"] > 100 and lay["bottomCols"].count(" ") == 1)
     check(f"分时图折线渲染且无成交量柱（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 1 and lay["bars"] == 0 and lay["dot"] >= 1)
     check(f"买五卖五 10 档 + 中间价行 ({lay['asks']}/{lay['bids']}/{lay['mid']})", lay["asks"] == 5 and lay["bids"] == 5 and lay["mid"])
+    check(f"买五卖五表头含单位（{lay['bookHead']}）", "电价（元/MWh）" in lay["bookHead"] and "电量（MWh）" in lay["bookHead"])
     check(f"成交明细表头为本人成交口径（{lay['tradeHead']}）", "方向" in lay["tradeHead"] and "对手方" in lay["tradeHead"])
     check(f"分账号盈亏表有数据（{lay['pnl']} 行）", lay["pnl"] >= 1)
     check(f"最新价与状态文案（{lay['last']} / {lay['meta'][:36]}）", lay["last"] != "—" and "行情点" in lay["meta"])
