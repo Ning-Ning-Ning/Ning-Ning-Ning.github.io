@@ -324,6 +324,24 @@
     .sim-field { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; color:var(--muted); }
     .sim-field input { width:130px; text-align:right; font-variant-numeric:tabular-nums; }
     .sim-hint { font-size:12px; line-height:1.5; }
+    .sim-quick { display:flex; align-items:center; gap:6px; }
+    .sim-quick button { font-size:12px; padding:3px 10px; }
+    .sim-quick-gap { flex:1; }
+    .sim-book-row { position:relative; }
+    .sim-book-bar { position:absolute; right:0; top:2px; bottom:2px; border-radius:2px; opacity:.14; pointer-events:none; }
+    .sim-book-row.ask .sim-book-bar { background:var(--decrease); }
+    .sim-book-row.bid .sim-book-bar { background:var(--increase); }
+    .sim-book-side, .sim-book-price, .sim-book-qty { position:relative; }
+    .sim-book-mid strong { font-size:22px; }
+    .sim-side button.active { border-color:currentColor; }
+    #sim-buy.active { color:var(--increase); background:color-mix(in srgb,var(--increase) 10%,transparent); }
+    #sim-sell.active { color:var(--decrease); background:color-mix(in srgb,var(--decrease) 10%,transparent); }
+    .sim-chip { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; line-height:1.6; }
+    .sim-chip.chip-pending, .sim-chip.chip-partial { color:var(--primary); background:color-mix(in srgb,var(--primary) 13%,transparent); }
+    .sim-chip.chip-filled { color:var(--decrease); background:color-mix(in srgb,var(--decrease) 13%,transparent); }
+    .sim-chip.chip-cancelled { color:var(--muted); background:color-mix(in srgb,var(--muted) 13%,transparent); }
+    .sim-table th { font-weight:600; font-size:11px; color:var(--ink); opacity:.62; letter-spacing:.02em; }
+    .sim-table tr:hover td { background:color-mix(in srgb,var(--primary) 4%,transparent); }
     .sim-myorders-head { margin-top:4px; font-size:13px; font-weight:700; color:var(--ink); }
     .sim-tip { position:absolute; z-index:40; padding:8px 10px; border-radius:var(--radius-sm); background:var(--surface); border:0.5px solid var(--grid); box-shadow:0 6px 18px rgba(0,0,0,0.12); font-size:12px; pointer-events:none; }
     @media (max-width: 1180px) { .sim-top, .sim-bottom { grid-template-columns:1fr; } .sim-wrap { width:auto; } }

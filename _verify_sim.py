@@ -42,7 +42,7 @@ with sync_playwright() as p:
         asks,bids,mid:!!document.querySelector('#sim-book .sim-book-mid'),
         bookHead:(document.querySelector('#sim-book .sim-book-head')||{textContent:''}).textContent,
         paths:document.querySelectorAll('#sim-chart path').length,
-        bars:document.querySelectorAll('#sim-chart rect').length,
+        bars:document.querySelectorAll('#sim-chart rect:not(.sim-tag)').length,
         dot:document.querySelectorAll('#sim-chart circle').length,
         tradeHead:[...document.querySelectorAll('#sim-trades tr')].slice(0,1).map(tr=>[...tr.children].map(td=>td.textContent).join('/'))[0]||'',
         trades:document.querySelectorAll('#sim-trades tr').length-1,
@@ -54,7 +54,7 @@ with sync_playwright() as p:
     check(f"固定宽度不拉伸（wrap {lay['wrapW']}px ≤ 1130）", 0 < lay["wrapW"] <= 1130)
     check(f"上下两块结构（下块在下且左图右盘口，下部分 {"两列" if lay['bottomCols'].count(' ')==1 else lay['bottomCols']}）",
           lay["stacked"] and lay["topH"] > 100 and lay["bottomCols"].count(" ") == 1)
-    check(f"分时图折线渲染且无成交量柱（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 1 and lay["bars"] == 0 and lay["dot"] >= 1)
+    check(f"分时图纯折线（含面积填充+最新价标签）无成交量柱（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 2 and lay["bars"] == 0 and lay["dot"] >= 2)
     check(f"买五卖五 10 档 + 中间价行 ({lay['asks']}/{lay['bids']}/{lay['mid']})", lay["asks"] == 5 and lay["bids"] == 5 and lay["mid"])
     check(f"买五卖五表头含单位（{lay['bookHead']}）", "电价（元/MWh）" in lay["bookHead"] and "电量（MWh）" in lay["bookHead"])
     check(f"成交明细表头为本人成交口径（{lay['tradeHead']}）", "方向" in lay["tradeHead"] and "对手方" in lay["tradeHead"])
