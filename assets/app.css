@@ -299,7 +299,33 @@
     .sim-table-wrap { max-height:320px; overflow:auto; }
     .sim-table { font-variant-numeric:tabular-nums; table-layout:auto; width:100%; }
     .sim-table th, .sim-table td { text-align:center; white-space:nowrap; width:auto; min-width:0; padding:6px 10px; }
-    .sim-table th:first-child, .sim-table td:first-child { position:static; width:auto; }
+    .sim-table tr:first-child th, .sim-table thead th { position:sticky; top:0; left:auto; z-index:3; background:var(--surface); box-shadow:inset 0 -0.5px 0 var(--grid); }
+    .sim-table th:first-child, .sim-table td:first-child, .sim-table th:nth-child(2), .sim-table td:nth-child(2) { position:static; left:auto; width:auto; min-width:0; }
+    .sim-table thead th:first-child, .sim-table thead th:nth-child(2),
+    .sim-table tr:first-child th:first-child, .sim-table tr:first-child th:nth-child(2) { position:sticky; top:0; left:auto; }
+    .sim-table tr:first-child th:nth-child(2), .sim-table tr:not(:first-child) td:nth-child(2) { left:auto; }
+    .sim-sk { display:inline-block; width:72%; height:9px; border-radius:4px; background:color-mix(in srgb,var(--muted) 18%,transparent); animation:simSk 1.2s ease-in-out infinite; }
+    @keyframes simSk { 0%,100% { opacity:.45; } 50% { opacity:.95; } }
+    .sim-empty-cell { text-align:center; color:var(--muted); font-size:12px; padding:18px 8px; }
+    .sim-row-flash td { background:color-mix(in srgb,var(--primary) 14%,transparent) !important; transition:background .5s ease; }
+    .sim-row-me td { background:color-mix(in srgb,var(--muted) 7%,transparent); }
+    .sim-row-me td:first-child { font-weight:700; }
+    .sim-stats { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .sim-legend { float:right; display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:400; color:var(--muted); }
+    .sim-legend i { display:inline-block; width:10px; height:2px; margin-left:6px; }
+    .sim-legend i.lg-price { background:var(--real-time); }
+    .sim-legend i.lg-avg { background:var(--primary); }
+    .sim-submit { width:100%; }
+    .sim-submit.sim-submit-buy, .sim-submit.sim-submit-buy:hover { background:var(--increase); border-color:var(--increase); color:#fff; }
+    .sim-submit.sim-submit-sell, .sim-submit.sim-submit-sell:hover { background:var(--decrease); border-color:var(--decrease); color:#fff; }
+    .sim-submit:disabled { opacity:.45; }
+    .sim-chips { display:inline-flex; gap:4px; margin-left:8px; vertical-align:middle; }
+    .sim-chips button { font-size:11px; padding:1px 8px; border-radius:999px; border:0.5px solid var(--grid); background:transparent; color:var(--muted); }
+    .sim-chips button.active { border-color:var(--primary); color:var(--primary); background:color-mix(in srgb,var(--primary) 10%,transparent); }
+    .sim-toast { position:fixed; right:26px; top:22px; z-index:90; min-width:220px; max-width:360px; padding:10px 14px; border-radius:8px; background:var(--surface); border:0.5px solid var(--grid); box-shadow:0 10px 26px rgba(0,0,0,.13); font-size:13px; }
+    .sim-toast.ok { border-left:3px solid var(--decrease); }
+    .sim-toast.warn { border-left:3px solid var(--primary); }
+    .sim-toast.err { border-left:3px solid var(--increase); }
     #sim-my-orders, #sim-trades, #sim-pnl { font-size:11px; table-layout:fixed; width:100%; }
     #sim-my-orders th, #sim-my-orders td,
     #sim-trades th, #sim-trades td,

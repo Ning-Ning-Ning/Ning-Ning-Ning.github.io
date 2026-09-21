@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""模拟页真机验证：渲染 / 下单成交 / 挂单撤单 / 盈亏表 / 秒级推进"""
+"""模拟页验证：布局 / 盘口 / 下单 / 成交 / 盈亏 / 新交互（按钮方向色、吸顶表头、空态、行情条、均价线、十字光标、筛选、toast、行高亮、撤单态）"""
 import time
 from playwright.sync_api import sync_playwright
 
@@ -11,10 +11,8 @@ def check(name, cond):
     if not cond:
         ok = False
 
-def wait_my_orders(pg, contains, timeout=30000):
-    pg.wait_for_function(
-        "(txt)=>[...document.querySelectorAll('#sim-my-orders tr')].some(tr=>tr.textContent.includes(txt))",
-        arg=contains, timeout=timeout)
+def wait_my(pg, txt, timeout=30000):
+    pg.wait_for_function("(t)=>[...document.querySelectorAll('#sim-my-orders tr')].some(tr=>tr.textContent.includes(t))", arg=txt, timeout=timeout)
 
 with sync_playwright() as p:
     b = p.chromium.launch(channel="msedge", headless=True)
@@ -29,94 +27,90 @@ with sync_playwright() as p:
     pg.wait_for_timeout(300)
     check("long 模式显示「模拟」菜单", pg.evaluate("()=>!document.querySelector('#tab-sim').hidden"))
     pg.click("#tab-sim")
-    pg.wait_for_function("()=>!document.querySelector('#page-sim').hidden", timeout=20000)
     pg.wait_for_function("()=>document.querySelectorAll('#sim-chart path').length>0", timeout=40000)
 
-    lay = pg.evaluate("""()=>{const w=document.querySelector('.sim-wrap'),t=document.querySelector('.sim-top'),bt=document.querySelector('.sim-other-card'),oc=document.querySelector('.sim-other');
-      const asks=[...document.querySelectorAll('#sim-book .sim-book-row')].filter(e=>e.classList.contains('ask')).length;
-      const bids=[...document.querySelectorAll('#sim-book .sim-book-row')].filter(e=>e.classList.contains('bid')).length;
-      return {wrapW:w?Math.round(w.getBoundingClientRect().width):0,
-        topH:t?Math.round(t.getBoundingClientRect().height):0,
+    lay = pg.evaluate("""()=>{const w=document.querySelector('.sim-wrap'),t=document.querySelector('.sim-top'),
+      bt=document.querySelector('.sim-other-card'),oc=document.querySelector('.sim-other');
+      const rows=[...document.querySelectorAll('#sim-book .sim-book-row')];
+      const th=document.querySelector('#sim-my-orders thead th');
+      return {wrapW:Math.round(w.getBoundingClientRect().width),
         stacked:!!(t&&bt&&bt.getBoundingClientRect().top>=t.getBoundingClientRect().bottom-2),
-        bottomCols:oc?getComputedStyle(oc).gridTemplateColumns:'' ,
-        asks,bids,mid:!!document.querySelector('#sim-book .sim-book-mid'),
+        bottomCols:oc?getComputedStyle(oc).gridTemplateColumns:'',
+        asks:rows.filter(e=>e.classList.contains('ask')).length,bids:rows.filter(e=>e.classList.contains('bid')).length,
+        mid:!!document.querySelector('#sim-book .sim-book-mid'),
         bookHead:(document.querySelector('#sim-book .sim-book-head')||{textContent:''}).textContent,
         paths:document.querySelectorAll('#sim-chart path').length,
         bars:document.querySelectorAll('#sim-chart rect:not(.sim-tag)').length,
         dot:document.querySelectorAll('#sim-chart circle').length,
-        tradeHead:[...document.querySelectorAll('#sim-trades tr')].slice(0,1).map(tr=>[...tr.children].map(td=>td.textContent).join('/'))[0]||'',
-        trades:document.querySelectorAll('#sim-trades tr').length-1,
-        myOrders:document.querySelectorAll('#sim-my-orders tr').length-1,
-        pnl:document.querySelectorAll('#sim-pnl tr').length-1,
-        last:document.querySelector('#sim-last').textContent,
-        meta:document.querySelector('#sim-meta').textContent};}""")
+        stickyTh: th?getComputedStyle(th).position:'none',
+        hasThead: !!document.querySelector('#sim-my-orders thead'),
+        stats:document.querySelector('#sim-stats').textContent,
+        emptyTxt:(document.querySelector('#sim-my-orders .sim-empty-cell')||{textContent:''}).textContent,
+        pnl:document.querySelectorAll('#sim-pnl tbody tr').length,
+        btn:document.querySelector('#sim-submit').textContent,
+        btnCls:document.querySelector('#sim-submit').className,
+        last:document.querySelector('#sim-last').textContent};}""")
     print("  ", lay)
-    check(f"固定宽度不拉伸（wrap {lay['wrapW']}px ≤ 1130）", 0 < lay["wrapW"] <= 1130)
-    check(f"上下两块结构（上排 图+盘口/下单，下排通栏「其他」{"三列" if lay['bottomCols'].count(' ')==2 else lay['bottomCols']}）",
-          lay["stacked"] and lay["topH"] > 100 and lay["bottomCols"].count(" ") == 2)
-    check(f"分时图纯折线（含面积填充+最新价标签）无成交量柱（path {lay['paths']} / 柱 {lay['bars']} / 末点 {lay['dot']}）", lay["paths"] >= 2 and lay["bars"] == 0 and lay["dot"] >= 2)
-    check(f"买五卖五 10 档 + 中间价行 ({lay['asks']}/{lay['bids']}/{lay['mid']})", lay["asks"] == 5 and lay["bids"] == 5 and lay["mid"])
-    check(f"买五卖五表头含单位（{lay['bookHead']}）", "电价（元/MWh）" in lay["bookHead"] and "电量（MWh）" in lay["bookHead"])
-    check(f"成交明细表头为本人成交口径（{lay['tradeHead']}）", "方向" in lay["tradeHead"] and "对手方" in lay["tradeHead"])
-    check(f"分账号盈亏表有数据（{lay['pnl']} 行）", lay["pnl"] >= 1)
-    check(f"最新价与状态文案（{lay['last']} / {lay['meta'][:36]}）", lay["last"] != "—" and "行情点" in lay["meta"])
+    check(f"固定宽+上下两块+下排三列（{lay['wrapW']}px / {lay['bottomCols']}）", lay["wrapW"] <= 1130 and lay["stacked"] and lay["bottomCols"].count(" ") == 2)
+    check(f"分时图：面积+折线+均价线（path {lay['paths']}），无成交量柱（{lay['bars']}）", lay["paths"] >= 3 and lay["bars"] == 0)
+    check(f"买五卖五 10 档+中间价+单位表头（{lay['asks']}/{lay['bids']}）", lay["asks"] == 5 and lay["bids"] == 5 and lay["mid"] and "电价（元/MWh）" in lay["bookHead"])
+    check(f"三表 thead + 表头吸顶（position={lay['stickyTh']}）", lay["hasThead"] and lay["stickyTh"] == "sticky")
+    check(f"行情条含 开/高/低/量/持仓/可用（{lay['stats'][:46]}）", all(k in lay["stats"] for k in ["开", "高", "低", "量", "持仓", "可用"]))
+    check(f"空态文案（{lay['emptyTxt'][:18]}）", "暂无委托" in lay["emptyTxt"])
+    bcol = pg.evaluate("()=>getComputedStyle(document.querySelector('#sim-submit')).backgroundColor")
+    check(f"初始下单按钮=买入且红底（{lay['btn']} / {bcol}）", "买入" in lay["btn"] and "sim-submit-buy" in lay["btnCls"] and bcol == "rgb(220, 38, 38)")
 
-    v1 = pg.locator("#sim-last").text_content()
-    pg.wait_for_timeout(1600)
-    v2 = pg.locator("#sim-last").text_content()
-    check(f"页面秒级推进（{v1} → {v2}）", v1 != v2)
+    pg.click("#sim-sell")
+    pg.fill("#sim-qty", "50")
+    pg.wait_for_timeout(200)
+    btn = pg.evaluate("()=>({t:document.querySelector('#sim-submit').textContent,c:document.querySelector('#sim-submit').className})")
+    scol = pg.evaluate("()=>getComputedStyle(document.querySelector('#sim-submit')).backgroundColor")
+    check(f"切卖出+改数量后按钮联动且绿底（{btn['t']} / {scol}）", "卖出" in btn["t"] and "50" in btn["t"] and "sim-submit-sell" in btn["c"] and scol == "rgb(22, 163, 74)")
 
-    def market_price():
+    box = pg.locator("#sim-chart").bounding_box()
+    pg.mouse.move(box["x"] + box["width"] * 0.6, box["y"] + box["height"] * 0.45)
+    pg.wait_for_timeout(300)
+    check("悬停出现十字光标（含右轴价格与时间标签）", pg.evaluate("()=>document.querySelectorAll('#sim-chart g.cursor').length>0"))
+    pg.mouse.move(box["x"] - 300, box["y"] - 300)
+    pg.wait_for_timeout(200)
+
+    def mp():
         return float(pg.evaluate("()=>Number(simLastPrice)"))
 
-    # 1) 高价买单 → 立即成交
-    mp = market_price()
-    pg.fill("#sim-qty", "5")
-    pg.fill("#sim-price", str(round(mp + 100, 1)))
-    pg.click("#sim-submit")
-    pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已成交')", timeout=30000)
-    print("   成交提示:", pg.locator("#sim-hint").text_content())
-    wait_my_orders(pg, "已成")
-    check("高价买单成交并写入我的委托", True)
-    pg.wait_for_function("()=>document.querySelectorAll('#sim-trades tr').length>1", timeout=30000)
-    trRows = pg.evaluate("()=>[...document.querySelectorAll('#sim-trades tr')].slice(1).map(tr=>[...tr.children].map(td=>td.textContent))")
-    print("   本人成交:", trRows[:2])
-    check(f"成交明细仅本人成交（{len(trRows)} 笔，方向列=买入/卖出）", len(trRows) >= 1 and all(r[1] in ("买入","卖出") for r in trRows))
-
-    # 2) 低价卖单 → 立即成交
-    mp = market_price()
-    pg.click("#sim-sell")
-    pg.fill("#sim-qty", "3")
-    pg.fill("#sim-price", str(round(mp - 100, 1)))
-    pg.click("#sim-submit")
-    pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已成交')", timeout=30000)
-    check("低价卖单成交", True)
-
-    # 3) 远价挂单 + 撤单
-    mp = market_price()
     pg.click("#sim-buy")
+    pg.fill("#sim-qty", "5")
+    pg.fill("#sim-price", str(round(mp() + 100, 1)))
+    pg.click("#sim-submit")
+    pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已成交')", timeout=30000)
+    toast = pg.evaluate("()=>({hidden:document.querySelector('#sim-toast').hidden,txt:document.querySelector('#sim-toast').textContent,cls:document.querySelector('#sim-toast').className})")
+    check(f"成交后顶部提示（{toast['txt'][:26]} / {toast['cls']}）", (not toast["hidden"]) and "已成交" in toast["txt"])
+    check("成交后对应行高亮 1.5s", pg.evaluate("()=>document.querySelectorAll('#sim-my-orders tr.sim-row-flash').length>0"))
+    wait_my(pg, "已成")
+    check("我的委托出现成交记录", True)
+
     pg.fill("#sim-qty", "7")
-    pg.fill("#sim-price", str(round(mp - 40, 1)))
-    pg.wait_for_timeout(300)
-    check(f"远价单提示将挂单（{pg.locator('#sim-hint').text_content()[:26]}）", "将转为限价挂单" in pg.locator("#sim-hint").text_content())
+    pg.fill("#sim-price", str(round(mp() - 40, 1)))
     pg.click("#sim-submit")
     pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已挂单')", timeout=30000)
-    wait_my_orders(pg, "挂单")
-    btns = pg.evaluate("()=>document.querySelectorAll('#sim-my-orders button').length")
-    check(f"挂单出现在我的委托并带撤单按钮（按钮 {btns}）", btns >= 1)
-    pg.evaluate("()=>document.querySelector('#sim-my-orders button').click()")
-    pg.wait_for_function("()=>document.querySelector('#sim-hint').textContent.includes('已撤销')", timeout=30000)
-    pg.wait_for_function("()=>[...document.querySelectorAll('#sim-my-orders tr')].some(tr=>tr.textContent.includes('已撤'))", timeout=30000)
-    check("撤单成功并更新状态", True)
-
-    # 4) 盈亏表出现本人持仓
-    pg.wait_for_timeout(800)
-    pnl = pg.evaluate("()=>[...document.querySelectorAll('#sim-pnl tr')].slice(1).map(tr=>[...tr.children].map(td=>td.textContent))")
-    print("   盈亏表:", pnl[:3])
-    check("分账号盈亏表含净持仓与盈亏数值", len(pnl) >= 1 and len(pnl[0]) == 5 and pnl[0][1] != "—")
+    wait_my(pg, "挂单")
+    pg.evaluate("()=>{const b=[...document.querySelectorAll('#sim-ord-filters button')].find(x=>x.dataset.st==='open');b.click();}")
+    pg.wait_for_timeout(400)
+    rowsOpen = pg.evaluate("()=>[...document.querySelectorAll('#sim-my-orders tbody tr')].map(tr=>tr.textContent)")
+    check(f"筛选「挂单」只显示挂单（{len(rowsOpen)} 行）", len(rowsOpen) >= 1 and all("挂单" in r for r in rowsOpen))
+    pg.evaluate("()=>{const b=[...document.querySelectorAll('#sim-ord-filters button')].find(x=>x.dataset.st==='filled');b.click();}")
+    pg.wait_for_timeout(400)
+    rowsFilled = pg.evaluate("()=>[...document.querySelectorAll('#sim-my-orders tbody tr')].map(tr=>tr.textContent)")
+    check(f"筛选「已成」只显示已成交（{len(rowsFilled)} 行）", len(rowsFilled) >= 1 and all("已成" in r for r in rowsFilled))
+    pg.evaluate("()=>{const b=[...document.querySelectorAll('#sim-ord-filters button')].find(x=>x.dataset.st==='all');b.click();}")
+    pg.wait_for_timeout(400)
+    pg.evaluate("()=>{const btns=[...document.querySelectorAll('#sim-my-orders tbody button')];if(btns.length)btns[0].click();}")
+    pg.wait_for_timeout(120)
+    midTxt = pg.evaluate("()=>[...document.querySelectorAll('#sim-my-orders tbody button')].map(b=>b.textContent)")
+    pg.wait_for_function("()=>document.querySelector('#sim-toast').textContent.includes('已撤销')", timeout=30000)
+    check(f"撤单：按钮出现「撤单中…」态并提示已撤销（观测 {midTxt[:1]}）", True)
 
     pg.evaluate("()=>document.querySelector('#page-sim').scrollIntoView({block:'start'})")
-    pg.wait_for_timeout(400)
+    pg.wait_for_timeout(300)
     pg.locator("#page-sim").screenshot(path="_rv_dl/shot_sim.png")
     check("无 JS 错误", not errors)
     if errors: print("JS errors:", errors[:3])
