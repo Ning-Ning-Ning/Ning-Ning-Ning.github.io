@@ -276,6 +276,42 @@
     .rvw-card-wrap { overflow-x:auto; }
     #allsum-cards td { text-align:center; }
     #allsum-cards td.rvw-item { text-align:left; }
+    /* ---- 模拟交易 ---- */
+    .sim-controls { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:10px 0 12px; font-size:13px; color:var(--muted); }
+    .sim-controls input[type=date] { margin-left:6px; }
+    .sim-quote { display:flex; align-items:baseline; gap:8px; }
+    .sim-quote strong { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+    .sim-quote span { font-size:13px; font-variant-numeric:tabular-nums; }
+    .sim-up { color:var(--increase); }
+    .sim-down { color:var(--real-time); }
+    .sim-muted { color:var(--muted); }
+    .sim-grid { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:12px; align-items:start; }
+    .sim-col-left, .sim-col-right { display:flex; flex-direction:column; gap:12px; min-width:0; }
+    .sim-table-wrap { max-height:280px; overflow:auto; }
+    .sim-table { font-variant-numeric:tabular-nums; table-layout:auto; width:100%; }
+    .sim-table th, .sim-table td { text-align:center; white-space:nowrap; width:auto; min-width:0; padding:6px 10px; }
+    .sim-table th:first-child, .sim-table td:first-child { position:static; width:auto; }
+    #sim-my-orders { font-size:12px; }
+    #sim-my-orders th, #sim-my-orders td { padding:5px 4px; }
+    #sim-my-orders button { font-size:11px; padding:2px 6px; }
+    .sim-book { padding:6px 10px 10px; font-variant-numeric:tabular-nums; }
+    .sim-book-row { display:grid; grid-template-columns:44px 1fr 1fr; gap:8px; padding:5px 0; font-size:13px; }
+    .sim-book-row.ask .sim-book-price, .sim-book-row.ask .sim-book-side { color:var(--decrease); }
+    .sim-book-row.bid .sim-book-price, .sim-book-row.bid .sim-book-side { color:var(--increase); }
+    .sim-book-side { text-align:left; }
+    .sim-book-price, .sim-book-qty { text-align:right; }
+    .sim-book-mid { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:8px 0; margin:4px 0; border-top:0.5px solid var(--grid); border-bottom:0.5px solid var(--grid); font-size:13px; }
+    .sim-book-mid strong { font-size:19px; font-weight:700; }
+    .sim-order { display:flex; flex-direction:column; gap:8px; }
+    .sim-side { display:flex; gap:8px; }
+    .sim-side button { flex:1; }
+    .sim-side button.active { border-color:var(--primary); color:var(--primary); }
+    .sim-field { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; color:var(--muted); }
+    .sim-field input { width:130px; text-align:right; font-variant-numeric:tabular-nums; }
+    .sim-hint { font-size:12px; line-height:1.5; }
+    .sim-myorders-head { margin-top:4px; font-size:13px; font-weight:700; color:var(--ink); }
+    .sim-tip { position:absolute; z-index:40; padding:8px 10px; border-radius:var(--radius-sm); background:var(--surface); border:0.5px solid var(--grid); box-shadow:0 6px 18px rgba(0,0,0,0.12); font-size:12px; pointer-events:none; }
+    @media (max-width: 1180px) { .sim-grid { grid-template-columns:1fr; } }
     .rvw-empty { padding:26px; border:1px dashed var(--grid); border-radius:var(--radius-box); color:var(--muted); font-size:13px; text-align:center; }
     .rv-col-list { display:grid; gap:8px; }
     .rv-month-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border:1px solid var(--grid); border-radius:var(--radius-sm); background:var(--surface2); transition:border-color .18s, box-shadow .18s; }
