@@ -361,8 +361,10 @@ create policy sim_orders_write on public.sim_orders for all to authenticated
 drop policy if exists sim_positions_read on public.sim_positions;
 create policy sim_positions_read on public.sim_positions for select to authenticated using (true);
 
--- ---------- 权限 ----------
-grant select on public.sim_market, public.sim_ticks, public.sim_orders, public.sim_trades, public.sim_positions to authenticated;
+-- ---------- 权限（Supabase 2026-10-30 起新表不再自动授权，必须显式 GRANT） ----------
+grant select, insert, update, delete on public.sim_market, public.sim_ticks, public.sim_orders, public.sim_trades, public.sim_positions to authenticated;
+grant all on public.sim_market, public.sim_ticks, public.sim_orders, public.sim_trades, public.sim_positions to service_role;
+grant usage, select on all sequences in schema public to authenticated, service_role;
 grant execute on function public.sim_accounts_pnl() to authenticated;
 grant execute on function public.sim_place_order(text, text, numeric, numeric) to authenticated;
 grant execute on function public.sim_cancel_order(text, bigint) to authenticated;
