@@ -7,12 +7,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
-    color-scheme:light;
-    --page:#f4f7f6; --surface:#fff; --surface2:#eef1ef; --ink:#15201c; --muted:#66736e;
-    --grid:#dfe7e3; --line:#dde5e1; --primary:#6554c0; --primary-ink:#fff;
-    --up:#dc2626; --down:#16a34a; --focus:#075d45; --danger:#a63d40;
-    --radius-card:14px; --radius-btn:8px; --radius-box:8px; --radius-sm:6px;
-    --shadow-card:0 10px 30px rgba(29,51,43,.08);
+    color-scheme:dark;
+    --page:#0a0d10; --surface:#141a20; --surface2:#1a222a; --ink:#cdd9e2; --muted:#7d8f9c;
+    --grid:#232d36; --line:#2a3540; --primary:#e8a020; --primary-ink:#1a1206;
+    --up:#ff6b6b; --down:#3ddc84; --focus:#e8a020; --danger:#ff5252;
+    --radius-card:3px; --radius-btn:2px; --radius-box:2px; --radius-sm:2px;
+    --shadow-card:0 12px 32px rgba(0,0,0,.5);
     --font-sans:Arial,"Microsoft YaHei",sans-serif;
   }
   *{box-sizing:border-box;}
@@ -20,33 +20,40 @@
   body{
     background:var(--page); color:var(--ink); font-family:var(--font-sans);
     font-size:13px; line-height:1.5;
+    background-image:
+      linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+    background-size:28px 28px;
   }
   button{font-family:inherit;}
 
   /* ===== 顶部：菜单 / 状态 / 速度 ===== */
   .topbar{
     display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-    padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--line);
+    padding:10px 20px; background:linear-gradient(180deg,#151c23,#101519);
+    border-bottom:1px solid #2a3540; box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 6px 24px rgba(0,0,0,.5);
     position:sticky; top:0; z-index:20;
   }
-  .topbar h1{font-size:16px; margin:0 6px 0 0; font-weight:700;}
-  .topbar h1 small{display:block; font-size:11px; color:var(--muted); font-weight:400;}
+  .topbar h1{font-size:16px; margin:0 6px 0 0; font-weight:700; letter-spacing:1px; color:#e8c27a;}
+  .topbar h1 small{display:block; font-size:11px; color:var(--muted); font-weight:400; letter-spacing:.5px;}
   .chip{
-    display:inline-flex; align-items:baseline; gap:6px; padding:6px 12px;
-    border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface2);
+    display:inline-flex; align-items:baseline; gap:6px; padding:5px 12px;
+    border:1px solid var(--line); border-radius:var(--radius-box); background:#0e1418;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
   }
-  .chip .k{font-size:11px; color:var(--muted);}
-  .chip .v{font-size:15px; font-weight:700; font-variant-numeric:tabular-nums;}
-  .chip.warn{background:#fff7ed; border-color:#fdba74;}
-  .chip.bad{background:#fef2f2; border-color:#fecaca;}
+  .chip .k{font-size:11px; color:var(--muted); letter-spacing:1px;}
+  .chip .v{font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; color:#8ef0a8;}
+  .chip.warn{background:#241a0a; border-color:#8a6420;}
+  .chip.bad{background:#2a1012; border-color:#8a3038;}
   .chip .v.up{color:var(--up);} .chip .v.down{color:var(--down);}
   .spacer{flex:1;}
   .btn{
-    padding:7px 13px; border:1px solid var(--line); border-radius:var(--radius-btn);
-    background:var(--surface); color:var(--ink); font-size:12px; font-weight:700; cursor:pointer;
+    padding:7px 13px; border:1px solid #3a4652; border-top-color:#4a5662; border-radius:var(--radius-btn);
+    background:linear-gradient(180deg,#28323c,#1b232a); color:#cfe0ea; font-size:12px; font-weight:700; cursor:pointer;
+    letter-spacing:.5px; box-shadow:0 2px 0 rgba(0,0,0,.35);
   }
   .btn:hover{border-color:var(--primary); color:var(--primary);}
-  .btn.active{background:var(--primary); border-color:var(--primary); color:var(--primary-ink);}
+  .btn.active{background:linear-gradient(180deg,#f2b445,#d9901e); border-color:#f7c96c; color:#1a1206;}
   .btn.danger:hover{border-color:var(--danger); color:var(--danger);}
 
   /* ===== 布局 ===== */
@@ -56,92 +63,103 @@
   }
   .col-main{min-width:0;}
   .card{
-    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card);
-    box-shadow:var(--shadow-card); padding:14px 16px; margin-bottom:16px;
+    background:linear-gradient(180deg,#171e25,#12181e); border:1px solid var(--line); border-top:1px solid #35424e;
+    border-radius:var(--radius-card); box-shadow:var(--shadow-card); padding:14px 16px 14px 20px; margin-bottom:16px;
+    position:relative;
+  }
+  .card::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:linear-gradient(180deg,var(--primary),transparent 70%); opacity:.85;
   }
   .card h2{
-    margin:0 0 10px; font-size:13px; font-weight:700; color:var(--ink);
+    margin:0 0 10px; font-size:13px; font-weight:700; color:#d8b46a; letter-spacing:1px;
     display:flex; align-items:center; gap:10px;
   }
-  .card h2 .tip{font-size:11px; color:var(--muted); font-weight:400;}
+  .card h2 .tip{font-size:11px; color:var(--muted); font-weight:400; letter-spacing:0;}
   .side .card{margin-bottom:16px;}
 
   /* ===== 地图 ===== */
   .map-box{position:relative;}
-  #map{display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:var(--radius-box); background:#eef3f1; cursor:pointer;}
+  #map{display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:var(--radius-box); background:#0d1216; cursor:pointer;}
+  #mini{
+    position:absolute; right:12px; top:12px; width:148px; height:112px;
+    border:1px solid #3a4652; background:#0b0f13; box-shadow:0 6px 18px rgba(0,0,0,.55);
+  }
   .legend{
     display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:11px; color:var(--muted);
   }
   .legend .lg{display:inline-flex; align-items:center; gap:6px;}
-  .legend .sw{width:14px; height:14px; border-radius:4px; border:1px solid var(--line);}
+  .legend .sw{width:14px; height:14px; border-radius:2px; border:1px solid #2a3540;}
 
   /* ===== 工具条 / 建造 ===== */
   .tools{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
   .build{
     display:flex; align-items:center; gap:8px; padding:8px 11px;
-    border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface);
-    cursor:pointer; text-align:left;
+    border:1px solid var(--line); border-radius:var(--radius-box);
+    background:linear-gradient(180deg,#1a222a,#141a20); cursor:pointer; text-align:left;
   }
-  .build:hover{border-color:var(--primary);}
-  .build.on{border-color:var(--primary); background:#f3f1ff;}
-  .build .dot{width:12px; height:12px; border-radius:3px; flex:0 0 auto;}
-  .build .nm{font-size:12px; font-weight:700;}
+  .build:hover{border-color:var(--primary); box-shadow:0 0 0 1px rgba(232,160,32,.35), 0 0 14px rgba(232,160,32,.18);}
+  .build.on{border-color:var(--primary); background:linear-gradient(180deg,#3a2c12,#2a200c); box-shadow:0 0 0 1px var(--primary);}
+  .build .dot{width:12px; height:12px; border-radius:2px; flex:0 0 auto; box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
+  .build .nm{font-size:12px; font-weight:700; color:#dce8f0;}
   .build .mt{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
   .hint{margin-top:10px; font-size:11px; color:var(--muted);}
 
   /* ===== 表格 ===== */
   table{width:100%; border-collapse:collapse;}
   th{
-    text-align:left; font-size:11px; color:var(--muted); font-weight:700;
+    text-align:left; font-size:11px; color:var(--muted); font-weight:700; letter-spacing:.5px;
     padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;
   }
   td{
-    padding:7px 8px; border-bottom:1px solid var(--line); font-size:12px;
+    padding:7px 8px; border-bottom:1px solid #1c242c; font-size:12px;
     font-variant-numeric:tabular-nums;
   }
   tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(232,160,32,.05);}
   td.num,th.num{text-align:right;}
   td.center,th.center{text-align:center;}
   .tag{
-    display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;
+    display:inline-block; padding:2px 8px; border-radius:2px; font-size:11px; font-weight:700; letter-spacing:.5px;
   }
-  .tag.ok{background:#e7f7ef; color:#0f7a4f;}
-  .tag.warn{background:#fff4e5; color:#b45309;}
-  .tag.bad{background:#fdecea; color:#b3261e;}
+  .tag.ok{background:#123524; color:#3ddc84;}
+  .tag.warn{background:#3a2c12; color:#f0b040;}
+  .tag.bad{background:#3a1518; color:#ff6b6b;}
   .tag.mute{background:var(--surface2); color:var(--muted);}
 
   /* ===== 右栏 ===== */
   .kv{display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12px;}
   .kv .k{color:var(--muted);}
-  .kv .v{font-weight:700; font-variant-numeric:tabular-nums;}
+  .kv .v{font-weight:700; font-variant-numeric:tabular-nums; color:#cfe3d6;}
   .kv .v.up{color:var(--up);} .kv .v.down{color:var(--down);}
-  .bar{height:8px; border-radius:4px; background:var(--surface2); overflow:hidden; margin:4px 0 10px;}
-  .bar i{display:block; height:100%; border-radius:4px;}
+  .bar{height:8px; border-radius:2px; background:#0e1418; border:1px solid #232d36; overflow:hidden; margin:4px 0 10px;}
+  .bar i{display:block; height:100%; border-radius:2px;}
   .empty{
     padding:18px; text-align:center; color:var(--muted); font-size:12px;
-    background:var(--surface2); border-radius:var(--radius-box);
+    background:#10161b; border:1px dashed #2a3540; border-radius:var(--radius-box);
   }
-  .ev{font-size:11px; color:var(--muted); padding:3px 0; border-bottom:1px dashed var(--line);}
+  .ev{font-size:11px; color:#9fb2bf; padding:3px 0; border-bottom:1px dashed #232d36;}
   .ev:last-child{border-bottom:none;}
-  .ev.warn{color:#b45309;} .ev.bad{color:var(--danger);}
+  .ev.warn{color:#f0b040;} .ev.bad{color:var(--danger);}
 
   /* ===== 弹层 / 提示 ===== */
   .mask{
-    position:fixed; inset:0; background:rgba(21,32,28,.42); z-index:40;
+    position:fixed; inset:0; background:rgba(4,7,10,.72); z-index:40;
     display:flex; align-items:center; justify-content:center;
   }
   .mask[hidden]{display:none;}
   .modal{
-    background:var(--surface); border-radius:var(--radius-card); padding:20px 22px;
-    width:min(420px,92vw); box-shadow:var(--shadow-card);
+    background:linear-gradient(180deg,#1a222a,#12181e); border:1px solid #3a4652; border-top:1px solid #55636f;
+    border-radius:3px; padding:20px 22px; width:min(420px,92vw); box-shadow:0 30px 80px rgba(0,0,0,.7);
   }
-  .modal h3{margin:0 0 10px; font-size:15px;}
+  .modal h3{margin:0 0 10px; font-size:15px; color:#e6c887; letter-spacing:1px;}
   .modal p{margin:0 0 12px; font-size:12px; color:var(--muted); line-height:1.7;}
   .modal .row{display:flex; gap:10px; justify-content:flex-end; margin-top:16px;}
   .toast{
     position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
-    background:var(--ink); color:#fff; padding:10px 18px; border-radius:var(--radius-box);
-    font-size:12px; z-index:50; box-shadow:var(--shadow-card);
+    background:linear-gradient(180deg,#20282f,#161c22); color:#e8d9b0; padding:10px 18px;
+    border:1px solid #e8a020; border-left-width:4px; border-radius:2px;
+    font-size:12px; z-index:50; box-shadow:0 12px 40px rgba(0,0,0,.6); letter-spacing:.5px;
   }
   .toast[hidden]{display:none;}
 
@@ -179,14 +197,14 @@
       <h2>电网地图
         <span class="tip">点击地块建造；建造或连线模式下点击已建设施可拆除（退回 50% 造价）</span>
       </h2>
-      <div class="map-box"><canvas id="map"></canvas></div>
+      <div class="map-box"><canvas id="map"></canvas><canvas id="mini"></canvas></div>
       <div class="legend">
-        <span class="lg"><i class="sw" style="background:#e6f2ea"></i>平原</span>
-        <span class="lg"><i class="sw" style="background:#c7e2f5"></i>河流</span>
-        <span class="lg"><i class="sw" style="background:#e2e9e5"></i>山地</span>
-        <span class="lg"><i class="sw" style="background:#e8f7f7"></i>沿海</span>
-        <span class="lg"><i class="sw" style="background:#f5e9d6"></i>城市（需要用电）</span>
-        <span class="lg"><i class="sw" style="background:#efe6f7"></i>工业区（用电更大）</span>
+        <span class="lg"><i class="sw" style="background:#2e4630"></i>平原</span>
+        <span class="lg"><i class="sw" style="background:#17466b"></i>河流</span>
+        <span class="lg"><i class="sw" style="background:#4d5359"></i>山地</span>
+        <span class="lg"><i class="sw" style="background:#7d6f4e"></i>沿海</span>
+        <span class="lg"><i class="sw" style="background:#39424c"></i>城市（需要用电）</span>
+        <span class="lg"><i class="sw" style="background:#4a4440"></i>工业区（用电更大）</span>
       </div>
     </section>
 
@@ -281,7 +299,7 @@
     <section class="card">
       <h2>目标</h2>
       <div class="kv"><span class="k">目标</span><span class="v">28 天资金 ≥ 30 万元</span></div>
-      <div class="bar"><i id="goal-bar" style="width:0;background:#075d45"></i></div>
+      <div class="bar"><i id="goal-bar" style="width:0;background:linear-gradient(90deg,#2f9e6f,#3ddc84)"></i></div>
       <div class="kv"><span class="k">进度</span><span class="v" id="goal-txt">—</span></div>
     </section>
 
@@ -348,19 +366,9 @@ const W = IW, H = IH;
 canvas.width = W; canvas.height = H;
 const ORX = PAD_X + (COLS - 1) * TILE_W / 2;
 const ORY = PAD_Y + SPRITE_H - TILE_H / 2 - 4;
-const IMG = {};
-["grass_1","grass_2","grass_3","water_1","water_2","mount_1","mount_2",
- "sand_1","sand_2","city_1","city_2","ind_1","ind_2","road_1"].forEach(n => {
-  const im = new Image(); im.src = "assets/game/" + n + ".png"; IMG[n] = im;
-});
 function px(v) { return Math.round(v); }
 function isoX(c, r) { return ORX + (c - r) * TILE_W / 2; }
 function isoY(c, r) { return ORY + (c + r) * TILE_H / 2; }
-const TERRAIN_IMG = {
-  plain: ["grass_1","grass_2","grass_3"], river: ["water_1","water_2"],
-  mountain: ["mount_1","mount_2"], coast: ["sand_1","sand_2"],
-  city: ["city_1","city_2"], industry: ["ind_1","ind_2"]
-};
 
 const SUPABASE_URL = "https://kputrrbbcmxbnhwhxvoo.supabase.co";
 const SUPABASE_KEY = "sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
@@ -379,14 +387,35 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
 }
 
+/* ===== 音效（WebAudio 程序化，无外部文件） ===== */
+let actx = null;
+function sfx(kind) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const seq = kind === "ok" ? [[392, 0], [523, 0.09]]
+      : kind === "sell" ? [[330, 0], [220, 0.09]]
+      : kind === "err" ? [[110, 0]]
+      : [[660, 0]];
+    seq.forEach(([f, d]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = kind === "err" ? "sawtooth" : "square";
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.05, actx.currentTime + d);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + d + 0.14);
+      o.connect(g); g.connect(actx.destination);
+      o.start(actx.currentTime + d); o.stop(actx.currentTime + d + 0.15);
+    });
+  } catch (e) { /* 静音失败忽略 */ }
+}
+
 /* ============================ 地图与地形 ============================ */
 const TERRAIN = {
-  plain:    { name: "平原",  fill: "#e6f2ea" },
-  river:    { name: "河流",  fill: "#c7e2f5" },
-  mountain: { name: "山地",  fill: "#e2e9e5" },
-  coast:    { name: "沿海",  fill: "#e8f7f7" },
-  city:     { name: "城市",  fill: "#f5e9d6" },
-  industry: { name: "工业区", fill: "#efe6f7" }
+  plain:    { name: "平原",  fill: "#2e4630", fill2: "#35503a", fill3: "#283c28" },
+  river:    { name: "河流",  fill: "#17466b", fill2: "#1d5477", fill3: "#123a5c" },
+  mountain: { name: "山地",  fill: "#4d5359", fill2: "#5a6168", fill3: "#3f454b" },
+  coast:    { name: "沿海",  fill: "#7d6f4e", fill2: "#8a7b57", fill3: "#6e6244" },
+  city:     { name: "城市",  fill: "#39424c", fill2: "#424c58", fill3: "#2f3841" },
+  industry: { name: "工业区", fill: "#4a4440", fill2: "#56504a", fill3: "#3c3733" }
 };
 const MAP_DEF = [
   "m m m f f f f f f f f f f f",
@@ -654,10 +683,93 @@ function endGame() {
   const ok = state.cash >= 300000;
   addEvent(ok ? "28 天目标达成！资金 " + money(state.cash) + " 元" : "28 天结束，资金 " + money(state.cash) + " 元（未达 30 万）", ok ? "" : "warn");
   toast(ok ? "恭喜达成目标！" : "28 天经营结束");
+  sfx(ok ? "ok" : "sell");
   saveGame();
 }
 
-/* ============================ 画地图 ============================ */
+/* ============================ 画地图（RTS 军事风 · 全程序化） ============================ */
+function hash2(c, r) {
+  let h = (c * 374761393 + r * 668265263) | 0;
+  h = (h ^ (h >> 13)) * 1274126177;
+  return ((h ^ (h >> 16)) >>> 0) / 4294967295;
+}
+
+function drawTerrainCell(c, r, terr, light) {
+  const cx = isoX(c, r), cy = isoY(c, r);
+  const pal = TERRAIN[terr] || TERRAIN.plain;
+  const v = hash2(c, r);
+  let base = v < 0.33 ? pal.fill : (v < 0.66 ? pal.fill2 : pal.fill3);
+  base = shade(base, light);
+  const lift = terr === "mountain" ? 10 : (terr === "river" ? 0 : 3);
+  const ty = cy - lift, hw = TILE_W / 2, hh = TILE_H / 2;
+  // 侧面（山地/陆块立体台地）
+  if (lift > 0) {
+    ctx.fillStyle = shade(base, 0.55);
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx, ty + hh + lift); ctx.lineTo(cx - hw, ty + lift);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(base, 0.4);
+    ctx.beginPath();
+    ctx.moveTo(cx + hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx, ty + hh + lift); ctx.lineTo(cx + hw, ty + lift);
+    ctx.closePath(); ctx.fill();
+  }
+  // 顶面
+  ctx.beginPath();
+  ctx.moveTo(cx, ty - hh); ctx.lineTo(cx + hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx - hw, ty);
+  ctx.closePath();
+  ctx.fillStyle = base; ctx.fill();
+  // 顶面纹理
+  ctx.save();
+  ctx.clip();
+  if (terr === "mountain") {
+    ctx.fillStyle = shade(base, 0.72);
+    ctx.beginPath(); ctx.moveTo(cx, ty - hh); ctx.lineTo(cx + hw, ty); ctx.lineTo(cx, ty); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = shade(base, 1.18);
+    ctx.beginPath(); ctx.moveTo(cx, ty - hh); ctx.lineTo(cx - hw * 0.5, ty - hh * 0.2); ctx.lineTo(cx - hw * 0.2, ty); ctx.closePath(); ctx.fill();
+  } else if (terr === "river") {
+    const ph = performance.now() * 0.0012 + c * 0.5 + r * 0.35;
+    ctx.strokeStyle = "rgba(160,210,255,0.22)"; ctx.lineWidth = 2;
+    for (let k = 0; k < 2; k++) {
+      const off = Math.sin(ph + k * 2.1) * 8;
+      ctx.beginPath();
+      ctx.moveTo(cx - hw * 0.55, ty - 4 + off * 0.3 + k * 7);
+      ctx.lineTo(cx + hw * 0.55, ty + 4 + off * 0.3 + k * 7);
+      ctx.stroke();
+    }
+  } else if (terr === "city") {
+    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - hw, ty - 2); ctx.lineTo(cx + hw, ty - 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - hw * 0.6, ty - hh * 0.55); ctx.lineTo(cx + hw * 0.2, ty + hh * 0.6); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fillRect(cx - 18, ty - 6, 5, 4); ctx.fillRect(cx + 6, ty + 2, 5, 4);
+  } else if (terr === "coast") {
+    for (let k = 0; k < 5; k++) {
+      const hx = hash2(c * 7 + k, r * 3 + k) - 0.5;
+      const hy = hash2(c + k * 9, r * 5 + k) - 0.5;
+      ctx.fillStyle = k % 2 ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.18)";
+      ctx.fillRect(cx + hx * TILE_W * 0.7, ty + hy * TILE_H * 0.6, 3, 2);
+    }
+  } else if (terr === "industry") {
+    ctx.fillStyle = "rgba(240,176,64,0.28)";
+    for (let k = 0; k < 3; k++) ctx.fillRect(cx - hw + 10 + k * 22, ty + 6 + (k % 2) * 5, 10, 3);
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.fillRect(cx - hw * 0.4, ty - 8, 12, 6);
+  } else {
+    ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1.5;
+    for (let k = 0; k < 4; k++) {
+      const hx = (hash2(c * 11 + k, r * 13 + k) - 0.5) * TILE_W * 0.8;
+      const hy = (hash2(c * 5 + k * 3, r * 7 + k) - 0.5) * TILE_H * 0.7;
+      ctx.beginPath(); ctx.moveTo(cx + hx, ty + hy); ctx.lineTo(cx + hx + 3, ty + hy - 5); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  // 边线
+  ctx.beginPath();
+  ctx.moveTo(cx, ty - hh); ctx.lineTo(cx + hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx - hw, ty);
+  ctx.closePath();
+  ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = 1; ctx.stroke();
+}
+
 function drawMap() {
   ctx.imageSmoothingEnabled = false;
   const dayT = state.hour / 24 * Math.PI * 2;
@@ -668,61 +780,71 @@ function drawMap() {
   const cells = [];
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
   cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  for (const [c, r] of cells) {
-    const terr = grid[r][c];
-    const opts = TERRAIN_IMG[terr] || TERRAIN_IMG.plain;
-    const key = opts[(c * 7 + r * 13) % opts.length];
-    const im = IMG[key];
-    const x = px(isoX(c, r) - SPRITE_W / 2), y = px(isoY(c, r) - (SPRITE_H - TILE_H / 2));
-    if (im && im.complete && im.naturalWidth) {
-      ctx.drawImage(im, x, y, SPRITE_W, SPRITE_H);
-    } else {
-      // 未加载时的兜底菱形
-      const cx = isoX(c, r), cy = isoY(c, r);
-      ctx.fillStyle = TERRAIN[terr].fill;
+  for (const [c, r] of cells) drawTerrainCell(c, r, grid[r][c], light);
+
+  /* --- 建造 / 连线 / 拆除模式：RTS 放置网格 --- */
+  if (state.mode !== "none") {
+    ctx.strokeStyle = "rgba(120,255,160,0.13)"; ctx.lineWidth = 1;
+    for (const [c, r] of cells) {
+      const terr = grid[r][c];
+      const cx = isoX(c, r), cy = isoY(c, r) - (terr === "mountain" ? 10 : terr === "river" ? 0 : 3);
       ctx.beginPath();
-      ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy);
-      ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy); ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
+      ctx.closePath(); ctx.stroke();
     }
   }
 
-  /* --- 悬停高亮 --- */
+  /* --- 悬停：RTS 选择框 + 四角括号（红=不可放置） --- */
   if (hoverCell) {
     const { c, r } = hoverCell;
-    const cx = isoX(c, r), cy = isoY(c, r);
-    ctx.fillStyle = "rgba(101,84,192,0.28)";
+    const terr = grid[r][c];
+    const lift = terr === "mountain" ? 10 : (terr === "river" ? 0 : 3);
+    const cx = isoX(c, r), cy = isoY(c, r) - lift;
+    let ok = true;
+    if (state.mode === "build" && state.buildType) ok = PLANT_DEFS[state.buildType].terr.includes(terr);
+    const col = ok ? "#4dff88" : "#ff5252";
+    ctx.fillStyle = ok ? "rgba(80,255,140,0.13)" : "rgba(255,80,80,0.15)";
     ctx.beginPath();
-    ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy);
-    ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
+    ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy); ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
     ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = "rgba(101,84,192,0.9)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+    ctx.lineWidth = 3;
+    const mk = (vx, vy, sx, sy) => {
+      ctx.beginPath();
+      ctx.moveTo(vx + sx * 12, vy); ctx.lineTo(vx, vy); ctx.lineTo(vx, vy + sy * 6);
+      ctx.stroke();
+    };
+    mk(cx, cy - TILE_H / 2, -1, -1); mk(cx + TILE_W / 2, cy, 1, -1);
+    mk(cx, cy + TILE_H / 2, 1, 1); mk(cx - TILE_W / 2, cy, -1, 1);
   }
 
-  /* --- 输电线 --- */
+  /* --- 输电线（钢缆 + 桁架杆塔） --- */
   state.links.forEach(L => {
     const A = nodeById(L.a), B = nodeById(L.b);
     if (!A || !B) return;
     const ax = isoX(A.col, A.row), ay = isoY(A.col, A.row) - 42;
     const bx = isoX(B.col, B.row), by = isoY(B.col, B.row) - 42;
     const ratio = (L.load || 0) / LINK_CAP;
-    ctx.strokeStyle = L.overload ? "#dc2626" : (ratio > 0.85 ? "#e08a3c" : "#33413b");
+    const pulse = 0.75 + 0.25 * Math.sin(performance.now() * 0.006);
+    ctx.strokeStyle = L.overload ? ("rgba(255,64,64," + pulse + ")") : (ratio > 0.85 ? "#f0a030" : "#8fa3b0");
     ctx.lineWidth = 3 + Math.min(5, ratio * 5);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    // 杆塔
     [ [ax, ay], [bx, by] ].forEach(([tx, ty]) => {
-      ctx.strokeStyle = "#4b5563"; ctx.lineWidth = 3;
+      ctx.strokeStyle = "#5b6b78"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + 42); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx - 7, ty + 12); ctx.lineTo(tx + 7, ty + 12); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx - 5, ty + 26); ctx.lineTo(tx + 5, ty + 26); ctx.stroke();
     });
-    ctx.fillStyle = L.overload ? "#dc2626" : "#1f2937";
-    ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
     const tX = (ax + bx) / 2, tY = (ay + by) / 2;
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillRect(tX - 38, tY - 12, 76, 15);
-    ctx.fillStyle = L.overload ? "#dc2626" : "#1f2937";
+    ctx.fillStyle = "rgba(8,12,16,0.85)";
+    ctx.fillRect(tX - 40, tY - 13, 80, 16);
+    ctx.strokeStyle = "rgba(232,160,32,0.5)"; ctx.lineWidth = 1;
+    ctx.strokeRect(tX - 40, tY - 13, 80, 16);
+    ctx.font = "bold 11px Consolas,monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = L.overload ? "#ff6b6b" : "#8ef0a8";
     ctx.fillText((L.load || 0).toFixed(0) + "/" + LINK_CAP + " MW", tX, tY - 1);
     if (state.linkFrom === L.a || state.linkFrom === L.b) {
-      ctx.fillStyle = "#6554c0"; ctx.beginPath(); ctx.arc(tX, tY, 5, 0, 7); ctx.fill();
+      ctx.fillStyle = "#4dff88"; ctx.beginPath(); ctx.arc(tX, tY, 5, 0, 7); ctx.fill();
     }
   });
 
@@ -731,14 +853,21 @@ function drawMap() {
     ...loads.map(L => ({ n: L, plant: false })),
     ...state.plants.map(p => ({ n: p, plant: true }))
   ].sort((a, b) => (a.n.col + a.n.row) - (b.n.col + b.n.row));
-  nodes.forEach(({ n, plant }) => drawNode(n, plant, light));
+  nodes.forEach(({ n, plant }) => drawNode(n, plant, light, night));
+  drawMinimap();
   void dayT;
 }
 
-/* ===== 2.5D 像素建筑 ===== */
-function shade(hex, k) {
-  const v = hex.replace("#", "");
-  let r = parseInt(v.slice(0, 2), 16), g = parseInt(v.slice(2, 4), 16), b = parseInt(v.slice(4, 6), 16);
+/* ===== RTS 军事风建筑 ===== */
+function shade(col, k) {
+  let r, g, b;
+  if (col[0] === "#") {
+    const v = col.replace("#", "");
+    r = parseInt(v.slice(0, 2), 16); g = parseInt(v.slice(2, 4), 16); b = parseInt(v.slice(4, 6), 16);
+  } else {
+    const m = col.match(/\d+/g); if (!m) return col;
+    r = +m[0]; g = +m[1]; b = +m[2];
+  }
   r = Math.max(0, Math.min(255, r * k)); g = Math.max(0, Math.min(255, g * k)); b = Math.max(0, Math.min(255, b * k));
   return "rgb(" + px(r) + "," + px(g) + "," + px(b) + ")";
 }
@@ -760,15 +889,36 @@ function isoBox(cx, by, w, h, dep, top, l, r) {
 }
 function puff(x, y, t, seed) {
   const k = (t * 0.04 + seed) % 1;
-  ctx.fillStyle = "rgba(226,232,240," + (0.55 * (1 - k)) + ")";
-  const rad = 4 + k * 9;
+  ctx.fillStyle = "rgba(110,115,120," + (0.5 * (1 - k)) + ")";
+  const rad = 4 + k * 10;
   ctx.beginPath(); ctx.arc(x + Math.sin(k * 5 + seed * 3) * 4, y - k * 34, rad, 0, 7); ctx.fill();
 }
-function drawNode(n, isPlant, light) {
+function hazard(cx, cy, w) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(cx - w / 2, cy, w, 5); ctx.clip();
+  for (let k = -2; k < w / 8 + 2; k++) {
+    ctx.fillStyle = k % 2 ? "#e8a020" : "#141414";
+    ctx.beginPath();
+    ctx.moveTo(cx - w / 2 + k * 8, cy + 5); ctx.lineTo(cx - w / 2 + k * 8 + 5, cy + 5);
+    ctx.lineTo(cx - w / 2 + k * 8 + 10, cy); ctx.lineTo(cx - w / 2 + k * 8 + 5, cy);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function beacon(x, y, t) {
+  const on = Math.sin(t * 0.006) > 0;
+  ctx.fillStyle = on ? "#ff4040" : "#661111";
+  ctx.beginPath(); ctx.arc(x, y, 3.2, 0, 7); ctx.fill();
+  if (on) {
+    ctx.fillStyle = "rgba(255,64,64,0.25)";
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, 7); ctx.fill();
+  }
+}
+function drawNode(n, isPlant, light, night) {
   const cx = isoX(n.col, n.row), cy = isoY(n.col, n.row);
   // 影子
-  ctx.fillStyle = "rgba(15,23,42,0.18)";
-  ctx.beginPath(); ctx.ellipse(cx, cy + 14, 40, 12, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath(); ctx.ellipse(cx, cy + 14, 42, 12, 0, 0, 7); ctx.fill();
   const T = performance.now();
 
   const SC = 1.45;
@@ -778,106 +928,170 @@ function drawNode(n, isPlant, light) {
   ctx.translate(-cx, -(cy - 8));
 
   if (isPlant) {
-    const def = PLANT_DEFS[n.type];
-    const base = def.color;
     switch (n.type) {
       case "coal": {
-        isoBox(cx - 12, cy + 6, 42, 28, 22, shade(base, 1.25), shade(base, 0.92), shade(base, 0.66));
-        isoBox(cx + 16, cy - 2, 18, 40, 16, shade(base, 1.1), shade(base, 0.85), shade(base, 0.6));
-        puff(cx + 16, cy - 46, T, 0.2); puff(cx + 22, cy - 52, T, 0.55);
-        ctx.fillStyle = "#f59e0b";
-        ctx.fillRect(px(cx - 26), px(cy - 4), 5, 5); ctx.fillRect(px(cx - 12), px(cy - 4), 5, 5);
+        isoBox(cx - 12, cy + 6, 42, 28, 22, "#5a646e", "#48525c", "#333b43");
+        isoBox(cx + 16, cy - 2, 18, 42, 16, "#4a525a", "#3c444c", "#2a3138");
+        hazard(cx - 12, cy + 22, 42);
+        puff(cx + 16, cy - 48, T, 0.2); puff(cx + 22, cy - 54, T, 0.55);
+        ctx.fillStyle = night ? "#ffb454" : "#c98f3e";
+        ctx.fillRect(px(cx - 26), px(cy - 2), 12, 4); ctx.fillRect(px(cx - 26), px(cy - 8), 12, 4);
+        beacon(cx + 16, cy - 46, T);
         break;
       }
       case "gas": {
-        isoBox(cx - 14, cy + 6, 40, 24, 20, shade(base, 1.3), shade(base, 0.95), shade(base, 0.68));
-        isoBox(cx + 14, cy - 4, 16, 34, 14, "#e5e7eb", "#cbd5e1", "#94a3b8");
+        isoBox(cx - 14, cy + 6, 40, 24, 20, "#5e6858", "#4a5346", "#333a30");
+        isoBox(cx + 14, cy - 4, 16, 34, 14, "#8a939c", "#727b84", "#4e565e");
+        hazard(cx - 14, cy + 18, 40);
         puff(cx + 14, cy - 44, T, 0.1);
-        ctx.fillStyle = "#ef4444"; ctx.fillRect(px(cx - 4), px(cy - 12), 8, 8);
+        beacon(cx + 22, cy - 42, T);
         break;
       }
       case "wind": {
-        isoBox(cx - 8, cy + 8, 16, 14, 12, shade(base, 1.2), shade(base, 0.9), shade(base, 0.65));
-        ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 5;
+        isoBox(cx - 8, cy + 8, 16, 14, 12, "#5a646e", "#48525c", "#333b43");
+        ctx.strokeStyle = "#9aa8b2"; ctx.lineWidth = 5;
         ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx, cy - 52); ctx.stroke();
         const ang = T * 0.0025;
         ctx.save(); ctx.translate(cx, cy - 52); ctx.rotate(ang);
-        ctx.fillStyle = "#f8fafc";
+        ctx.fillStyle = "#c8d2da";
         for (let k = 0; k < 3; k++) {
           ctx.rotate(Math.PI * 2 / 3);
           ctx.fillRect(-3, -3, 6, -34);
         }
         ctx.restore();
-        ctx.fillStyle = "#94a3b8"; ctx.beginPath(); ctx.arc(cx, cy - 52, 4, 0, 7); ctx.fill();
+        ctx.fillStyle = "#7a8894"; ctx.beginPath(); ctx.arc(cx, cy - 52, 4, 0, 7); ctx.fill();
+        beacon(cx, cy - 58, T);
         break;
       }
       case "solar": {
         for (let i = 0; i < 3; i++) {
           const bx = cx - 26 + i * 20, by = cy + 2 + (i % 2) * 8;
-          isoBox(bx, by, 17, 5, 17, "#1e3a8a", "#1d4ed8", "#1e40af");
-          ctx.fillStyle = "#60a5fa";
-          ctx.fillRect(px(bx - 6), px(by - 8), 4, 4); ctx.fillRect(px(bx + 1), px(by - 8), 4, 4);
+          isoBox(bx, by, 17, 5, 17, "#20406b", "#183355", "#10233c");
+          ctx.strokeStyle = "rgba(120,180,255,0.5)"; ctx.lineWidth = 1;
+          ctx.strokeRect(px(bx - 6), px(by - 8), 12, 5);
         }
-        const glow = 0.5 + 0.5 * Math.sin(T * 0.003);
-        ctx.fillStyle = "rgba(250,204,21," + (0.35 * glow) + ")";
-        ctx.beginPath(); ctx.arc(cx + 30, cy - 30, 13, 0, 7); ctx.fill();
+        if (!night) {
+          const glow = 0.5 + 0.5 * Math.sin(T * 0.003);
+          ctx.fillStyle = "rgba(250,204,21," + (0.3 * glow) + ")";
+          ctx.beginPath(); ctx.arc(cx + 30, cy - 30, 13, 0, 7); ctx.fill();
+        }
         break;
       }
       case "storage": {
-        isoBox(cx - 12, cy + 6, 42, 32, 22, shade(base, 1.3), shade(base, 0.92), shade(base, 0.62));
+        isoBox(cx - 12, cy + 6, 42, 32, 22, "#3a5a52", "#2c463f", "#1e322c");
+        hazard(cx - 12, cy + 26, 42);
         const chg = Math.round(50 + 50 * Math.sin(state.hour / 24 * 7));
-        ctx.fillStyle = "#a7f3d0";
-        ctx.fillRect(px(cx - 12), px(cy + 4), 24 * chg / 100, 5);
-        ctx.fillStyle = "#065f46"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
-        ctx.fillText("⚡" + chg + "%", cx, cy + 22);
+        ctx.fillStyle = "#14211c"; ctx.fillRect(px(cx - 8), px(cy - 2), 18, 12);
+        ctx.fillStyle = "#3ddc84";
+        ctx.fillRect(px(cx - 6), px(cy + 12), 16 * chg / 100, 4);
+        ctx.fillStyle = "#8ef0a8"; ctx.font = "bold 9px Consolas,monospace"; ctx.textAlign = "center";
+        ctx.fillText("⚡" + chg + "%", cx + 2, cy + 24);
         break;
       }
       case "nuclear": {
-        isoBox(cx - 14, cy + 8, 46, 26, 24, shade(base, 1.28), shade(base, 0.92), shade(base, 0.62));
-        ctx.fillStyle = "#e2e8f0";
+        isoBox(cx - 14, cy + 8, 46, 26, 24, "#5a6068", "#464c53", "#2f3439");
+        hazard(cx - 14, cy + 22, 46);
+        ctx.fillStyle = "#8a9098";
         ctx.beginPath(); ctx.arc(cx - 12, cy - 10, 17, Math.PI, 0); ctx.fill();
-        ctx.fillStyle = "#cbd5e1"; ctx.fillRect(px(cx - 29), px(cy - 11), 34, 11);
-        isoBox(cx + 18, cy - 2, 17, 38, 15, "#94a3b8", "#cbd5e1", "#64748b");
+        ctx.strokeStyle = "#c9a227"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx - 12, cy - 10, 12, Math.PI, 0); ctx.stroke();
+        isoBox(cx + 18, cy - 2, 17, 38, 15, "#727982", "#5c636b", "#40474e");
         puff(cx + 18, cy - 46, T, 0.4);
+        beacon(cx + 26, cy - 44, T);
         break;
       }
     }
   } else {
-    // 城市 / 工业区楼群
+    // 城市 / 工业区楼群（混凝土 + 亮窗）
     const ind = n.industry;
-    const cols = ind ? ["#7c3aed", "#8b5cf6", "#6d28d9"] : ["#c2410c", "#d97706", "#b45309"];
+    const cols = ind ? ["#5a5248", "#665c50", "#4a423a"] : ["#3a424c", "#444d58", "#2e353d"];
     const hh = (n.level || 1) * 13 + 18;
-    isoBox(cx - 20, cy + 8, 26, hh, 16, shade(cols[0], 1.3), shade(cols[0], 0.95), shade(cols[0], 0.66));
-    isoBox(cx + 8, cy + 2, 22, hh + 16, 14, shade(cols[1], 1.3), shade(cols[1], 0.95), shade(cols[1], 0.66));
-    isoBox(cx - 4, cy + 16, 18, hh - 12, 12, shade(cols[2], 1.3), shade(cols[2], 0.95), shade(cols[2], 0.66));
-    // 窗户（供电时亮灯）
+    isoBox(cx - 20, cy + 8, 26, hh, 16, shade(cols[0], 1.25), shade(cols[0], 0.95), shade(cols[0], 0.62));
+    isoBox(cx + 8, cy + 2, 22, hh + 16, 14, shade(cols[1], 1.25), shade(cols[1], 0.95), shade(cols[1], 0.62));
+    isoBox(cx - 4, cy + 16, 18, hh - 12, 12, shade(cols[2], 1.25), shade(cols[2], 0.95), shade(cols[2], 0.62));
+    if (ind) hazard(cx - 6, cy + 20, 30);
     const lit = n.serveOk >= 0.8;
-    ctx.fillStyle = lit ? "#fde68a" : "rgba(255,255,255,0.35)";
     for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 2; wx++) {
+      ctx.fillStyle = lit ? (night ? "#ffd27a" : "#e8c06a") : "#202a32";
       ctx.fillRect(px(cx + 10 + wx * 9), px(cy - 2 - wy * 11), 5, 6);
+    }
+    if (ind) {
+      isoBox(cx + 22, cy + 12, 8, 26, 8, "#6a5c4c", "#584c3e", "#3c3428");
+      puff(cx + 26, cy - 18, T, 0.7);
     }
   }
 
   ctx.restore();
+  void light;
 
-  // 名称与状态
+  // ===== 名称牌（深色 LCD 风格） =====
   const lab = isPlant ? n.name : (n.name + " Lv" + (n.level || 1));
   ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
-  const tw = ctx.measureText(lab).width + 10;
-  ctx.fillStyle = "rgba(255,255,255,0.88)";
-  ctx.fillRect(px(cx - tw / 2), px(cy + 26), px(tw), 15);
-  ctx.fillStyle = "#15201c";
-  ctx.fillText(lab, cx, cy + 37);
+  const tw = ctx.measureText(lab).width + 12;
+  ctx.fillStyle = "rgba(8,12,16,0.85)";
+  ctx.fillRect(px(cx - tw / 2), px(cy + 24), px(tw), 16);
+  ctx.strokeStyle = "rgba(232,160,32,0.35)"; ctx.lineWidth = 1;
+  ctx.strokeRect(px(cx - tw / 2), px(cy + 24), px(tw), 16);
+  ctx.fillStyle = "#cfe8d8";
+  ctx.fillText(lab, cx, cy + 35);
+
+  // ===== 状态条（RTS 单位血条风格） =====
+  const ratio = isPlant
+    ? Math.min(1, (n.lastOut || 0) / (PLANT_DEFS[n.type].cap || 1))
+    : Math.min(1, n.serveOk || 0);
+  const barW = 42, barX = cx - barW / 2, barY = cy + 44;
+  ctx.fillStyle = "#0c1116"; ctx.fillRect(barX, barY, barW, 6);
+  ctx.fillStyle = ratio > 0.85 ? "#3ddc84" : ratio > 0.55 ? "#f0b040" : "#ff5252";
+  ctx.fillRect(barX, barY, barW * ratio, 6);
+  ctx.strokeStyle = "#2a3540"; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, 6);
+
   if (isPlant) {
-    ctx.fillStyle = "#3a4a44"; ctx.font = "10px Arial";
-    ctx.fillText(PLANT_DEFS[n.type].cap + " MW", cx, cy + 50);
+    ctx.fillStyle = "#7d8f9c"; ctx.font = "10px Consolas,monospace";
+    ctx.fillText(PLANT_DEFS[n.type].cap + " MW", cx, cy + 62);
   }
   // 连线起点高亮
   if (state.linkFrom === n.id) {
-    ctx.strokeStyle = "#6554c0"; ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(77,255,136,0.3)"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.ellipse(cx, cy + 14, 46, 15, 0, 0, 7); ctx.stroke();
+    ctx.strokeStyle = "#4dff88"; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.ellipse(cx, cy + 14, 46, 15, 0, 0, 7); ctx.stroke();
   }
-  void light;
+}
+
+/* ===== 小地图（RTS 风格） ===== */
+function drawMinimap() {
+  const m = $("mini"); if (!m) return;
+  const mc = m.getContext("2d");
+  const MW = m.width, MH = m.height;
+  mc.fillStyle = "#0b0f13"; mc.fillRect(0, 0, MW, MH);
+  const tw = 9, th = 4.5;
+  const px2 = (c, r) => MW / 2 + (c - r) * tw / 2;
+  const py2 = (c, r) => 24 + (c + r) * th / 2;
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
+  cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+  for (const [c, r] of cells) {
+    const x = px2(c, r), y = py2(c, r);
+    mc.fillStyle = TERRAIN[grid[r][c]].fill;
+    mc.beginPath();
+    mc.moveTo(x, y - th / 2); mc.lineTo(x + tw / 2, y); mc.lineTo(x, y + th / 2); mc.lineTo(x - tw / 2, y);
+    mc.closePath(); mc.fill();
+  }
+  state.links.forEach(L => {
+    const A = nodeById(L.a), B = nodeById(L.b);
+    if (!A || !B) return;
+    mc.strokeStyle = L.overload ? "#ff5252" : "#7d8f9c"; mc.lineWidth = 1;
+    mc.beginPath(); mc.moveTo(px2(A.col, A.row), py2(A.col, A.row)); mc.lineTo(px2(B.col, B.row), py2(B.col, B.row)); mc.stroke();
+  });
+  loads.forEach(L => {
+    mc.fillStyle = "#ff6b6b";
+    mc.fillRect(px2(L.col, L.row) - 2.5, py2(L.col, L.row) - 2.5, 5, 5);
+  });
+  state.plants.forEach(p => {
+    mc.fillStyle = "#e8a020";
+    mc.fillRect(px2(p.col, p.row) - 2.5, py2(p.col, p.row) - 2.5, 5, 5);
+  });
+  mc.strokeStyle = "#3a4652"; mc.lineWidth = 2; mc.strokeRect(1, 1, MW - 2, MH - 2);
 }
 
 function nodeById(id) {
@@ -1007,6 +1221,7 @@ function buildTools() {
 }
 function updateModeBtns() {
   document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+  canvas.style.cursor = state.mode === "none" ? "pointer" : "crosshair";
 }
 function cellAt(ev) {
   const rect = canvas.getBoundingClientRect();
@@ -1034,11 +1249,11 @@ canvas.addEventListener("click", ev => {
   const existing = nodeAtCell(cell.c, cell.r);
 
   if (state.mode === "build" && state.buildType) {
-    if (existing) return toast("这里已经有设施了");
+    if (existing) { sfx("err"); return toast("这里已经有设施了"); }
     const def = PLANT_DEFS[state.buildType];
     const terr = grid[cell.r][cell.c];
-    if (!def.terr.includes(terr)) return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上");
-    if (state.cash < def.cost) return toast("资金不足，还需要 " + money(def.cost - state.cash) + " 元");
+    if (!def.terr.includes(terr)) { sfx("err"); return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上"); }
+    if (state.cash < def.cost) { sfx("err"); return toast("资金不足，还需要 " + money(def.cost - state.cash) + " 元"); }
     state.cash -= def.cost;
     const p = {
       kind: "plant", id: "P" + Date.now() + Math.floor(Math.random() * 99),
@@ -1047,7 +1262,7 @@ canvas.addEventListener("click", ev => {
     };
     state.plants.push(p);
     addEvent("建成 " + p.name + "（" + def.cap + " MW，造价 " + money(def.cost) + " 元）");
-    toast(p.name + " 建成");
+    toast(p.name + " 建成"); sfx("ok");
     return renderAll();
   }
 
@@ -1059,7 +1274,7 @@ canvas.addEventListener("click", ev => {
     state.plants = state.plants.filter(p => p.id !== existing.id);
     state.links = state.links.filter(l => l.a !== existing.id && l.b !== existing.id);
     addEvent("拆除 " + existing.name + "，退回 " + money(def.cost * 0.5) + " 元");
-    toast("已拆除，退回 50% 造价");
+    toast("已拆除，退回 50% 造价"); sfx("sell");
     return renderAll();
   }
 
@@ -1074,15 +1289,15 @@ canvas.addEventListener("click", ev => {
     if (state.linkFrom === existing.id) { state.linkFrom = null; return renderAll(); }
     const a = nodeById(state.linkFrom), b = existing;
     const dup = state.links.some(l => (l.a === a.id && l.b === b.id) || (l.a === b.id && l.b === a.id));
-    if (dup) return toast("这两点已经连过了");
+    if (dup) { sfx("err"); return toast("这两点已经连过了"); }
     const dist = Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) + 1;
     const cost = dist * LINK_COST_PER_KM;
-    if (state.cash < cost) return toast("输电线造价 " + money(cost) + " 元，资金不足");
+    if (state.cash < cost) { sfx("err"); return toast("输电线造价 " + money(cost) + " 元，资金不足"); }
     state.cash -= cost;
     state.links.push({ a: a.id, b: b.id, cost, dist, load: 0, overload: false });
     addEvent("新建输电线 " + a.name + " ↔ " + b.name + "（" + dist + " 格，造价 " + money(cost) + " 元，容量 " + LINK_CAP + " MW）");
     state.linkFrom = null;
-    toast("输电线已建成");
+    toast("输电线已建成"); sfx("ok");
     return renderAll();
   }
 });
