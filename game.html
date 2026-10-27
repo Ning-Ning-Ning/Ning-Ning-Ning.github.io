@@ -337,9 +337,30 @@
 /* ============================ 基础 ============================ */
 const $ = id => document.getElementById(id);
 const canvas = $("map"), ctx = canvas.getContext("2d");
-const CELL = 60, GAP = 5, COLS = 14, ROWS = 9;
-const W = COLS * CELL + GAP, H = ROWS * CELL + GAP;
+/* ===== 2.5D 等轴测（Kenney 体素瓦片 111×128，菱形 2:1）===== */
+const COLS = 14, ROWS = 9;
+const TILE_W = 96, TILE_H = 48;              // 菱形地块
+const SPRITE_W = 111, SPRITE_H = 128;        // 素材原图
+const PAD_X = 110, PAD_Y = 30;
+const IW = (COLS + ROWS - 1) * TILE_W + PAD_X * 2;
+const IH = (COLS + ROWS - 1) * (TILE_H / 2) + SPRITE_H + PAD_Y * 2 + 70;
+const W = IW, H = IH;
 canvas.width = W; canvas.height = H;
+const ORX = PAD_X + (COLS - 1) * TILE_W / 2;
+const ORY = PAD_Y + SPRITE_H - TILE_H / 2 - 4;
+const IMG = {};
+["grass_1","grass_2","grass_3","water_1","water_2","mount_1","mount_2",
+ "sand_1","sand_2","city_1","city_2","ind_1","ind_2","road_1"].forEach(n => {
+  const im = new Image(); im.src = "assets/game/" + n + ".png"; IMG[n] = im;
+});
+function px(v) { return Math.round(v); }
+function isoX(c, r) { return ORX + (c - r) * TILE_W / 2; }
+function isoY(c, r) { return ORY + (c + r) * TILE_H / 2; }
+const TERRAIN_IMG = {
+  plain: ["grass_1","grass_2","grass_3"], river: ["water_1","water_2"],
+  mountain: ["mount_1","mount_2"], coast: ["sand_1","sand_2"],
+  city: ["city_1","city_2"], industry: ["ind_1","ind_2"]
+};
 
 const SUPABASE_URL = "https://kputrrbbcmxbnhwhxvoo.supabase.co";
 const SUPABASE_KEY = "sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
@@ -638,58 +659,227 @@ function endGame() {
 
 /* ============================ 画地图 ============================ */
 function drawMap() {
-  ctx.clearRect(0, 0, W, H);
-  // 地块
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const x = c * (CELL + GAP), y = r * (CELL + GAP);
-      ctx.fillStyle = TERRAIN[grid[r][c]].fill;
-      ctx.beginPath(); ctx.roundRect(x, y, CELL, CELL, 10); ctx.fill();
+  ctx.imageSmoothingEnabled = false;
+  const dayT = state.hour / 24 * Math.PI * 2;
+  const light = 0.88 + 0.12 * Math.sin(dayT - Math.PI / 2);   // 昼夜亮度
+  const night = state.hour < 6 || state.hour >= 19;
+
+  /* --- 地块（按 c+r 深度排序） --- */
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
+  cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+  for (const [c, r] of cells) {
+    const terr = grid[r][c];
+    const opts = TERRAIN_IMG[terr] || TERRAIN_IMG.plain;
+    const key = opts[(c * 7 + r * 13) % opts.length];
+    const im = IMG[key];
+    const x = px(isoX(c, r) - SPRITE_W / 2), y = px(isoY(c, r) - (SPRITE_H - TILE_H / 2));
+    if (im && im.complete && im.naturalWidth) {
+      ctx.drawImage(im, x, y, SPRITE_W, SPRITE_H);
+    } else {
+      // 未加载时的兜底菱形
+      const cx = isoX(c, r), cy = isoY(c, r);
+      ctx.fillStyle = TERRAIN[terr].fill;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy);
+      ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
+      ctx.closePath(); ctx.fill();
     }
   }
-  // 连线
+
+  /* --- 悬停高亮 --- */
+  if (hoverCell) {
+    const { c, r } = hoverCell;
+    const cx = isoX(c, r), cy = isoY(c, r);
+    ctx.fillStyle = "rgba(101,84,192,0.28)";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy);
+    ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(101,84,192,0.9)"; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  /* --- 输电线 --- */
   state.links.forEach(L => {
     const A = nodeById(L.a), B = nodeById(L.b);
     if (!A || !B) return;
-    const ax = A.col * (CELL + GAP) + CELL / 2, ay = A.row * (CELL + GAP) + CELL / 2;
-    const bx = B.col * (CELL + GAP) + CELL / 2, by = B.row * (CELL + GAP) + CELL / 2;
+    const ax = isoX(A.col, A.row), ay = isoY(A.col, A.row) - 42;
+    const bx = isoX(B.col, B.row), by = isoY(B.col, B.row) - 42;
     const ratio = (L.load || 0) / LINK_CAP;
-    ctx.strokeStyle = L.overload ? "#dc2626" : (ratio > 0.85 ? "#e08a3c" : "#5b6f68");
-    ctx.lineWidth = 3 + Math.min(4, ratio * 4);
+    ctx.strokeStyle = L.overload ? "#dc2626" : (ratio > 0.85 ? "#e08a3c" : "#33413b");
+    ctx.lineWidth = 3 + Math.min(5, ratio * 5);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.fillStyle = L.overload ? "#dc2626" : "#3a4a44";
-    ctx.font = "10px Arial"; ctx.textAlign = "center";
-    ctx.fillText((L.load || 0).toFixed(0) + "/" + LINK_CAP + " MW", (ax + bx) / 2, (ay + by) / 2 - 6);
+    // 杆塔
+    [ [ax, ay], [bx, by] ].forEach(([tx, ty]) => {
+      ctx.strokeStyle = "#4b5563"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + 42); ctx.stroke();
+    });
+    ctx.fillStyle = L.overload ? "#dc2626" : "#1f2937";
+    ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+    const tX = (ax + bx) / 2, tY = (ay + by) / 2;
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillRect(tX - 38, tY - 12, 76, 15);
+    ctx.fillStyle = L.overload ? "#dc2626" : "#1f2937";
+    ctx.fillText((L.load || 0).toFixed(0) + "/" + LINK_CAP + " MW", tX, tY - 1);
     if (state.linkFrom === L.a || state.linkFrom === L.b) {
-      ctx.fillStyle = "#6554c0"; ctx.beginPath(); ctx.arc((ax + bx) / 2, (ay + by) / 2, 5, 0, 7); ctx.fill();
+      ctx.fillStyle = "#6554c0"; ctx.beginPath(); ctx.arc(tX, tY, 5, 0, 7); ctx.fill();
     }
   });
-  // 节点
-  const drawNode = (n, isPlant) => {
-    const x = n.col * (CELL + GAP) + CELL / 2, y = n.row * (CELL + GAP) + CELL / 2;
-    ctx.fillStyle = isPlant ? PLANT_DEFS[n.type].color : (n.industry ? "#8b5cf6" : "#c2410c");
-    ctx.beginPath(); ctx.arc(x, y - 4, 15, 0, 7); ctx.fill();
-    if (state.linkFrom === n.id) { ctx.strokeStyle = "#6554c0"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - 4, 19, 0, 7); ctx.stroke(); }
-    ctx.fillStyle = "#fff"; ctx.font = "13px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(isPlant ? PLANT_DEFS[n.type].icon : (n.industry ? "工" : "市"), x, y - 4);
-    ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#15201c"; ctx.font = "11px Arial";
-    ctx.fillText(n.name, x, y + 24);
-    if (isPlant) {
-      ctx.fillStyle = "#3a4a44"; ctx.font = "10px Arial";
-      ctx.fillText(PLANT_DEFS[n.type].cap + " MW", x, y + 36);
-      if (n.type === "storage") {
-        const chg = Math.round(50 + 50 * Math.sin(state.hour / 24 * 7));
-        ctx.fillText("SOC " + chg + "%", x, y + 46);
-      }
-    } else {
-      ctx.fillStyle = "#3a4a44"; ctx.font = "10px Arial";
-      ctx.fillText("Lv" + n.level + " " + (n.load || 0).toFixed(0) + " MW", x, y + 36);
-    }
-  };
-  loads.forEach(L => drawNode(L, false));
-  state.plants.forEach(p => drawNode(p, true));
+
+  /* --- 节点（建筑）按深度排序 --- */
+  const nodes = [
+    ...loads.map(L => ({ n: L, plant: false })),
+    ...state.plants.map(p => ({ n: p, plant: true }))
+  ].sort((a, b) => (a.n.col + a.n.row) - (b.n.col + b.n.row));
+  nodes.forEach(({ n, plant }) => drawNode(n, plant, light));
+  void dayT;
 }
+
+/* ===== 2.5D 像素建筑 ===== */
+function shade(hex, k) {
+  const v = hex.replace("#", "");
+  let r = parseInt(v.slice(0, 2), 16), g = parseInt(v.slice(2, 4), 16), b = parseInt(v.slice(4, 6), 16);
+  r = Math.max(0, Math.min(255, r * k)); g = Math.max(0, Math.min(255, g * k)); b = Math.max(0, Math.min(255, b * k));
+  return "rgb(" + px(r) + "," + px(g) + "," + px(b) + ")";
+}
+function isoBox(cx, by, w, h, dep, top, l, r) {
+  const hh = dep / 2;
+  ctx.fillStyle = l;
+  ctx.beginPath();
+  ctx.moveTo(cx - w / 2, by - hh); ctx.lineTo(cx, by); ctx.lineTo(cx, by + h);
+  ctx.lineTo(cx - w / 2, by + h - hh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = r;
+  ctx.beginPath();
+  ctx.moveTo(cx + w / 2, by - hh); ctx.lineTo(cx, by); ctx.lineTo(cx, by + h);
+  ctx.lineTo(cx + w / 2, by + h - hh); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = top;
+  ctx.beginPath();
+  ctx.moveTo(cx, by - hh - dep / 2); ctx.lineTo(cx + w / 2, by - hh);
+  ctx.lineTo(cx, by + hh - dep / 2); ctx.lineTo(cx - w / 2, by - hh);
+  ctx.closePath(); ctx.fill();
+}
+function puff(x, y, t, seed) {
+  const k = (t * 0.04 + seed) % 1;
+  ctx.fillStyle = "rgba(226,232,240," + (0.55 * (1 - k)) + ")";
+  const rad = 4 + k * 9;
+  ctx.beginPath(); ctx.arc(x + Math.sin(k * 5 + seed * 3) * 4, y - k * 34, rad, 0, 7); ctx.fill();
+}
+function drawNode(n, isPlant, light) {
+  const cx = isoX(n.col, n.row), cy = isoY(n.col, n.row);
+  // 影子
+  ctx.fillStyle = "rgba(15,23,42,0.18)";
+  ctx.beginPath(); ctx.ellipse(cx, cy + 14, 40, 12, 0, 0, 7); ctx.fill();
+  const T = performance.now();
+
+  const SC = 1.45;
+  ctx.save();
+  ctx.translate(cx, cy - 8);
+  ctx.scale(SC, SC);
+  ctx.translate(-cx, -(cy - 8));
+
+  if (isPlant) {
+    const def = PLANT_DEFS[n.type];
+    const base = def.color;
+    switch (n.type) {
+      case "coal": {
+        isoBox(cx - 12, cy + 6, 42, 28, 22, shade(base, 1.25), shade(base, 0.92), shade(base, 0.66));
+        isoBox(cx + 16, cy - 2, 18, 40, 16, shade(base, 1.1), shade(base, 0.85), shade(base, 0.6));
+        puff(cx + 16, cy - 46, T, 0.2); puff(cx + 22, cy - 52, T, 0.55);
+        ctx.fillStyle = "#f59e0b";
+        ctx.fillRect(px(cx - 26), px(cy - 4), 5, 5); ctx.fillRect(px(cx - 12), px(cy - 4), 5, 5);
+        break;
+      }
+      case "gas": {
+        isoBox(cx - 14, cy + 6, 40, 24, 20, shade(base, 1.3), shade(base, 0.95), shade(base, 0.68));
+        isoBox(cx + 14, cy - 4, 16, 34, 14, "#e5e7eb", "#cbd5e1", "#94a3b8");
+        puff(cx + 14, cy - 44, T, 0.1);
+        ctx.fillStyle = "#ef4444"; ctx.fillRect(px(cx - 4), px(cy - 12), 8, 8);
+        break;
+      }
+      case "wind": {
+        isoBox(cx - 8, cy + 8, 16, 14, 12, shade(base, 1.2), shade(base, 0.9), shade(base, 0.65));
+        ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx, cy - 52); ctx.stroke();
+        const ang = T * 0.0025;
+        ctx.save(); ctx.translate(cx, cy - 52); ctx.rotate(ang);
+        ctx.fillStyle = "#f8fafc";
+        for (let k = 0; k < 3; k++) {
+          ctx.rotate(Math.PI * 2 / 3);
+          ctx.fillRect(-3, -3, 6, -34);
+        }
+        ctx.restore();
+        ctx.fillStyle = "#94a3b8"; ctx.beginPath(); ctx.arc(cx, cy - 52, 4, 0, 7); ctx.fill();
+        break;
+      }
+      case "solar": {
+        for (let i = 0; i < 3; i++) {
+          const bx = cx - 26 + i * 20, by = cy + 2 + (i % 2) * 8;
+          isoBox(bx, by, 17, 5, 17, "#1e3a8a", "#1d4ed8", "#1e40af");
+          ctx.fillStyle = "#60a5fa";
+          ctx.fillRect(px(bx - 6), px(by - 8), 4, 4); ctx.fillRect(px(bx + 1), px(by - 8), 4, 4);
+        }
+        const glow = 0.5 + 0.5 * Math.sin(T * 0.003);
+        ctx.fillStyle = "rgba(250,204,21," + (0.35 * glow) + ")";
+        ctx.beginPath(); ctx.arc(cx + 30, cy - 30, 13, 0, 7); ctx.fill();
+        break;
+      }
+      case "storage": {
+        isoBox(cx - 12, cy + 6, 42, 32, 22, shade(base, 1.3), shade(base, 0.92), shade(base, 0.62));
+        const chg = Math.round(50 + 50 * Math.sin(state.hour / 24 * 7));
+        ctx.fillStyle = "#a7f3d0";
+        ctx.fillRect(px(cx - 12), px(cy + 4), 24 * chg / 100, 5);
+        ctx.fillStyle = "#065f46"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
+        ctx.fillText("⚡" + chg + "%", cx, cy + 22);
+        break;
+      }
+      case "nuclear": {
+        isoBox(cx - 14, cy + 8, 46, 26, 24, shade(base, 1.28), shade(base, 0.92), shade(base, 0.62));
+        ctx.fillStyle = "#e2e8f0";
+        ctx.beginPath(); ctx.arc(cx - 12, cy - 10, 17, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = "#cbd5e1"; ctx.fillRect(px(cx - 29), px(cy - 11), 34, 11);
+        isoBox(cx + 18, cy - 2, 17, 38, 15, "#94a3b8", "#cbd5e1", "#64748b");
+        puff(cx + 18, cy - 46, T, 0.4);
+        break;
+      }
+    }
+  } else {
+    // 城市 / 工业区楼群
+    const ind = n.industry;
+    const cols = ind ? ["#7c3aed", "#8b5cf6", "#6d28d9"] : ["#c2410c", "#d97706", "#b45309"];
+    const hh = (n.level || 1) * 13 + 18;
+    isoBox(cx - 20, cy + 8, 26, hh, 16, shade(cols[0], 1.3), shade(cols[0], 0.95), shade(cols[0], 0.66));
+    isoBox(cx + 8, cy + 2, 22, hh + 16, 14, shade(cols[1], 1.3), shade(cols[1], 0.95), shade(cols[1], 0.66));
+    isoBox(cx - 4, cy + 16, 18, hh - 12, 12, shade(cols[2], 1.3), shade(cols[2], 0.95), shade(cols[2], 0.66));
+    // 窗户（供电时亮灯）
+    const lit = n.serveOk >= 0.8;
+    ctx.fillStyle = lit ? "#fde68a" : "rgba(255,255,255,0.35)";
+    for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 2; wx++) {
+      ctx.fillRect(px(cx + 10 + wx * 9), px(cy - 2 - wy * 11), 5, 6);
+    }
+  }
+
+  ctx.restore();
+
+  // 名称与状态
+  const lab = isPlant ? n.name : (n.name + " Lv" + (n.level || 1));
+  ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
+  const tw = ctx.measureText(lab).width + 10;
+  ctx.fillStyle = "rgba(255,255,255,0.88)";
+  ctx.fillRect(px(cx - tw / 2), px(cy + 26), px(tw), 15);
+  ctx.fillStyle = "#15201c";
+  ctx.fillText(lab, cx, cy + 37);
+  if (isPlant) {
+    ctx.fillStyle = "#3a4a44"; ctx.font = "10px Arial";
+    ctx.fillText(PLANT_DEFS[n.type].cap + " MW", cx, cy + 50);
+  }
+  // 连线起点高亮
+  if (state.linkFrom === n.id) {
+    ctx.strokeStyle = "#6554c0"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(cx, cy + 14, 46, 15, 0, 0, 7); ctx.stroke();
+  }
+  void light;
+}
+
 function nodeById(id) {
   return loads.find(l => l.id === id) || state.plants.find(p => p.id === id) || null;
 }
@@ -820,12 +1010,21 @@ function updateModeBtns() {
 }
 function cellAt(ev) {
   const rect = canvas.getBoundingClientRect();
-  const x = (ev.clientX - rect.left) / rect.width * W;
-  const y = (ev.clientY - rect.top) / rect.height * H;
-  const c = Math.floor(x / (CELL + GAP)), r = Math.floor(y / (CELL + GAP));
+  const mx = (ev.clientX - rect.left) / rect.width * W;
+  const my = (ev.clientY - rect.top) / rect.height * H;
+  const gx = (mx - ORX) / (TILE_W / 2), gy = (my - ORY) / (TILE_H / 2);
+  const c = Math.round((gx + gy) / 2), r = Math.round((gy - gx) / 2);
   if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
   return { c, r };
 }
+let hoverCell = null;
+canvas.addEventListener("pointermove", ev => {
+  const cell = cellAt(ev);
+  const changed = (cell && hoverCell) ? (cell.c !== hoverCell.c || cell.r !== hoverCell.r) : (cell !== hoverCell);
+  hoverCell = cell;
+  if (changed) drawMap();
+});
+canvas.addEventListener("pointerleave", () => { hoverCell = null; drawMap(); });
 function nodeAtCell(c, r) {
   return loads.find(l => l.col === c && l.row === r) || state.plants.find(p => p.col === c && p.row === r) || null;
 }
