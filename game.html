@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>电网大亨 · 模拟经营</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    color-scheme:light;
+    --page:#f4f7f6; --surface:#fff; --surface2:#eef1ef; --ink:#15201c; --muted:#66736e;
+    --grid:#dfe7e3; --line:#dde5e1; --primary:#6554c0; --primary-ink:#fff;
+    --up:#dc2626; --down:#16a34a; --focus:#075d45; --danger:#a63d40;
+    --radius-card:14px; --radius-btn:8px; --radius-box:8px; --radius-sm:6px;
+    --shadow-card:0 10px 30px rgba(29,51,43,.08);
+    --font-sans:Arial,"Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--page); color:var(--ink); font-family:var(--font-sans);
+    font-size:13px; line-height:1.5;
+  }
+  button{font-family:inherit;}
+
+  /* ===== 顶部：菜单 / 状态 / 速度 ===== */
+  .topbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
+  }
+  .topbar h1{font-size:16px; margin:0 6px 0 0; font-weight:700;}
+  .topbar h1 small{display:block; font-size:11px; color:var(--muted); font-weight:400;}
+  .chip{
+    display:inline-flex; align-items:baseline; gap:6px; padding:6px 12px;
+    border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface2);
+  }
+  .chip .k{font-size:11px; color:var(--muted);}
+  .chip .v{font-size:15px; font-weight:700; font-variant-numeric:tabular-nums;}
+  .chip.warn{background:#fff7ed; border-color:#fdba74;}
+  .chip.bad{background:#fef2f2; border-color:#fecaca;}
+  .chip .v.up{color:var(--up);} .chip .v.down{color:var(--down);}
+  .spacer{flex:1;}
+  .btn{
+    padding:7px 13px; border:1px solid var(--line); border-radius:var(--radius-btn);
+    background:var(--surface); color:var(--ink); font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .btn:hover{border-color:var(--primary); color:var(--primary);}
+  .btn.active{background:var(--primary); border-color:var(--primary); color:var(--primary-ink);}
+  .btn.danger:hover{border-color:var(--danger); color:var(--danger);}
+
+  /* ===== 布局 ===== */
+  .wrap{
+    max-width:1460px; margin:0 auto; padding:18px 20px 32px;
+    display:grid; grid-template-columns:minmax(0,1fr) 328px; gap:18px; align-items:start;
+  }
+  .col-main{min-width:0;}
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-card);
+    box-shadow:var(--shadow-card); padding:14px 16px; margin-bottom:16px;
+  }
+  .card h2{
+    margin:0 0 10px; font-size:13px; font-weight:700; color:var(--ink);
+    display:flex; align-items:center; gap:10px;
+  }
+  .card h2 .tip{font-size:11px; color:var(--muted); font-weight:400;}
+  .side .card{margin-bottom:16px;}
+
+  /* ===== 地图 ===== */
+  .map-box{position:relative;}
+  #map{display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:var(--radius-box); background:#eef3f1; cursor:pointer;}
+  .legend{
+    display:flex; flex-wrap:wrap; gap:14px; margin-top:10px; font-size:11px; color:var(--muted);
+  }
+  .legend .lg{display:inline-flex; align-items:center; gap:6px;}
+  .legend .sw{width:14px; height:14px; border-radius:4px; border:1px solid var(--line);}
+
+  /* ===== 工具条 / 建造 ===== */
+  .tools{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .build{
+    display:flex; align-items:center; gap:8px; padding:8px 11px;
+    border:1px solid var(--line); border-radius:var(--radius-box); background:var(--surface);
+    cursor:pointer; text-align:left;
+  }
+  .build:hover{border-color:var(--primary);}
+  .build.on{border-color:var(--primary); background:#f3f1ff;}
+  .build .dot{width:12px; height:12px; border-radius:3px; flex:0 0 auto;}
+  .build .nm{font-size:12px; font-weight:700;}
+  .build .mt{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .hint{margin-top:10px; font-size:11px; color:var(--muted);}
+
+  /* ===== 表格 ===== */
+  table{width:100%; border-collapse:collapse;}
+  th{
+    text-align:left; font-size:11px; color:var(--muted); font-weight:700;
+    padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  td{
+    padding:7px 8px; border-bottom:1px solid var(--line); font-size:12px;
+    font-variant-numeric:tabular-nums;
+  }
+  tr:last-child td{border-bottom:none;}
+  td.num,th.num{text-align:right;}
+  td.center,th.center{text-align:center;}
+  .tag{
+    display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;
+  }
+  .tag.ok{background:#e7f7ef; color:#0f7a4f;}
+  .tag.warn{background:#fff4e5; color:#b45309;}
+  .tag.bad{background:#fdecea; color:#b3261e;}
+  .tag.mute{background:var(--surface2); color:var(--muted);}
+
+  /* ===== 右栏 ===== */
+  .kv{display:flex; justify-content:space-between; gap:10px; padding:5px 0; font-size:12px;}
+  .kv .k{color:var(--muted);}
+  .kv .v{font-weight:700; font-variant-numeric:tabular-nums;}
+  .kv .v.up{color:var(--up);} .kv .v.down{color:var(--down);}
+  .bar{height:8px; border-radius:4px; background:var(--surface2); overflow:hidden; margin:4px 0 10px;}
+  .bar i{display:block; height:100%; border-radius:4px;}
+  .empty{
+    padding:18px; text-align:center; color:var(--muted); font-size:12px;
+    background:var(--surface2); border-radius:var(--radius-box);
+  }
+  .ev{font-size:11px; color:var(--muted); padding:3px 0; border-bottom:1px dashed var(--line);}
+  .ev:last-child{border-bottom:none;}
+  .ev.warn{color:#b45309;} .ev.bad{color:var(--danger);}
+
+  /* ===== 弹层 / 提示 ===== */
+  .mask{
+    position:fixed; inset:0; background:rgba(21,32,28,.42); z-index:40;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .mask[hidden]{display:none;}
+  .modal{
+    background:var(--surface); border-radius:var(--radius-card); padding:20px 22px;
+    width:min(420px,92vw); box-shadow:var(--shadow-card);
+  }
+  .modal h3{margin:0 0 10px; font-size:15px;}
+  .modal p{margin:0 0 12px; font-size:12px; color:var(--muted); line-height:1.7;}
+  .modal .row{display:flex; gap:10px; justify-content:flex-end; margin-top:16px;}
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:var(--radius-box);
+    font-size:12px; z-index:50; box-shadow:var(--shadow-card);
+  }
+  .toast[hidden]{display:none;}
+
+  @media (max-width:1180px){
+    .wrap{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>电网大亨<small>建电站 · 架电网 · 买电卖电</small></h1>
+
+  <button class="btn" id="menu-btn" type="button">☰ 菜单</button>
+
+  <div class="chip"><span class="k">资金</span><span class="v" id="hd-cash">—</span></div>
+  <div class="chip"><span class="k">时间</span><span class="v" id="hd-time">—</span></div>
+  <div class="chip"><span class="k">负荷</span><span class="v" id="hd-load">—</span></div>
+  <div class="chip"><span class="k">发电</span><span class="v" id="hd-gen">—</span></div>
+  <div class="chip"><span class="k">市场电价</span><span class="v" id="hd-price">—</span></div>
+  <div class="chip" id="hd-serve-wrap"><span class="k">供电率</span><span class="v" id="hd-serve">—</span></div>
+
+  <div class="spacer"></div>
+  <button class="btn" id="pause-btn" type="button">⏸ 暂停</button>
+  <button class="btn active" data-speed="1" type="button">1×</button>
+  <button class="btn" data-speed="2" type="button">2×</button>
+  <button class="btn" data-speed="4" type="button">4×</button>
+</header>
+
+<div class="wrap">
+  <div class="col-main">
+
+    <!-- 地图 -->
+    <section class="card">
+      <h2>电网地图
+        <span class="tip">点击地块建造；建造或连线模式下点击已建设施可拆除（退回 50% 造价）</span>
+      </h2>
+      <div class="map-box"><canvas id="map"></canvas></div>
+      <div class="legend">
+        <span class="lg"><i class="sw" style="background:#e6f2ea"></i>平原</span>
+        <span class="lg"><i class="sw" style="background:#c7e2f5"></i>河流</span>
+        <span class="lg"><i class="sw" style="background:#e2e9e5"></i>山地</span>
+        <span class="lg"><i class="sw" style="background:#e8f7f7"></i>沿海</span>
+        <span class="lg"><i class="sw" style="background:#f5e9d6"></i>城市（需要用电）</span>
+        <span class="lg"><i class="sw" style="background:#efe6f7"></i>工业区（用电更大）</span>
+      </div>
+    </section>
+
+    <!-- 建造 -->
+    <section class="card">
+      <h2>建造
+        <span class="tip">先选设施，再点地图空地；建好后用「连线」把它接到城市</span>
+      </h2>
+      <div class="tools" id="build-tools"></div>
+      <div class="tools" style="margin-top:8px">
+        <button class="btn" data-mode="connect" type="button">⤳ 连线（接到城市）</button>
+        <button class="btn" data-mode="sell" type="button">✕ 拆除（退 50%）</button>
+        <button class="btn" data-mode="none" type="button">✔ 完成</button>
+      </div>
+      <div class="hint" id="build-hint">提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。</div>
+    </section>
+
+    <!-- 收支 -->
+    <section class="card">
+      <h2>收支（每小时结算）</h2>
+      <table>
+        <thead>
+          <tr><th>科目</th><th class="num">本小时（元）</th><th class="num">今日累计（元）</th><th class="num">总计（元）</th></tr>
+        </thead>
+        <tbody id="fin-body"></tbody>
+      </table>
+    </section>
+
+    <!-- 城市用电 -->
+    <section class="card">
+      <h2>城市用电
+        <span class="tip">供电率连续 24 小时 ≥92%，城市会升级、用电变大</span>
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th>名称</th><th class="num">等级</th><th class="num">当前负荷 (MW)</th>
+            <th class="num">已供 (MW)</th><th class="num">供电率</th><th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="city-body"></tbody>
+      </table>
+    </section>
+
+    <!-- 电站运行 -->
+    <section class="card">
+      <h2>电站运行</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>电站</th><th class="num">铭牌 (MW)</th><th class="num">当前出力 (MW)</th>
+            <th class="num">负荷率</th><th class="num">燃料成本 (元/h)</th><th class="num">累计电费 (元)</th>
+          </tr>
+        </thead>
+        <tbody id="plant-body"></tbody>
+      </table>
+    </section>
+
+    <!-- 市场交易 -->
+    <section class="card">
+      <h2>市场买卖电
+        <span class="tip">自动结算：缺电按市场价买入，富余按市场价卖出</span>
+      </h2>
+      <table>
+        <thead>
+          <tr><th>项目</th><th class="num">本小时</th><th class="num">今日累计</th><th class="num">总计</th></tr>
+        </thead>
+        <tbody id="mkt-body"></tbody>
+      </table>
+      <div class="hint">市场电价来自数据表 daily_curves 的日前电价（取最近 30 天逐小时），每小时随日期推进循环取用。</div>
+    </section>
+
+    <!-- 每日经营 -->
+    <section class="card">
+      <h2>每日经营</h2>
+      <table>
+        <thead>
+          <tr>
+            <th class="center">第几天</th><th class="num">售电 (MWh)</th><th class="num">购电 (MWh)</th>
+            <th class="num">售电收入 (元)</th><th class="num">燃料+维护 (元)</th>
+            <th class="num">购电支出 (元)</th><th class="num">净利 (元)</th><th class="num">资金 (元)</th>
+          </tr>
+        </thead>
+        <tbody id="day-body"></tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <!-- 右栏 -->
+  <aside class="side">
+    <section class="card">
+      <h2>目标</h2>
+      <div class="kv"><span class="k">目标</span><span class="v">28 天资金 ≥ 30 万元</span></div>
+      <div class="bar"><i id="goal-bar" style="width:0;background:#075d45"></i></div>
+      <div class="kv"><span class="k">进度</span><span class="v" id="goal-txt">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>时刻信息 <span class="tip" id="now-tip">—</span></h2>
+      <div class="kv"><span class="k">时刻电价</span><span class="v" id="p-price">—</span></div>
+      <div class="kv"><span class="k">系统负荷</span><span class="v" id="p-load">—</span></div>
+      <div class="kv"><span class="k">上网电量</span><span class="v" id="p-supply">—</span></div>
+      <div class="kv"><span class="k">缺供（切负荷）</span><span class="v" id="p-shed">—</span></div>
+      <div class="kv"><span class="k">售电收入</span><span class="v" id="p-inc">—</span></div>
+      <div class="kv"><span class="k">燃料成本</span><span class="v" id="p-fuel">—</span></div>
+      <div class="kv"><span class="k">维护成本</span><span class="v" id="p-om">—</span></div>
+      <div class="kv"><span class="k">购电支出</span><span class="v" id="p-buy">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>资产</h2>
+      <div class="kv"><span class="k">现金</span><span class="v" id="a-cash">—</span></div>
+      <div class="kv"><span class="k">电厂造价</span><span class="v" id="a-plant">—</span></div>
+      <div class="kv"><span class="k">输电造价</span><span class="v" id="a-line">—</span></div>
+      <div class="kv"><span class="k">资产合计</span><span class="v" id="a-total">—</span></div>
+      <div class="kv"><span class="k">折旧（5%/天）</span><span class="v" id="a-dep">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>最近事件</h2>
+      <div id="events"><div class="ev">尚无事件</div></div>
+    </section>
+  </aside>
+</div>
+
+<!-- 菜单 -->
+<div class="mask" id="menu-mask" hidden>
+  <div class="modal">
+    <h3>菜单</h3>
+    <p>账号：<strong id="menu-user">—</strong>　存档只保存在本机浏览器，换电脑或清缓存会丢失。</p>
+    <div class="row" style="justify-content:flex-start;flex-wrap:wrap">
+      <button class="btn" id="m-new" type="button">重新开始</button>
+      <button class="btn" id="m-save" type="button">保存进度</button>
+      <button class="btn" id="m-load" type="button">读取进度</button>
+      <button class="btn" id="m-board" type="button">排行榜</button>
+      <button class="btn" id="m-back" type="button">返回模拟页</button>
+    </div>
+    <div class="row"><button class="btn active" id="m-close" type="button">关闭</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+
+/* ============================ 基础 ============================ */
+const $ = id => document.getElementById(id);
+const canvas = $("map"), ctx = canvas.getContext("2d");
+const CELL = 60, GAP = 5, COLS = 14, ROWS = 9;
+const W = COLS * CELL + GAP, H = ROWS * CELL + GAP;
+canvas.width = W; canvas.height = H;
+
+const SUPABASE_URL = "https://kputrrbbcmxbnhwhxvoo.supabase.co";
+const SUPABASE_KEY = "sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
+const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+function fmtNum(v, d = 0) {
+  if (v == null || !Number.isFinite(Number(v))) return "—";
+  return Number(v).toLocaleString("zh-CN", { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+function money(v) { return fmtNum(v, 0); }
+function pct(v) { return v == null || !Number.isFinite(v) ? "—" : (v * 100).toFixed(1) + "%"; }
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $("toast"); el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+}
+
+/* ============================ 地图与地形 ============================ */
+const TERRAIN = {
+  plain:    { name: "平原",  fill: "#e6f2ea" },
+  river:    { name: "河流",  fill: "#c7e2f5" },
+  mountain: { name: "山地",  fill: "#e2e9e5" },
+  coast:    { name: "沿海",  fill: "#e8f7f7" },
+  city:     { name: "城市",  fill: "#f5e9d6" },
+  industry: { name: "工业区", fill: "#efe6f7" }
+};
+const MAP_DEF = [
+  "m m m f f f f f f f f f f f",
+  "m m m f f f f f f f f f f f",
+  "r r r r r f f f f f f f f f",
+  "r r r r r f f f f f f f f f",
+  "r r r r r f f f f f f f f f",
+  "p p p p p p p p p p p c c c",
+  "p p p p p p p p p p p c c c",
+  "p p p p p p p p p p p o o o",
+  "p p p p p p p p p p p o o o"
+];
+const TERRAIN_CODE = { m: "mountain", f: "plain", r: "river", p: "plain", c: "coast", o: "coast" };
+
+const grid = []; // grid[r][c]
+for (let r = 0; r < ROWS; r++) {
+  grid.push(MAP_DEF[r].split(" ").map(code => TERRAIN_CODE[code]));
+}
+
+/* 负荷节点：城市 / 工业区（24 小时负荷曲线形状） */
+const LOAD_SHAPE = [
+  0.58, 0.52, 0.48, 0.45, 0.44, 0.48, 0.60, 0.72,
+  0.86, 0.93, 0.96, 0.95, 0.90, 0.88, 0.90, 0.93,
+  0.96, 1.00, 0.98, 0.92, 0.84, 0.74, 0.66, 0.60
+];
+
+function makeLoadNode(name, col, row, peak, industry) {
+  return {
+    kind: "load", id: "L" + name, name, col, row, industry,
+    base: peak, level: 1, grow: 0,
+    load: 0, served: 0, shed: 0, serveOk: 0,
+    totalBought: 0, totalPaid: 0
+  };
+}
+
+/* ============================ 设施定义 ============================ */
+const PLANT_DEFS = {
+  coal:     { name: "燃煤电厂",   icon: "▦", color: "#8a8f94", cost: 220000, cap: 200, varCost: 150, fixedCost: 40,  terr: ["plain", "mountain", "coast"] },
+  gas:      { name: "燃气电厂",   icon: "▲", color: "#e08a3c", cost: 140000, cap: 150, varCost: 280, fixedCost: 30,  terr: ["plain", "coast", "mountain"] },
+  wind:     { name: "风电场",     icon: "✳", color: "#4aa3d8", cost: 170000, cap: 80,  varCost: 8,   fixedCost: 30,  terr: ["mountain", "coast"] },
+  solar:    { name: "光伏电站",   icon: "◐", color: "#d9b122", cost: 140000, cap: 80,  varCost: 4,   fixedCost: 22,  terr: ["plain", "coast"] },
+  storage:  { name: "储能电站",   icon: "▤", color: "#2f9e6f", cost: 110000, cap: 120, varCost: 0,   fixedCost: 16,  terr: ["plain", "coast", "mountain"] },
+  nuclear:  { name: "核电站",     icon: "☢", color: "#b34fd8", cost: 520000, cap: 450, varCost: 60,  fixedCost: 150, terr: ["plain", "coast"] }
+};
+const LINK_COST_PER_KM = 900;   // 元 / 格
+const LINK_CAP = 500;           // MW
+const LINK_BASE_LOSS = 0.0025;  // 每格损耗
+
+/* ============================ 游戏状态 ============================ */
+const loads = [
+  makeLoadNode("滨海市", 1, 6, 210, false),
+  makeLoadNode("新城", 12, 2, 150, false),
+  makeLoadNode("工业园区", 12, 7, 130, true)
+];
+
+const state = {
+  day: 1, hour: 0, cash: 2000000, running: true, speed: 1,
+  mode: "none", buildType: null, linkFrom: null,
+  plants: [], links: [],
+  priceMap: null, // "D:HH" -> price
+  today: null, allTime: null,
+  days: [], events: [], lastHour: null
+};
+state.today = emptyStat();
+state.allTime = emptyStat();
+
+function emptyStat() {
+  return {
+    inc: 0, fuel: 0, om: 0, buy: 0, buyMWh: 0, sellMWh: 0,
+    soldMWh: 0, shedMWh: 0, loadMWh: 0, cost: 0
+  };
+}
+
+function addEvent(msg, level) {
+  state.events.unshift({ msg, level: level || "" });
+  if (state.events.length > 30) state.events.pop();
+}
+
+/* ============================ 价格 ============================ */
+function simPriceDate(dayNum) {
+  const base = new Date(2026, 0, 1);
+  base.setDate(base.getDate() + (dayNum - 1));
+  return base.getFullYear() + "-" + String(base.getMonth() + 1).padStart(2, "0") + "-" + String(base.getDate()).padStart(2, "0");
+}
+function priceAt(day, hour) {
+  const d = simPriceDate(day);
+  if (state.priceMap) {
+    const v = state.priceMap[d + ":" + hour];
+    if (v != null) return v;
+    const alt = state.priceMap["2026-10-27:" + hour];
+    if (alt != null) return alt;
+  }
+  // 备用合成曲线（未取到真实电价时）
+  const shape = [320, 295, 280, 272, 268, 280, 330, 388, 430, 452, 462, 455, 440, 430, 436, 446, 458, 472, 478, 470, 452, 420, 382, 350];
+  return shape[hour % 24] * (1 + (day % 7 === 0 || day % 7 === 6 ? 0.06 : 0));
+}
+
+async function loadPrices() {
+  if (!sb) return;
+  try {
+    const start = "2026-09-28";
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.from("daily_curves")
+        .select("date,hour,day_ahead_price")
+        .gte("date", start).lte("date", "2026-10-28")
+        .order("date", { ascending: true }).order("hour", { ascending: true })
+        .range(from, from + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    const m = {};
+    let n = 0;
+    rows.forEach(r => {
+      if (r.day_ahead_price != null) { m[r.date + ":" + Number(r.hour)] = Number(r.day_ahead_price); n++; }
+    });
+    if (n > 0) { state.priceMap = m; addEvent("已载入真实日前电价 " + n + " 个时点（daily_curves）"); }
+    else addEvent("真实电价为空，改用内置电价曲线", "warn");
+  } catch (e) {
+    console.error(e);
+    addEvent("电价读取失败，改用内置电价曲线：" + (e.message || "网络异常"), "warn");
+  }
+}
+
+/* ============================ 出力特性 ============================ */
+function plantOutput(pl, hour, day) {
+  const def = PLANT_DEFS[pl.type];
+  if (pl.type === "solar") {
+    if (hour < 7 || hour > 18) return 0;
+    const x = (hour - 7) / 11 * 2 - 1;
+    return def.cap * Math.max(0, 1 - x * x) * (0.9 + ((day * 7 + hour * 13) % 10) / 100);
+  }
+  if (pl.type === "wind") {
+    const v = 0.22 + 0.55 * Math.abs(Math.sin((day * 24 + hour) / 6.2));
+    return def.cap * v;
+  }
+  return def.cap;
+}
+
+/* ============================ 每小时推进 ============================ */
+function step() {
+  const price = priceAt(state.day, state.hour);
+  const S = state.today, A = state.allTime;
+
+  // 1) 负荷
+  const shape = LOAD_SHAPE[state.hour];
+  loads.forEach(L => {
+    L.load = L.base * (1 + 0.12 * (L.level - 1)) * (L.industry ? 1.0 : shape);
+    L.served = 0;
+  });
+  const totalLoad = loads.reduce((s, L) => s + L.load, 0);
+
+  // 2) 可再生最大出力
+  const avail = state.plants.map(p => plantOutput(p, state.hour, state.day));
+  const cur = state.plants.map(() => 0);
+
+  // 3) 电源点：未接负荷节点的电厂 → 售给市场；接到负荷节点的 → 优先供电
+
+  // 3a) 供电给各负荷节点（只统计「电厂 → 城市」的连线，按电厂可用出力比例分配）
+  loads.forEach(L => {
+    const segs = [];
+    state.links.forEach(LK => {
+      const otherId = LK.a === L.id ? LK.b : (LK.b === L.id ? LK.a : null);
+      if (!otherId) return;
+      const pi = state.plants.findIndex(p => p.id === otherId);
+      if (pi < 0) return;
+      segs.push({ pi, link: LK });
+    });
+    if (!segs.length) return;
+    const totalCap = segs.reduce((s, x) => s + Math.min(LINK_CAP, avail[x.pi]), 0);
+    if (totalCap <= 0) return;
+    const need = L.load;
+    segs.forEach(s => {
+      const cap = Math.min(LINK_CAP, avail[s.pi]);
+      const want = need * (cap / totalCap);
+      const give = Math.min(want, avail[s.pi] - cur[s.pi], cap);
+      if (give <= 0) return;
+      cur[s.pi] += give;
+      L.served += give;
+      s.link.load = (s.link.load || 0) + give;
+      s.link.sellMWh = (s.link.sellMWh || 0) + give;
+    });
+    if (need > totalCap) segs.forEach(s => { s.link.overload = true; });
+    else segs.forEach(s => { s.link.overload = false; });
+  });
+
+  // 3b) 剩余出力 → 售给市场（未联网电厂全部出力 + 已联网电厂未用完的部分）
+  state.plants.forEach((p, i) => {
+    const hasLoadLink = state.links.some(LK =>
+      (LK.a === p.id && loads.some(l => l.id === LK.b)) ||
+      (LK.b === p.id && loads.some(l => l.id === LK.a)));
+    if (!hasLoadLink) cur[i] = avail[i];
+  });
+  const totalGen = cur.reduce((s, v) => s + v, 0);
+  const totalServed = loads.reduce((s, L) => s + L.served, 0);
+  const marketSell = Math.max(0, totalGen - totalServed);
+
+  // 4) 缺供 / 超发
+  let shed = 0, servedAll = 0;
+  loads.forEach(L => {
+    const got = Math.min(L.served, L.load);
+    servedAll += got;
+    shed += L.load - got;
+    L.shed = L.load - got;
+    L.serveOk = L.load <= 0 ? 1 : got / L.load;
+    L.totalBought += got;
+    L.totalPaid += got * price;
+  });
+
+  // 5) 成本（燃料按实际发电量计，含直接售市场的出力；储能不计燃料）
+  let fuel = 0, om = 0;
+  state.plants.forEach((p, i) => {
+    const def = PLANT_DEFS[p.type];
+    om += def.fixedCost;
+    if (p.type === "storage") { p.lastOut = cur[i]; p.lastAvail = avail[i]; return; }
+    fuel += cur[i] * def.varCost;
+    p.genMWh = (p.genMWh || 0) + cur[i];
+    p.fuelYuan = (p.fuelYuan || 0) + cur[i] * def.varCost;
+    p.lastOut = cur[i];
+    p.lastAvail = avail[i];
+  });
+
+  // 6) 收支结算
+  const inc = servedAll * price + marketSell * price;
+  const buy = shed * price * 1.08; // 缺供从市场高价买回 + 罚款 15%
+  S.inc += inc; S.fuel += fuel; S.om += om; S.buy += buy; S.buyMWh += shed; S.soldMWh += servedAll + marketSell;
+  S.loadMWh += totalLoad; S.shedMWh += shed;
+  A.inc += inc; A.fuel += fuel; A.om += om; A.buy += buy; A.buyMWh += shed; A.soldMWh += servedAll + marketSell;
+
+  state.cash += inc - fuel - om - buy;
+  state.lastHour = { price, load: totalLoad, servedAll, shed, marketSell, fuel, om, inc, buy };
+
+  // 7) 城市成长 / 事件
+  loads.forEach(L => {
+    if (L.load > 0 && L.serveOk >= 0.92) {
+      L.grow++;
+      if (L.grow >= 24 && L.level < 4) {
+        L.level++; L.grow = 0;
+        addEvent(L.name + " 供电稳定，升到 " + L.level + " 级（用电 +" + ((L.level - 1) * 12) + "%）");
+      }
+    } else L.grow = Math.max(0, L.grow - 2);
+    if (L.shed > 20) addEvent(L.name + " 供电不足，缺 " + L.shed.toFixed(0) + " MW", "bad");
+  });
+  if (state.cash < 0) addEvent("现金为负，注意收支！", "warn");
+
+  // 8) 推进时刻
+  state.hour++;
+  if (state.hour >= 24) {
+    state.hour = 0;
+    const d = { day: state.day, ...state.today };
+    state.days.unshift(d);
+    if (state.days.length > 60) state.days.pop();
+    addEvent("第 " + state.day + " 天结算：净利 " + money(d.inc - d.fuel - d.om - d.buy) + " 元，资金 " + money(state.cash) + " 元");
+    // 5% 资产折旧
+    const dep = (state.plants.reduce((s, p) => s + PLANT_DEFS[p.type].cost, 0) + state.links.length * 0) * 0.05 / 30;
+    state.cash -= dep;
+    state.today = emptyStat();
+    state.day++;
+    if (state.day > 28) { state.running = false; endGame(); }
+  }
+}
+
+function endGame() {
+  const ok = state.cash >= 300000;
+  addEvent(ok ? "28 天目标达成！资金 " + money(state.cash) + " 元" : "28 天结束，资金 " + money(state.cash) + " 元（未达 30 万）", ok ? "" : "warn");
+  toast(ok ? "恭喜达成目标！" : "28 天经营结束");
+  saveGame();
+}
+
+/* ============================ 画地图 ============================ */
+function drawMap() {
+  ctx.clearRect(0, 0, W, H);
+  // 地块
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * (CELL + GAP), y = r * (CELL + GAP);
+      ctx.fillStyle = TERRAIN[grid[r][c]].fill;
+      ctx.beginPath(); ctx.roundRect(x, y, CELL, CELL, 10); ctx.fill();
+    }
+  }
+  // 连线
+  state.links.forEach(L => {
+    const A = nodeById(L.a), B = nodeById(L.b);
+    if (!A || !B) return;
+    const ax = A.col * (CELL + GAP) + CELL / 2, ay = A.row * (CELL + GAP) + CELL / 2;
+    const bx = B.col * (CELL + GAP) + CELL / 2, by = B.row * (CELL + GAP) + CELL / 2;
+    const ratio = (L.load || 0) / LINK_CAP;
+    ctx.strokeStyle = L.overload ? "#dc2626" : (ratio > 0.85 ? "#e08a3c" : "#5b6f68");
+    ctx.lineWidth = 3 + Math.min(4, ratio * 4);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.fillStyle = L.overload ? "#dc2626" : "#3a4a44";
+    ctx.font = "10px Arial"; ctx.textAlign = "center";
+    ctx.fillText((L.load || 0).toFixed(0) + "/" + LINK_CAP + " MW", (ax + bx) / 2, (ay + by) / 2 - 6);
+    if (state.linkFrom === L.a || state.linkFrom === L.b) {
+      ctx.fillStyle = "#6554c0"; ctx.beginPath(); ctx.arc((ax + bx) / 2, (ay + by) / 2, 5, 0, 7); ctx.fill();
+    }
+  });
+  // 节点
+  const drawNode = (n, isPlant) => {
+    const x = n.col * (CELL + GAP) + CELL / 2, y = n.row * (CELL + GAP) + CELL / 2;
+    ctx.fillStyle = isPlant ? PLANT_DEFS[n.type].color : (n.industry ? "#8b5cf6" : "#c2410c");
+    ctx.beginPath(); ctx.arc(x, y - 4, 15, 0, 7); ctx.fill();
+    if (state.linkFrom === n.id) { ctx.strokeStyle = "#6554c0"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - 4, 19, 0, 7); ctx.stroke(); }
+    ctx.fillStyle = "#fff"; ctx.font = "13px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(isPlant ? PLANT_DEFS[n.type].icon : (n.industry ? "工" : "市"), x, y - 4);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#15201c"; ctx.font = "11px Arial";
+    ctx.fillText(n.name, x, y + 24);
+    if (isPlant) {
+      ctx.fillStyle = "#3a4a44"; ctx.font = "10px Arial";
+      ctx.fillText(PLANT_DEFS[n.type].cap + " MW", x, y + 36);
+      if (n.type === "storage") {
+        const chg = Math.round(50 + 50 * Math.sin(state.hour / 24 * 7));
+        ctx.fillText("SOC " + chg + "%", x, y + 46);
+      }
+    } else {
+      ctx.fillStyle = "#3a4a44"; ctx.font = "10px Arial";
+      ctx.fillText("Lv" + n.level + " " + (n.load || 0).toFixed(0) + " MW", x, y + 36);
+    }
+  };
+  loads.forEach(L => drawNode(L, false));
+  state.plants.forEach(p => drawNode(p, true));
+}
+function nodeById(id) {
+  return loads.find(l => l.id === id) || state.plants.find(p => p.id === id) || null;
+}
+
+/* ============================ 面板 ============================ */
+function renderHeader() {
+  $("hd-cash").textContent = money(state.cash) + " 元";
+  $("hd-cash").className = "v " + (state.cash >= 0 ? "up" : "down");
+  $("hd-time").textContent = "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00";
+  const h = state.lastHour;
+  $("hd-load").textContent = h ? fmtNum(h.load, 0) + " MW" : "—";
+  $("hd-gen").textContent = h ? fmtNum(state.plants.reduce((s, p) => s + (p.lastOut || 0), 0), 0) + " MW" : "—";
+  const price = priceAt(state.day, state.hour);
+  $("hd-price").textContent = fmtNum(price, 0) + " 元";
+  const serve = h && h.load > 0 ? h.servedAll / h.load : 1;
+  $("hd-serve").textContent = pct(serve);
+  $("hd-serve").className = "v " + (serve > 0.98 ? "up" : serve > 0.9 ? "" : "down");
+  const wrap = $("hd-serve-wrap");
+  wrap.className = "chip" + (serve < 0.9 ? " bad" : serve < 0.98 ? " warn" : "");
+}
+
+function renderPanels() {
+  const h = state.lastHour;
+  const S = state.today, A = state.allTime;
+  $("now-tip").textContent = "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00";
+  const set = (id, txt, cls) => { const el = $(id); el.textContent = txt; el.className = "v" + (cls ? " " + cls : ""); };
+  set("p-price", fmtNum(h ? h.price : priceAt(state.day, state.hour), 0) + " 元/MWh");
+  set("p-load", h ? fmtNum(h.load, 0) + " MW" : "—");
+  set("p-supply", h ? fmtNum(h.servedAll, 0) + " MW" : "—");
+  set("p-shed", h ? fmtNum(h.shed, 0) + " MW" : "—", h && h.shed > 0 ? "down" : "");
+  set("p-inc", h ? "+" + money(h.inc) : "—", "up");
+  set("p-fuel", h ? "-" + money(h.fuel) : "—", "down");
+  set("p-om", h ? "-" + money(h.om) : "—", "down");
+  set("p-buy", h ? "-" + money(h.buy) : "—", "down");
+
+  const plantCost = state.plants.reduce((s, p) => s + PLANT_DEFS[p.type].cost, 0);
+  const linkCost = state.links.reduce((s, l) => s + l.cost, 0);
+  set("a-cash", money(state.cash) + " 元");
+  set("a-plant", money(plantCost) + " 元");
+  set("a-line", money(linkCost) + " 元");
+  set("a-total", money(state.cash + plantCost + linkCost) + " 元");
+  set("a-dep", "-" + money((plantCost + linkCost) * 0.05 / 30) + " 元/天", "down");
+
+  const goal = Math.max(0, Math.min(1, state.cash / 300000));
+  $("goal-bar").style.width = (goal * 100).toFixed(1) + "%";
+  $("goal-txt").textContent = money(state.cash) + " / 300,000 元";
+
+  // 收支表
+  const rows = [
+    ["售电收入", S.inc, A.inc, "up"],
+    ["燃料成本", -S.fuel, -A.fuel, "down"],
+    ["维护成本", -S.om, -A.om, "down"],
+    ["购电/罚款", -S.buy, -A.buy, "down"],
+    ["净现金流", S.inc - S.fuel - S.om - S.buy, A.inc - A.fuel - A.om - A.buy, (S.inc - S.fuel - S.om - S.buy) >= 0 ? "up" : "down"]
+  ];
+  $("fin-body").innerHTML = rows.map(r =>
+    `<tr><td>${r[0]}</td><td class="num ${r[3]}">${money(r[1])}</td><td class="num ${r[3]}">${money(r[2])}</td><td class="num ${r[3]}">${money(r[2])}</td></tr>`
+  ).join("");
+
+  // 城市
+  $("city-body").innerHTML = loads.map(L => {
+    const ok = L.serveOk >= 0.92, mid = L.serveOk >= 0.8;
+    const tag = ok ? '<span class="tag ok">稳定</span>' : mid ? '<span class="tag warn">紧张</span>' : '<span class="tag bad">缺供</span>';
+    return `<tr><td>${L.name}</td><td class="num">Lv${L.level}</td><td class="num">${fmtNum(L.load, 0)}</td>
+      <td class="num">${fmtNum(L.served, 0)}</td><td class="num">${pct(L.serveOk)}</td><td class="center">${tag}</td></tr>`;
+  }).join("");
+
+  // 电站
+  $("plant-body").innerHTML = state.plants.length ? state.plants.map(p => {
+    const def = PLANT_DEFS[p.type];
+    const out = p.lastOut || 0, av = p.lastAvail || def.cap;
+    return `<tr><td><span class="tag" style="background:${def.color}22;color:${def.color}">${def.icon} ${p.name}</span></td>
+      <td class="num">${def.cap}</td><td class="num">${fmtNum(out, 0)}</td>
+      <td class="num">${pct(av ? out / av : 0)}</td><td class="num">${money(p.fuelYuan || 0)}</td>
+      <td class="num">${money((p.genMWh || 0) * priceAt(state.day, state.hour))}</td></tr>`;
+  }).join("") : '<tr><td colspan="6" class="empty">还没有电站，先在地图上建一座</td></tr>';
+
+  // 市场
+  $("mkt-body").innerHTML = [
+    ["售给市场（未上网电量）", h ? h.marketSell : 0, S.soldMWh, A.soldMWh, " MWh"],
+    ["从市场购电/罚款（缺供）", h ? h.buyMWh : 0, S.buyMWh, A.buyMWh, " MWh"],
+    ["系统总用电", h ? h.load : 0, S.loadMWh, A.loadMWh, " MWh"],
+    ["缺供电量", h ? h.shed : 0, S.shedMWh, A.shedMWh, " MWh"]
+  ].map(r => `<tr><td>${r[0]}</td><td class="num">${fmtNum(r[1], 0)}${r[4]}</td>
+    <td class="num">${fmtNum(r[2], 0)}${r[4]}</td><td class="num">${fmtNum(r[3], 0)}${r[4]}</td></tr>`).join("");
+
+  // 每日经营
+  $("day-body").innerHTML = state.days.length ? state.days.map(d => {
+    const net = d.inc - d.fuel - d.om - d.buy;
+    return `<tr><td class="center">第 ${d.day} 天</td><td class="num">${fmtNum(d.soldMWh, 0)}</td>
+      <td class="num">${fmtNum(d.buyMWh, 0)}</td><td class="num up">${money(d.inc)}</td>
+      <td class="num down">${money(d.fuel + d.om)}</td><td class="num down">${money(d.buy)}</td>
+      <td class="num ${net >= 0 ? "up" : "down"}">${money(net)}</td><td class="num">${money(d.cash)}</td></tr>`;
+  }).join("") : '<tr><td colspan="8" class="empty">经营满 1 天后出现日报</td></tr>';
+
+  // 事件
+  $("events").innerHTML = state.events.length
+    ? state.events.slice(0, 12).map(e => `<div class="ev ${e.level}">${e.msg}</div>`).join("")
+    : '<div class="ev">尚无事件</div>';
+}
+
+function renderAll() { drawMap(); renderHeader(); renderPanels(); }
+
+/* ============================ 建造 / 连线 / 拆除 ============================ */
+function buildTools() {
+  const box = $("build-tools");
+  box.innerHTML = Object.entries(PLANT_DEFS).map(([k, d]) =>
+    `<button class="build" data-build="${k}" type="button">
+       <span class="dot" style="background:${d.color}"></span>
+       <span><span class="nm">${d.name}</span><br>
+       <span class="mt">造价 ${money(d.cost)} · ${d.cap} MW${d.varCost ? " · 燃料 " + d.varCost + " 元/MWh" : " · 储能"}</span></span>
+     </button>`
+  ).join("");
+  box.querySelectorAll("[data-build]").forEach(b => b.addEventListener("click", () => {
+    const on = b.classList.contains("on");
+    box.querySelectorAll(".build").forEach(x => x.classList.remove("on"));
+    if (on) { state.buildType = null; state.mode = "none"; }
+    else {
+      b.classList.add("on"); state.buildType = b.dataset.build; state.mode = "build";
+      $("build-hint").textContent = "建造模式：" + PLANT_DEFS[state.buildType].name + "，可建地形：" +
+        PLANT_DEFS[state.buildType].terr.map(t => TERRAIN[t].name).join("、") + "。点击地图空地放置。";
+    }
+    updateModeBtns();
+  }));
+}
+function updateModeBtns() {
+  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+}
+function cellAt(ev) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (ev.clientX - rect.left) / rect.width * W;
+  const y = (ev.clientY - rect.top) / rect.height * H;
+  const c = Math.floor(x / (CELL + GAP)), r = Math.floor(y / (CELL + GAP));
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
+  return { c, r };
+}
+function nodeAtCell(c, r) {
+  return loads.find(l => l.col === c && l.row === r) || state.plants.find(p => p.col === c && p.row === r) || null;
+}
+
+canvas.addEventListener("click", ev => {
+  const cell = cellAt(ev); if (!cell) return;
+  const existing = nodeAtCell(cell.c, cell.r);
+
+  if (state.mode === "build" && state.buildType) {
+    if (existing) return toast("这里已经有设施了");
+    const def = PLANT_DEFS[state.buildType];
+    const terr = grid[cell.r][cell.c];
+    if (!def.terr.includes(terr)) return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上");
+    if (state.cash < def.cost) return toast("资金不足，还需要 " + money(def.cost - state.cash) + " 元");
+    state.cash -= def.cost;
+    const p = {
+      kind: "plant", id: "P" + Date.now() + Math.floor(Math.random() * 99),
+      type: state.buildType, name: def.name + " " + (state.plants.length + 1),
+      col: cell.c, row: cell.r, genMWh: 0, fuelYuan: 0, lastOut: 0, lastAvail: def.cap
+    };
+    state.plants.push(p);
+    addEvent("建成 " + p.name + "（" + def.cap + " MW，造价 " + money(def.cost) + " 元）");
+    toast(p.name + " 建成");
+    return renderAll();
+  }
+
+  if (state.mode === "sell") {
+    if (!existing) return toast("这里没有设施");
+    if (existing.kind === "load") return toast("城市和工业区不能拆除");
+    const def = PLANT_DEFS[existing.type];
+    state.cash += def.cost * 0.5;
+    state.plants = state.plants.filter(p => p.id !== existing.id);
+    state.links = state.links.filter(l => l.a !== existing.id && l.b !== existing.id);
+    addEvent("拆除 " + existing.name + "，退回 " + money(def.cost * 0.5) + " 元");
+    toast("已拆除，退回 50% 造价");
+    return renderAll();
+  }
+
+  if (state.mode === "connect") {
+    if (!existing) return toast("请点击电厂或城市");
+    if (!state.linkFrom) {
+      if (existing.kind !== "plant") return toast("请先点一座电厂作为起点");
+      state.linkFrom = existing.id;
+      toast("起点：" + existing.name + "，再点击目标城市");
+      return renderAll();
+    }
+    if (state.linkFrom === existing.id) { state.linkFrom = null; return renderAll(); }
+    const a = nodeById(state.linkFrom), b = existing;
+    const dup = state.links.some(l => (l.a === a.id && l.b === b.id) || (l.a === b.id && l.b === a.id));
+    if (dup) return toast("这两点已经连过了");
+    const dist = Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) + 1;
+    const cost = dist * LINK_COST_PER_KM;
+    if (state.cash < cost) return toast("输电线造价 " + money(cost) + " 元，资金不足");
+    state.cash -= cost;
+    state.links.push({ a: a.id, b: b.id, cost, dist, load: 0, overload: false });
+    addEvent("新建输电线 " + a.name + " ↔ " + b.name + "（" + dist + " 格，造价 " + money(cost) + " 元，容量 " + LINK_CAP + " MW）");
+    state.linkFrom = null;
+    toast("输电线已建成");
+    return renderAll();
+  }
+});
+
+document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
+  state.mode = b.dataset.mode;
+  state.linkFrom = null;
+  if (state.mode !== "build") {
+    state.buildType = null;
+    document.querySelectorAll(".build").forEach(x => x.classList.remove("on"));
+    $("build-hint").textContent = state.mode === "connect"
+      ? "连线模式：先点一座电厂，再点要供电的城市或工业区。每格造价 " + money(LINK_COST_PER_KM) + " 元，容量 " + LINK_CAP + " MW。"
+      : state.mode === "sell"
+        ? "拆除模式：点击设施拆除，退回 50% 造价。"
+        : "提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。";
+  }
+  updateModeBtns();
+}));
+
+/* ============================ 菜单 / 存档 ============================ */
+const USER = (() => {
+  const q = new URLSearchParams(location.search).get("u");
+  return (q || localStorage.getItem("gx-user") || "guest").slice(0, 24);
+})();
+localStorage.setItem("gx-user", USER);
+$("menu-user").textContent = USER;
+
+function saveGame() {
+  const data = {
+    day: state.day, hour: state.hour, cash: state.cash,
+    plants: state.plants, links: state.links, days: state.days, events: state.events,
+    loads: loads.map(l => ({ id: l.id, level: l.level, grow: l.grow, totalBought: l.totalBought, totalPaid: l.totalPaid })),
+    ts: Date.now()
+  };
+  localStorage.setItem("gx-save-" + USER, JSON.stringify(data));
+}
+function loadGame() {
+  const raw = localStorage.getItem("gx-save-" + USER);
+  if (!raw) return false;
+  try {
+    const d = JSON.parse(raw);
+    state.day = d.day; state.hour = d.hour; state.cash = d.cash;
+    state.plants = d.plants || []; state.links = d.links || [];
+    state.days = d.days || []; state.events = d.events || [];
+    (d.loads || []).forEach(s => {
+      const L = loads.find(l => l.id === s.id);
+      if (L) { L.level = s.level; L.grow = s.grow; L.totalBought = s.totalBought; L.totalPaid = s.totalPaid; }
+    });
+    state.today = emptyStat();
+    return true;
+  } catch (e) { return false; }
+}
+
+$("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; });
+$("m-close").addEventListener("click", () => { $("menu-mask").hidden = true; });
+$("m-save").addEventListener("click", () => { saveGame(); toast("已保存到本机"); });
+$("m-load").addEventListener("click", () => {
+  if (loadGame()) { toast("已读取存档"); renderAll(); $("menu-mask").hidden = true; }
+  else toast("没有找到存档");
+});
+$("m-new").addEventListener("click", () => {
+  if (!confirm("重新开始会丢弃当前进度，确定？")) return;
+  localStorage.removeItem("gx-save-" + USER);
+  location.href = location.pathname + "?u=" + encodeURIComponent(USER) + "&t=" + Date.now();
+});
+$("m-back").addEventListener("click", () => {
+  location.href = "index.html";
+});
+$("m-board").addEventListener("click", () => {
+  toast("排行榜在 P2 上线：云端保存各账号资产并排名");
+});
+
+/* ============================ 速度 / 暂停 ============================ */
+$("pause-btn").addEventListener("click", () => {
+  state.running = !state.running;
+  $("pause-btn").textContent = state.running ? "⏸ 暂停" : "▶ 继续";
+  $("pause-btn").classList.toggle("active", !state.running);
+});
+document.querySelectorAll("[data-speed]").forEach(b => b.addEventListener("click", () => {
+  state.speed = Number(b.dataset.speed);
+  document.querySelectorAll("[data-speed]").forEach(x => x.classList.toggle("active", x === b));
+}));
+
+/* ============================ 主循环 ============================ */
+let acc = 0, lastTs = performance.now();
+function loop(ts) {
+  const dt = ts - lastTs; lastTs = ts;
+  if (state.running) {
+    acc += dt;
+    const interval = 2400 / state.speed;
+    while (acc >= interval) { acc -= interval; step(); }
+    renderAll();
+  } else {
+    drawMap();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ============================ 启动 ============================ */
+buildTools();
+updateModeBtns();
+loadGame();
+loadPrices();
+renderAll();
+requestAnimationFrame(loop);
+setInterval(() => { if (state.running) saveGame(); }, 30000);
+</script>
+</body>
+</html>
