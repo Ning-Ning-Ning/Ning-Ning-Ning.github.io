@@ -726,21 +726,23 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
         const cols=["jingjiacha","td_load","a_power","local_power","yuekong","b_power"];
         const maxAbs={};cols.forEach(c=>maxAbs[c]=0);
         const grid=[];
+        const bdDiff=(act,fc)=>{const a=(act==null||act==="")?NaN:Number(act),f=(fc==null||fc==="")?NaN:Number(fc);return(Number.isFinite(a)&&Number.isFinite(f))?a-f:null;};
         for(let h=0;h<24;h++){
           const prow=pm[`${h}_`];
-          const jingjia=prow?(Number(prow.real_time_price)-Number(prow.day_ahead_price)):null;
+          const jingjia=prow?bdDiff(prow.real_time_price,prow.day_ahead_price):null;
           const row={h,jingjia,a:am[`${h}_a_power`],b:am[`${h}_b_power`],l:am[`${h}_local_power`],y:am[`${h}_yuekong`],t:am[`${h}_td_load`],af:fm[`${h}_a_power`],bf:fm[`${h}_b_power`],lf:fm[`${h}_local_power`],yf:fm[`${h}_yuekong`],tf:fm[`${h}_td_load`]};
-          ["jingjia","t","a","b","l","y"].forEach((k,i)=>{const v=(k==="jingjia")?row.jingjia:(k==="t"?row.t:k==="a"?row.a:k==="b"?row.b:k==="l"?row.l:row.y)-(k==="jingjia"?0:k==="t"?row.tf:k==="a"?row.af:k==="b"?row.bf:k==="l"?row.lf:row.yf);if(v!=null&&!isNaN(v)){maxAbs[cols[i]]=Math.max(maxAbs[cols[i]],Math.abs(v));}});
+          row.vals=[row.jingjia,bdDiff(row.t,row.tf),bdDiff(row.a,row.af),bdDiff(row.l,row.lf),bdDiff(row.y,row.yf),bdDiff(row.b,row.bf)];
+          row.vals.forEach((v,i)=>{if(v!=null){maxAbs[cols[i]]=Math.max(maxAbs[cols[i]],Math.abs(v));}});
           grid.push(row);
         }
         boundaryBody.replaceChildren();
         grid.forEach(row=>{
           const tr=document.createElement("tr");
           const htd=document.createElement("td");htd.className="hour-cell";htd.textContent=`${row.h}:00`;tr.append(htd);
-          const vals=[row.jingjia, (row.t??null)-(row.tf??null), (row.a??null)-(row.af??null), (row.l??null)-(row.lf??null), (row.y??null)-(row.yf??null), (row.b??null)-(row.bf??null)];
+          const vals=row.vals;
           vals.forEach((v,i)=>{
             const td=document.createElement("td");td.className="boundary-cell";
-            if(v==null||isNaN(v)){td.classList.add("empty");td.innerHTML='<div class="bval">—</div>';}
+            if(v==null||isNaN(v)){td.classList.add("empty");td.innerHTML='<div class="bval">-</div>';}
             else{const maxC=Math.max(maxAbs[cols[i]]||1,0.0001);const pct=Math.min(Math.abs(v)/maxC*50,50);const bar=document.createElement("div");bar.className="bar "+(v>=0?"bpos":"bneg");bar.style.width=pct+"%";const val=document.createElement("div");val.className="bval";val.textContent=v.toFixed(2);td.append(bar,val);}
             tr.append(td);
           });
