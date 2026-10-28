@@ -243,7 +243,7 @@
   .hud-title .tip{font-size:10px; color:#6d8290; letter-spacing:0; text-transform:none;}
   .hud-right #mini{
     position:static; display:block; width:100%; height:auto; border:1px solid rgba(58,70,82,0.8);
-    background:#0b0f13; border-radius:2px; cursor:crosshair;
+    background:#0b0f13; border-radius:2px; cursor:crosshair; touch-action:none;
   }
   .kv{padding:2.5px 0; font-size:11px;}
   .kv .k{color:#7d94a1; letter-spacing:.5px;}
@@ -1465,7 +1465,9 @@ function drawMinimap() {
   mc.closePath(); mc.stroke();
   mc.strokeStyle = "#3a4652"; mc.lineWidth = 2; mc.strokeRect(1, 1, MW - 2, MH - 2);
 }
-$("mini").addEventListener("click", ev => {
+/* 小地图：点击跳转 + 按住拖动视角框连续移动镜头 */
+let miniDragging = false;
+function miniCamFromEvent(ev) {
   const m = $("mini");
   const rect = m.getBoundingClientRect();
   const x = (ev.clientX - rect.left) * (m.width / rect.width);
@@ -1475,6 +1477,25 @@ $("mini").addEventListener("click", ev => {
   clampCam();
   hoverCell = null;
   drawMap();
+}
+$("mini").addEventListener("pointerdown", ev => {
+  miniDragging = true;
+  $("mini").setPointerCapture(ev.pointerId);
+  $("mini").style.cursor = "grabbing";
+  miniCamFromEvent(ev);
+  ev.preventDefault();
+});
+$("mini").addEventListener("pointermove", ev => {
+  if (miniDragging) miniCamFromEvent(ev);
+});
+$("mini").addEventListener("pointerup", ev => {
+  miniDragging = false;
+  $("mini").style.cursor = "crosshair";
+  try { $("mini").releasePointerCapture(ev.pointerId); } catch (e) {}
+});
+$("mini").addEventListener("pointercancel", () => {
+  miniDragging = false;
+  $("mini").style.cursor = "crosshair";
 });
 
 function nodeById(id) {
