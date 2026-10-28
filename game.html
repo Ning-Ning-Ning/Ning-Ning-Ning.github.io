@@ -436,11 +436,11 @@
       </table>
     </div>
     <div class="rp-pane" id="rp-city" hidden>
-      <div class="rp-sub">城市用电 <span class="tip">供电率连续 24 小时 ≥92%，城市会升级、用电变大</span></div>
+      <div class="rp-sub">城市用电 <span class="tip">各区域电价不同（工业区批发价低、偏远镇区高）；供电率连续 24 小时 ≥92%，城市会升级</span></div>
       <table>
         <thead>
           <tr>
-            <th>名称</th><th class="num">等级</th><th class="num">当前负荷 (MW)</th>
+            <th>名称</th><th class="num">等级</th><th class="num">区域电价(元/MWh)</th><th class="num">当前负荷 (MW)</th>
             <th class="num">已供 (MW)</th><th class="num">供电率</th><th>状态</th>
           </tr>
         </thead>
@@ -697,11 +697,14 @@ const LOAD_SHAPE = [
   0.96, 1.00, 0.98, 0.92, 0.84, 0.74, 0.66, 0.60
 ];
 
+/* 区域电价系数（相对系统日前电价）：工业区批发便宜、偏远镇区贵 */
+const REGION_MUL = { "滨海市": 1.00, "新城": 1.08, "工业园区": 0.92, "江湾镇": 1.12, "山林镇": 1.18 };
 function makeLoadNode(name, col, row, peak, industry) {
   return {
     kind: "load", id: "L" + name, name, col, row, industry,
     base: peak, level: 1, grow: 0,
     load: 0, served: 0, shed: 0, serveOk: 0,
+    regionMul: REGION_MUL[name] || 1, regionPrice: 0,
     totalBought: 0, totalPaid: 0
   };
 }
@@ -867,6 +870,7 @@ function step() {
 
   // 3a) 供电给各负荷节点（只统计「电厂 → 城市」的连线，按电厂可用出力比例分配）
   loads.forEach(L => {
+    L.regionPrice = price * (L.regionMul || 1);   // 区域电价 = 系统电价 × 区域系数
     const segs = [];
     state.links.forEach(LK => {
       const otherId = LK.a === L.id ? LK.b : (LK.b === L.id ? LK.a : null);
@@ -885,8 +889,11 @@ function step() {
       const give = Math.min(want, avail[s.pi] - cur[s.pi], cap);
       if (give <= 0) return;
       cur[s.pi] += give;
-      L.served += give;
+      // 输电线损耗：每格 0.25%，距离越远到手越少
+      const loss = give * (s.link.dist || 0) * LINK_BASE_LOSS;
+      L.served += give - loss;
       s.link.load = (s.link.load || 0) + give;
+      s.link.lossMWh = (s.link.lossMWh || 0) + loss;
       s.link.sellMWh = (s.link.sellMWh || 0) + give;
     });
     if (need > totalCap) segs.forEach(s => { s.link.overload = true; });
@@ -929,8 +936,9 @@ function step() {
     p.lastAvail = avail[i];
   });
 
-  // 6) 收支结算（城市缺电不扣钱：仅少供电量、不罚款）
-  const inc = servedAll * price + marketSell * price;
+  // 6) 收支结算（城市缺电不扣钱：仅少供电量、不罚款；各区域按自身电价结算）
+  const loadRevenue = loads.reduce((s, L) => s + L.served * L.regionPrice, 0);
+  const inc = loadRevenue + marketSell * price;
   const buy = 0;
   S.inc += inc; S.fuel += fuel; S.om += om; S.buy += buy; S.buyMWh += shed; S.soldMWh += servedAll + marketSell;
   S.loadMWh += totalLoad; S.shedMWh += shed;
@@ -1363,12 +1371,12 @@ function drawMap() {
     });
     const tX = (ax + bx) / 2, tY = (ay + by) / 2;
     ctx.fillStyle = "rgba(8,12,16,0.85)";
-    ctx.fillRect(tX - 40, tY - 13, 80, 16);
+    ctx.fillRect(tX - 58, tY - 13, 116, 16);
     ctx.strokeStyle = "rgba(232,160,32,0.5)"; ctx.lineWidth = 1;
-    ctx.strokeRect(tX - 40, tY - 13, 80, 16);
+    ctx.strokeRect(tX - 58, tY - 13, 116, 16);
     ctx.font = "bold 11px Consolas,monospace"; ctx.textAlign = "center";
     ctx.fillStyle = L.overload ? "#ff6b6b" : "#8ef0a8";
-    ctx.fillText((L.load || 0).toFixed(0) + "/" + LINK_CAP + " MW", tX, tY - 1);
+    ctx.fillText((L.load || 0).toFixed(0) + "/" + LINK_CAP + " MW · 损" + ((L.dist || 0) * LINK_BASE_LOSS * 100).toFixed(1) + "%", tX, tY - 1);
     if (state.linkFrom === L.a || state.linkFrom === L.b) {
       ctx.fillStyle = "#4dff88"; ctx.beginPath(); ctx.arc(tX, tY, 5, 0, 7); ctx.fill();
     }
@@ -1606,6 +1614,9 @@ function drawNode(n, isPlant, light, night) {
   if (isPlant) {
     ctx.fillStyle = "#7d8f9c"; ctx.font = "10px Consolas,monospace";
     ctx.fillText(PLANT_DEFS[n.type].cap + " MW", cx, cy + labY + 38);
+  } else {
+    ctx.fillStyle = "#8ef0a8"; ctx.font = "10px Consolas,monospace";
+    ctx.fillText((n.regionPrice ? Math.round(n.regionPrice) : "—") + " 元/MWh", cx, cy + labY + 38);
   }
   // 连线起点高亮（覆盖整组占地）
   if (state.linkFrom === n.id) {
@@ -1775,7 +1786,8 @@ function renderPanels() {
   $("city-body").innerHTML = loads.map(L => {
     const ok = L.serveOk >= 0.92, mid = L.serveOk >= 0.8;
     const tag = ok ? '<span class="tag ok">稳定</span>' : mid ? '<span class="tag warn">紧张</span>' : '<span class="tag bad">缺供</span>';
-    return `<tr><td>${L.name}</td><td class="num">Lv${L.level}</td><td class="num">${fmtNum(L.load, 0)}</td>
+    return `<tr><td>${L.name}</td><td class="num">Lv${L.level}</td>
+      <td class="num">${L.regionPrice ? fmtNum(L.regionPrice, 0) : "—"}</td><td class="num">${fmtNum(L.load, 0)}</td>
       <td class="num">${fmtNum(L.served, 0)}</td><td class="num">${pct(L.serveOk)}</td><td class="center">${tag}</td></tr>`;
   }).join("");
 
