@@ -1,0 +1,9 @@
+地形纹理来源（全部 CC0 公共领域授权，可免费商用）：
+ambientCG (https://ambientcg.com)
+- grass.jpg   ← Grass005_1K-JPG
+- forest.jpg  ← Grass004_1K-JPG
+- rock.jpg    ← Rock063_1K-JPG
+- sand.jpg    ← Ground054_1K-JPG
+- dirt.jpg    ← Ground037_1K-JPG
+- water.jpg   ← Ground035_1K-JPG
+本目录图片已缩放至 256x256 并重新压缩，仅用于「电网大亨」地形渲染。

@@ -571,6 +571,17 @@ const TERRAIN = {
   coast:    { name: "沿海",  fill: "#7d6f4e", fill2: "#8a7b57", fill3: "#6e6244" },
   town:     { name: "城镇",  fill: "#3f3a33", fill2: "#48423a", fill3: "#352f29" }
 };
+/* 地形纹理（ambientCG，CC0 免费授权，见 assets/game/terrain/LICENSE.txt） */
+const TEX = {};
+const TEX_OF = { plain: "grass", forest: "forest", mountain: "rock", coast: "sand", town: "dirt", pond: "water", river: "water" };
+const TERRAIN_TINT = { plain: 0.58, forest: 0.7, mountain: 0.55, coast: 0.6, town: 0.62, pond: 0.8, river: 0.8 };
+["grass", "forest", "rock", "sand", "dirt", "water"].forEach(n => {
+  const im = new Image();
+  im.onload = () => { terrainCanvas = null; };   // 纹理就绪后重新烘焙地形
+  im.src = "assets/game/terrain/" + n + ".jpg";
+  TEX[n] = im;
+});
+
 /* 城镇地块中心（城市节点所在地） */
 const TOWN_SPOTS = [[10, 8], [34, 7], [38, 21], [23, 24], [8, 20]];
 
@@ -891,6 +902,13 @@ function drawTerrainCell(g, c, r, terr, light, phase) {
   base = shade(base, light);
   const lift = terr === "mountain" ? 10 : (terr === "river" ? 0 : 3);
   const ty = cy - lift, hw = TILE_W / 2, hh = TILE_H / 2;
+  // 垫层：抬升台地先铺一层暗色底面，避免缝隙露出草地
+  if (lift > 0) {
+    g.fillStyle = shade(base, 0.3);
+    g.beginPath();
+    g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx - hw, cy);
+    g.closePath(); g.fill();
+  }
   // 侧面（山地/陆块立体台地）
   if (lift > 0) {
     g.fillStyle = shade(base, 0.55);
@@ -907,14 +925,29 @@ function drawTerrainCell(g, c, r, terr, light, phase) {
   g.moveTo(cx, ty - hh); g.lineTo(cx + hw, ty); g.lineTo(cx, ty + hh); g.lineTo(cx - hw, ty);
   g.closePath();
   g.fillStyle = base; g.fill();
-  // 顶面纹理
+  // 顶面纹理（优先用免费地形贴图，缺失时退回矢量纹理）
   g.save();
   g.clip();
+  const tex = TEX[TEX_OF[terr]];
+  const textured = !!(tex && tex.complete && tex.naturalWidth);
+  if (textured) {
+    const tw = Math.min(128, tex.naturalWidth), th = Math.min(64, tex.naturalHeight);
+    const sx = Math.floor(hash2(c * 31 + 5, r * 17 + 9) * Math.max(1, tex.naturalWidth - tw));
+    const sy = Math.floor(hash2(c * 13 + 7, r * 23 + 3) * Math.max(1, tex.naturalHeight - th));
+    g.globalAlpha = 0.92;
+    g.drawImage(tex, sx, sy, tw, th, cx - hw, ty - hh, TILE_W, TILE_H);
+    g.globalAlpha = TERRAIN_TINT[terr] != null ? TERRAIN_TINT[terr] : 0.45;
+    g.fillStyle = base;
+    g.fillRect(cx - hw, ty - hh, TILE_W, TILE_H);
+    g.globalAlpha = 1;
+  }
   if (terr === "mountain") {
-    g.fillStyle = shade(base, 0.72);
-    g.beginPath(); g.moveTo(cx, ty - hh); g.lineTo(cx + hw, ty); g.lineTo(cx, ty); g.closePath(); g.fill();
-    g.fillStyle = shade(base, 1.18);
-    g.beginPath(); g.moveTo(cx, ty - hh); g.lineTo(cx - hw * 0.5, ty - hh * 0.2); g.lineTo(cx - hw * 0.2, ty); g.closePath(); g.fill();
+    if (!textured) {
+      g.fillStyle = shade(base, 0.72);
+      g.beginPath(); g.moveTo(cx, ty - hh); g.lineTo(cx + hw, ty); g.lineTo(cx, ty); g.closePath(); g.fill();
+      g.fillStyle = shade(base, 1.18);
+      g.beginPath(); g.moveTo(cx, ty - hh); g.lineTo(cx - hw * 0.5, ty - hh * 0.2); g.lineTo(cx - hw * 0.2, ty); g.closePath(); g.fill();
+    }
   } else if (terr === "river") {
     const ph = phase + c * 0.5 + r * 0.35;
     g.strokeStyle = "rgba(160,210,255,0.22)"; g.lineWidth = 2;
@@ -930,10 +963,12 @@ function drawTerrainCell(g, c, r, terr, light, phase) {
       const hx = (hash2(c * 13 + k * 3, r * 7 + k) - 0.5) * TILE_W * 0.55;
       const hy = (hash2(c * 5 + k, r * 11 + k * 5) - 0.5) * TILE_H * 0.5;
       const bx = cx + hx, by = ty + hy;
-      g.fillStyle = shade(base, 0.62);
+      g.fillStyle = shade(base, 0.5);
       g.beginPath(); g.moveTo(bx, by - 8); g.lineTo(bx + 5, by + 4); g.lineTo(bx - 5, by + 4); g.closePath(); g.fill();
-      g.fillStyle = shade(base, 1.55);
+      g.fillStyle = shade(base, 1.5);
       g.beginPath(); g.moveTo(bx, by - 11); g.lineTo(bx + 4, by - 1); g.lineTo(bx - 4, by - 1); g.closePath(); g.fill();
+      g.fillStyle = "rgba(10,20,12,0.5)";
+      g.fillRect(bx - 1, by + 3, 2, 3);
     }
   } else if (terr === "pond") {
     const ph = phase + c * 0.4 + r * 0.3;
@@ -945,11 +980,13 @@ function drawTerrainCell(g, c, r, terr, light, phase) {
     g.fillStyle = "rgba(0,0,0,0.2)";
     g.fillRect(cx - 12, ty - 8, 4, 3);
   } else if (terr === "coast") {
-    for (let k = 0; k < 5; k++) {
-      const hx = hash2(c * 7 + k, r * 3 + k) - 0.5;
-      const hy = hash2(c + k * 9, r * 5 + k) - 0.5;
-      g.fillStyle = k % 2 ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.18)";
-      g.fillRect(cx + hx * TILE_W * 0.7, ty + hy * TILE_H * 0.6, 3, 2);
+    if (!textured) {
+      for (let k = 0; k < 5; k++) {
+        const hx = hash2(c * 7 + k, r * 3 + k) - 0.5;
+        const hy = hash2(c + k * 9, r * 5 + k) - 0.5;
+        g.fillStyle = k % 2 ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.18)";
+        g.fillRect(cx + hx * TILE_W * 0.7, ty + hy * TILE_H * 0.6, 3, 2);
+      }
     }
   } else if (terr === "town") {
     for (let k = 0; k < 4; k++) {
@@ -959,11 +996,13 @@ function drawTerrainCell(g, c, r, terr, light, phase) {
       g.fillRect(cx + hx - 3, ty + hy - 2, 6, 4);
     }
   } else {
-    g.strokeStyle = "rgba(255,255,255,0.10)"; g.lineWidth = 1.5;
-    for (let k = 0; k < 4; k++) {
-      const hx = (hash2(c * 11 + k, r * 13 + k) - 0.5) * TILE_W * 0.8;
-      const hy = (hash2(c * 5 + k * 3, r * 7 + k) - 0.5) * TILE_H * 0.7;
-      g.beginPath(); g.moveTo(cx + hx, ty + hy); g.lineTo(cx + hx + 3, ty + hy - 5); g.stroke();
+    if (!textured) {
+      g.strokeStyle = "rgba(255,255,255,0.10)"; g.lineWidth = 1.5;
+      for (let k = 0; k < 4; k++) {
+        const hx = (hash2(c * 11 + k, r * 13 + k) - 0.5) * TILE_W * 0.8;
+        const hy = (hash2(c * 5 + k * 3, r * 7 + k) - 0.5) * TILE_H * 0.7;
+        g.beginPath(); g.moveTo(cx + hx, ty + hy); g.lineTo(cx + hx + 3, ty + hy - 5); g.stroke();
+      }
     }
   }
   g.restore();
@@ -991,6 +1030,10 @@ function bakeTerrain() {
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
   cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
   for (const [c, r] of cells) drawTerrainCell(g, c, r, grid[r][c], 1, 0.6);
+  // 全局压暗薄纱：把免费贴图统一到深色军事调
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = "rgba(6, 11, 14, 0.16)";
+  g.fillRect(0, 0, terrainCanvas.width, terrainCanvas.height);
 }
 
 /* 视口裁剪：只返回可见范围内的格子（按 c+r 深度排序） */
