@@ -166,6 +166,59 @@
   @media (max-width:1180px){
     .wrap{grid-template-columns:1fr;}
   }
+
+  /* ===== RTS 全屏 HUD（地图占满窗口，信息悬浮其上） ===== */
+  html,body{height:100%; overflow:hidden;}
+  #map{
+    position:fixed; inset:0; width:100vw; height:100vh;
+    display:block; border:none; border-radius:0; background:#0d1216;
+    z-index:0; cursor:pointer;
+  }
+  .topbar{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    background:rgba(12,16,20,0.88); backdrop-filter:blur(6px);
+  }
+  .hud-legend{
+    position:fixed; left:12px; top:58px; z-index:12;
+    display:flex; flex-wrap:wrap; gap:10px; padding:8px 12px;
+    background:rgba(12,16,20,0.72); border:1px solid rgba(58,70,82,0.8); border-radius:3px;
+  }
+  .hud-legend .lg{display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#9fb2bf;}
+  .hud-legend .sw{width:12px; height:12px; border-radius:2px; border:1px solid #2a3540;}
+  .hud-right{
+    position:fixed; right:12px; top:58px; bottom:150px; width:266px; z-index:12;
+    overflow-y:auto; display:flex; flex-direction:column; gap:10px; scrollbar-width:thin;
+  }
+  .hud-card{
+    background:rgba(12,16,20,0.82); border:1px solid rgba(58,70,82,0.85);
+    border-left:3px solid var(--primary); border-radius:3px; padding:10px 12px;
+  }
+  .hud-title{font-size:12px; font-weight:700; color:#d8b46a; letter-spacing:1px; margin:0 0 8px;}
+  .hud-title .tip{font-size:11px; color:var(--muted); font-weight:400; letter-spacing:0;}
+  .hud-right #mini{position:static; display:block; width:100%; height:auto; border:1px solid #2a3540; background:#0b0f13;}
+  .hud-log{
+    position:fixed; left:12px; bottom:132px; width:330px; max-height:180px; z-index:12;
+    background:rgba(12,16,20,0.82); border:1px solid rgba(58,70,82,0.85); border-radius:3px;
+    padding:10px 12px; overflow-y:auto;
+  }
+  .hud-log #events{max-height:118px; overflow-y:auto;}
+  .hud-build{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:12px; z-index:14;
+    width:min(880px, 94vw); padding:10px 14px;
+    background:rgba(12,16,20,0.88); border:1px solid rgba(58,70,82,0.9); border-top:1px solid #4a5662;
+    border-radius:4px; box-shadow:0 12px 40px rgba(0,0,0,.55); backdrop-filter:blur(6px);
+  }
+  .hud-build .tools{margin-top:0;}
+  .hud-build .tools + .tools{margin-top:8px;}
+  .modal-wide{width:min(920px,94vw);}
+  .rp-tabs{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 12px;}
+  .rp-pane{max-height:58vh; overflow-y:auto;}
+  .rp-sub{font-size:12px; font-weight:700; color:#d8b46a; margin:0 0 8px; letter-spacing:.5px;}
+  .rp-sub .tip{font-size:11px; color:var(--muted); font-weight:400; margin-left:8px;}
+  @media (max-width:1100px){
+    .hud-right{width:220px;}
+    .hud-log{width:260px;}
+  }
 </style>
 </head>
 <body>
@@ -174,6 +227,7 @@
   <h1>电网大亨<small>建电站 · 架电网 · 买电卖电</small></h1>
 
   <button class="btn primary" id="back-sim-btn" type="button">← 返回模拟页</button>
+  <button class="btn" id="report-btn" type="button">▤ 报表</button>
   <button class="btn" id="menu-btn" type="button">☰ 菜单</button>
 
   <div class="chip"><span class="k">资金</span><span class="v" id="hd-cash">—</span></div>
@@ -190,55 +244,86 @@
   <button class="btn" data-speed="4" type="button">4×</button>
 </header>
 
-<div class="wrap">
-  <div class="col-main">
+<canvas id="map"></canvas>
 
-    <!-- 地图 -->
-    <section class="card">
-      <h2>电网地图
-        <span class="tip">点击地块建造；建造或连线模式下点击已建设施可拆除（退回 50% 造价）</span>
-      </h2>
-      <div class="map-box"><canvas id="map"></canvas><canvas id="mini"></canvas></div>
-      <div class="legend">
-        <span class="lg"><i class="sw" style="background:#2e4630"></i>平原</span>
-        <span class="lg"><i class="sw" style="background:#17466b"></i>河流</span>
-        <span class="lg"><i class="sw" style="background:#4d5359"></i>山地</span>
-        <span class="lg"><i class="sw" style="background:#7d6f4e"></i>沿海</span>
-        <span class="lg"><i class="sw" style="background:#39424c"></i>城市（需要用电）</span>
-        <span class="lg"><i class="sw" style="background:#4a4440"></i>工业区（用电更大）</span>
-      </div>
-    </section>
+<div class="hud-legend">
+  <span class="lg"><i class="sw" style="background:#2e4630"></i>平原</span>
+  <span class="lg"><i class="sw" style="background:#17466b"></i>河流</span>
+  <span class="lg"><i class="sw" style="background:#4d5359"></i>山地</span>
+  <span class="lg"><i class="sw" style="background:#7d6f4e"></i>沿海</span>
+  <span class="lg"><i class="sw" style="background:#39424c"></i>城市（需要用电）</span>
+  <span class="lg"><i class="sw" style="background:#4a4440"></i>工业区（用电更大）</span>
+</div>
 
-    <!-- 建造 -->
-    <section class="card">
-      <h2>建造
-        <span class="tip">先选设施，再点地图空地；建好后用「连线」把它接到城市</span>
-      </h2>
-      <div class="tools" id="build-tools"></div>
-      <div class="tools" style="margin-top:8px">
-        <button class="btn" data-mode="connect" type="button">⤳ 连线（接到城市）</button>
-        <button class="btn" data-mode="sell" type="button">✕ 拆除（退 50%）</button>
-        <button class="btn" data-mode="none" type="button">✔ 完成</button>
-      </div>
-      <div class="hint" id="build-hint">提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。</div>
-    </section>
+<div class="hud-right">
+  <div class="hud-card">
+    <div class="hud-title">雷达小地图</div>
+    <canvas id="mini" width="248" height="150"></canvas>
+  </div>
+  <div class="hud-card">
+    <div class="hud-title">目标</div>
+    <div class="kv"><span class="k">目标</span><span class="v">28 天资金 ≥ 30 万元</span></div>
+    <div class="bar"><i id="goal-bar" style="width:0;background:linear-gradient(90deg,#2f9e6f,#3ddc84)"></i></div>
+    <div class="kv"><span class="k">进度</span><span class="v" id="goal-txt">—</span></div>
+  </div>
+  <div class="hud-card">
+    <div class="hud-title">时刻信息 <span class="tip" id="now-tip">—</span></div>
+    <div class="kv"><span class="k">时刻电价</span><span class="v" id="p-price">—</span></div>
+    <div class="kv"><span class="k">系统负荷</span><span class="v" id="p-load">—</span></div>
+    <div class="kv"><span class="k">上网电量</span><span class="v" id="p-supply">—</span></div>
+    <div class="kv"><span class="k">缺供（切负荷）</span><span class="v" id="p-shed">—</span></div>
+    <div class="kv"><span class="k">售电收入</span><span class="v" id="p-inc">—</span></div>
+    <div class="kv"><span class="k">燃料成本</span><span class="v" id="p-fuel">—</span></div>
+    <div class="kv"><span class="k">维护成本</span><span class="v" id="p-om">—</span></div>
+    <div class="kv"><span class="k">购电支出</span><span class="v" id="p-buy">—</span></div>
+  </div>
+  <div class="hud-card">
+    <div class="hud-title">资产</div>
+    <div class="kv"><span class="k">现金</span><span class="v" id="a-cash">—</span></div>
+    <div class="kv"><span class="k">电厂造价</span><span class="v" id="a-plant">—</span></div>
+    <div class="kv"><span class="k">输电造价</span><span class="v" id="a-line">—</span></div>
+    <div class="kv"><span class="k">资产合计</span><span class="v" id="a-total">—</span></div>
+    <div class="kv"><span class="k">折旧（5%/天）</span><span class="v" id="a-dep">—</span></div>
+  </div>
+</div>
 
-    <!-- 收支 -->
-    <section class="card">
-      <h2>收支（每小时结算）</h2>
+<div class="hud-log">
+  <div class="hud-title">最近事件</div>
+  <div id="events"><div class="ev">尚无事件</div></div>
+</div>
+
+<div class="hud-build">
+  <div class="tools" id="build-tools"></div>
+  <div class="tools" style="margin-top:8px">
+    <button class="btn" data-mode="connect" type="button">⤳ 连线（接到城市）</button>
+    <button class="btn" data-mode="sell" type="button">✕ 拆除（退 50%）</button>
+    <button class="btn" data-mode="none" type="button">✔ 完成</button>
+  </div>
+  <div class="hint" id="build-hint">提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。</div>
+</div>
+
+<!-- ===== 报表弹层（收支 / 城市 / 电站 / 市场 / 每日） ===== -->
+<div class="mask" id="report-mask" hidden>
+  <div class="modal modal-wide">
+    <h3>报表</h3>
+    <div class="rp-tabs" id="report-tabs">
+      <button class="btn active" data-rp="rp-fin" type="button">收支</button>
+      <button class="btn" data-rp="rp-city" type="button">城市用电</button>
+      <button class="btn" data-rp="rp-plant" type="button">电站运行</button>
+      <button class="btn" data-rp="rp-mkt" type="button">市场买卖电</button>
+      <button class="btn" data-rp="rp-day" type="button">每日经营</button>
+    </div>
+    <div class="rp-pane" id="rp-fin">
+      <div class="rp-sub">收支（每小时结算）</div>
       <table>
         <thead>
           <tr><th>科目</th><th class="num">本小时（元）</th><th class="num">今日累计（元）</th><th class="num">总计（元）</th></tr>
         </thead>
         <tbody id="fin-body"></tbody>
       </table>
-    </section>
-
-    <!-- 城市用电 -->
-    <section class="card">
-      <h2>城市用电
-        <span class="tip">供电率连续 24 小时 ≥92%，城市会升级、用电变大</span>
-      </h2>
+    </div>
+    <div class="rp-pane" id="rp-city" hidden>
+      <div class="rp-sub">城市用电 <span class="tip">供电率连续 24 小时 ≥92%，城市会升级、用电变大</span></div>
       <table>
         <thead>
           <tr>
@@ -248,11 +333,9 @@
         </thead>
         <tbody id="city-body"></tbody>
       </table>
-    </section>
-
-    <!-- 电站运行 -->
-    <section class="card">
-      <h2>电站运行</h2>
+    </div>
+    <div class="rp-pane" id="rp-plant" hidden>
+      <div class="rp-sub">电站运行</div>
       <table>
         <thead>
           <tr>
@@ -262,13 +345,9 @@
         </thead>
         <tbody id="plant-body"></tbody>
       </table>
-    </section>
-
-    <!-- 市场交易 -->
-    <section class="card">
-      <h2>市场买卖电
-        <span class="tip">自动结算：缺电按市场价买入，富余按市场价卖出</span>
-      </h2>
+    </div>
+    <div class="rp-pane" id="rp-mkt" hidden>
+      <div class="rp-sub">市场买卖电 <span class="tip">自动结算：缺电按市场价买入，富余按市场价卖出</span></div>
       <table>
         <thead>
           <tr><th>项目</th><th class="num">本小时</th><th class="num">今日累计</th><th class="num">总计</th></tr>
@@ -276,11 +355,9 @@
         <tbody id="mkt-body"></tbody>
       </table>
       <div class="hint">市场电价来自数据表 daily_curves 的日前电价（取最近 30 天逐小时），每小时随日期推进循环取用。</div>
-    </section>
-
-    <!-- 每日经营 -->
-    <section class="card">
-      <h2>每日经营</h2>
+    </div>
+    <div class="rp-pane" id="rp-day" hidden>
+      <div class="rp-sub">每日经营</div>
       <table>
         <thead>
           <tr>
@@ -291,45 +368,9 @@
         </thead>
         <tbody id="day-body"></tbody>
       </table>
-    </section>
-
+    </div>
+    <div class="row"><button class="btn active" id="report-close" type="button">关闭</button></div>
   </div>
-
-  <!-- 右栏 -->
-  <aside class="side">
-    <section class="card">
-      <h2>目标</h2>
-      <div class="kv"><span class="k">目标</span><span class="v">28 天资金 ≥ 30 万元</span></div>
-      <div class="bar"><i id="goal-bar" style="width:0;background:linear-gradient(90deg,#2f9e6f,#3ddc84)"></i></div>
-      <div class="kv"><span class="k">进度</span><span class="v" id="goal-txt">—</span></div>
-    </section>
-
-    <section class="card">
-      <h2>时刻信息 <span class="tip" id="now-tip">—</span></h2>
-      <div class="kv"><span class="k">时刻电价</span><span class="v" id="p-price">—</span></div>
-      <div class="kv"><span class="k">系统负荷</span><span class="v" id="p-load">—</span></div>
-      <div class="kv"><span class="k">上网电量</span><span class="v" id="p-supply">—</span></div>
-      <div class="kv"><span class="k">缺供（切负荷）</span><span class="v" id="p-shed">—</span></div>
-      <div class="kv"><span class="k">售电收入</span><span class="v" id="p-inc">—</span></div>
-      <div class="kv"><span class="k">燃料成本</span><span class="v" id="p-fuel">—</span></div>
-      <div class="kv"><span class="k">维护成本</span><span class="v" id="p-om">—</span></div>
-      <div class="kv"><span class="k">购电支出</span><span class="v" id="p-buy">—</span></div>
-    </section>
-
-    <section class="card">
-      <h2>资产</h2>
-      <div class="kv"><span class="k">现金</span><span class="v" id="a-cash">—</span></div>
-      <div class="kv"><span class="k">电厂造价</span><span class="v" id="a-plant">—</span></div>
-      <div class="kv"><span class="k">输电造价</span><span class="v" id="a-line">—</span></div>
-      <div class="kv"><span class="k">资产合计</span><span class="v" id="a-total">—</span></div>
-      <div class="kv"><span class="k">折旧（5%/天）</span><span class="v" id="a-dep">—</span></div>
-    </section>
-
-    <section class="card">
-      <h2>最近事件</h2>
-      <div id="events"><div class="ev">尚无事件</div></div>
-    </section>
-  </aside>
 </div>
 
 <!-- 菜单 -->
@@ -355,20 +396,24 @@
 /* ============================ 基础 ============================ */
 const $ = id => document.getElementById(id);
 const canvas = $("map"), ctx = canvas.getContext("2d");
-/* ===== 2.5D 等轴测（Kenney 体素瓦片 111×128，菱形 2:1）===== */
+/* ===== 全屏等轴测视图（2:1 菱形，世界坐标 + 自适应缩放）===== */
 const COLS = 14, ROWS = 9;
-const TILE_W = 96, TILE_H = 48;              // 菱形地块
-const SPRITE_W = 111, SPRITE_H = 128;        // 素材原图
-const PAD_X = 110, PAD_Y = 30;
-const IW = (COLS + ROWS - 1) * TILE_W + PAD_X * 2;
-const IH = (COLS + ROWS - 1) * (TILE_H / 2) + SPRITE_H + PAD_Y * 2 + 70;
-const W = IW, H = IH;
-canvas.width = W; canvas.height = H;
-const ORX = PAD_X + (COLS - 1) * TILE_W / 2;
-const ORY = PAD_Y + SPRITE_H - TILE_H / 2 - 4;
+const TILE_W = 96, TILE_H = 48;              // 菱形地块（世界坐标）
+const ORX = 0, ORY = 0;                      // 世界原点：格 (0,0) 在 (0,0)
+let ZOOM = 1.3, VW = 0, VH = 0;
+const MAPCX = ((COLS - 1) - (ROWS - 1)) * TILE_W / 4;         // 地图水平视觉中心
+const MAPCY = ((COLS - 1) + (ROWS - 1)) * TILE_H / 4 - 55;    // 地图垂直视觉中心（含建筑高度）
 function px(v) { return Math.round(v); }
 function isoX(c, r) { return ORX + (c - r) * TILE_W / 2; }
 function isoY(c, r) { return ORY + (c + r) * TILE_H / 2; }
+function resizeView() {
+  VW = window.innerWidth; VH = window.innerHeight;
+  canvas.width = VW; canvas.height = VH;
+  ZOOM = Math.max(0.9, Math.min(1.42, VW / 1180, VH / 720));
+}
+function applyView() {
+  ctx.setTransform(ZOOM, 0, 0, ZOOM, VW / 2 - MAPCX * ZOOM, VH / 2 - MAPCY * ZOOM);
+}
 
 const SUPABASE_URL = "https://kputrrbbcmxbnhwhxvoo.supabase.co";
 const SUPABASE_KEY = "sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
@@ -771,6 +816,7 @@ function drawTerrainCell(c, r, terr, light) {
 }
 
 function drawMap() {
+  applyView();
   ctx.imageSmoothingEnabled = false;
   const dayT = state.hour / 24 * Math.PI * 2;
   const light = 0.88 + 0.12 * Math.sin(dayT - Math.PI / 2);   // 昼夜亮度
@@ -1225,9 +1271,11 @@ function updateModeBtns() {
 }
 function cellAt(ev) {
   const rect = canvas.getBoundingClientRect();
-  const mx = (ev.clientX - rect.left) / rect.width * W;
-  const my = (ev.clientY - rect.top) / rect.height * H;
-  const gx = (mx - ORX) / (TILE_W / 2), gy = (my - ORY) / (TILE_H / 2);
+  const mx = (ev.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (ev.clientY - rect.top) * (canvas.height / rect.height);
+  const wx = (mx - (VW / 2 - MAPCX * ZOOM)) / ZOOM;
+  const wy = (my - (VH / 2 - MAPCY * ZOOM)) / ZOOM;
+  const gx = (wx - ORX) / (TILE_W / 2), gy = (wy - ORY) / (TILE_H / 2);
   const c = Math.round((gx + gy) / 2), r = Math.round((gy - gx) / 2);
   if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
   return { c, r };
@@ -1353,6 +1401,15 @@ function loadGame() {
 
 $("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; });
 $("m-close").addEventListener("click", () => { $("menu-mask").hidden = true; });
+$("report-btn").addEventListener("click", () => { $("report-mask").hidden = false; });
+$("report-close").addEventListener("click", () => { $("report-mask").hidden = true; });
+document.querySelectorAll("#report-tabs [data-rp]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#report-tabs [data-rp]").forEach(x => x.classList.toggle("active", x === b));
+  ["rp-fin", "rp-city", "rp-plant", "rp-mkt", "rp-day"].forEach(id => { $(id).hidden = id !== b.dataset.rp; });
+}));
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape") { $("report-mask").hidden = true; $("menu-mask").hidden = true; }
+});
 $("m-save").addEventListener("click", () => { saveGame(); toast("已保存到本机"); });
 $("m-load").addEventListener("click", () => {
   if (loadGame()) { toast("已读取存档"); renderAll(); $("menu-mask").hidden = true; }
@@ -1401,6 +1458,8 @@ buildTools();
 updateModeBtns();
 loadGame();
 loadPrices();
+resizeView();
+window.addEventListener("resize", () => { resizeView(); drawMap(); });
 renderAll();
 requestAnimationFrame(loop);
 setInterval(() => { if (state.running) saveGame(); }, 30000);
