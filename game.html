@@ -481,7 +481,7 @@ function isoY(c, r) { return ORY + (c + r) * TILE_H / 2; }
 function resizeView() {
   VW = window.innerWidth; VH = window.innerHeight;
   canvas.width = VW; canvas.height = VH;
-  ZOOM = Math.max(1.15, Math.min(1.8, VW / 1000, VH / 640));
+  ZOOM = Math.max(0.78, Math.min(1.22, VW / 1460, VH / 870));
   clampCam();
 }
 function clampCam() {
@@ -577,12 +577,12 @@ function makeLoadNode(name, col, row, peak, industry) {
 
 /* ============================ 设施定义 ============================ */
 const PLANT_DEFS = {
-  coal:     { name: "燃煤电厂",   icon: "▦", color: "#8a8f94", cost: 220000, cap: 200, varCost: 150, fixedCost: 40,  terr: ["plain", "mountain", "coast"] },
-  gas:      { name: "燃气电厂",   icon: "▲", color: "#e08a3c", cost: 140000, cap: 150, varCost: 280, fixedCost: 30,  terr: ["plain", "coast", "mountain"] },
-  wind:     { name: "风电场",     icon: "✳", color: "#4aa3d8", cost: 170000, cap: 80,  varCost: 8,   fixedCost: 30,  terr: ["mountain", "coast"] },
-  solar:    { name: "光伏电站",   icon: "◐", color: "#d9b122", cost: 140000, cap: 80,  varCost: 4,   fixedCost: 22,  terr: ["plain", "coast"] },
-  storage:  { name: "储能电站",   icon: "▤", color: "#2f9e6f", cost: 110000, cap: 120, varCost: 0,   fixedCost: 16,  terr: ["plain", "coast", "mountain"] },
-  nuclear:  { name: "核电站",     icon: "☢", color: "#b34fd8", cost: 520000, cap: 450, varCost: 60,  fixedCost: 150, terr: ["plain", "coast"] }
+  coal:     { name: "燃煤电厂",   icon: "▦", color: "#8a8f94", cost: 220000, cap: 200, varCost: 150, fixedCost: 40,  terr: ["plain", "mountain", "coast"], w: 3, h: 2 },
+  gas:      { name: "燃气电厂",   icon: "▲", color: "#e08a3c", cost: 140000, cap: 150, varCost: 280, fixedCost: 30,  terr: ["plain", "coast", "mountain"], w: 2, h: 2 },
+  wind:     { name: "风电场",     icon: "✳", color: "#4aa3d8", cost: 170000, cap: 80,  varCost: 8,   fixedCost: 30,  terr: ["mountain", "coast"], w: 2, h: 1 },
+  solar:    { name: "光伏电站",   icon: "◐", color: "#d9b122", cost: 140000, cap: 80,  varCost: 4,   fixedCost: 22,  terr: ["plain", "coast"], w: 2, h: 2 },
+  storage:  { name: "储能电站",   icon: "▤", color: "#2f9e6f", cost: 110000, cap: 120, varCost: 0,   fixedCost: 16,  terr: ["plain", "coast", "mountain"], w: 1, h: 2 },
+  nuclear:  { name: "核电站",     icon: "☢", color: "#b34fd8", cost: 520000, cap: 450, varCost: 60,  fixedCost: 150, terr: ["plain", "coast"], w: 3, h: 3 }
 };
 const LINK_COST_PER_KM = 900;   // 元 / 格
 const LINK_CAP = 500;           // MW
@@ -923,27 +923,51 @@ function drawMap() {
     }
   }
 
-  /* --- 悬停：仅建造放置时显示（星际式，平时不高亮） --- */
+  /* --- 悬停：仅建造放置时显示（星际式；整组占地预览，红=不可放） --- */
   if (hoverCell && state.mode === "build" && state.buildType) {
     const { c, r } = hoverCell;
-    const terr = grid[r][c];
-    const lift = terr === "mountain" ? 10 : (terr === "river" ? 0 : 3);
-    const cx = isoX(c, r), cy = isoY(c, r) - lift;
-    const ok = PLANT_DEFS[state.buildType].terr.includes(terr);
-    const col = ok ? "#4dff88" : "#ff5252";
-    ctx.fillStyle = ok ? "rgba(80,255,140,0.13)" : "rgba(255,80,80,0.15)";
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy); ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
-    ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
-    ctx.lineWidth = 3;
-    const mk = (vx, vy, sx, sy) => {
+    const def = PLANT_DEFS[state.buildType];
+    let allOk = true;
+    const cellsFP = [];
+    for (let dr = 0; dr < def.h; dr++) for (let dc = 0; dc < def.w; dc++) {
+      const cc = c + dc, rr = r + dr;
+      const inB = cc >= 0 && cc < COLS && rr >= 0 && rr < ROWS;
+      const terr = inB ? grid[rr][cc] : null;
+      const okCell = inB && !nodeAtCell(cc, rr) && def.terr.includes(terr);
+      if (!okCell) allOk = false;
+      if (inB) cellsFP.push({ c: cc, r: rr, terr, ok: okCell });
+    }
+    const col = allOk ? "#4dff88" : "#ff5252";
+    cellsFP.forEach(cell => {
+      const lift = cell.terr === "mountain" ? 10 : cell.terr === "river" ? 0 : 3;
+      const cx = isoX(cell.c, cell.r), cy = isoY(cell.c, cell.r) - lift;
+      ctx.fillStyle = allOk ? "rgba(80,255,140,0.14)" : "rgba(255,80,80,0.16)";
       ctx.beginPath();
-      ctx.moveTo(vx + sx * 12, vy); ctx.lineTo(vx, vy); ctx.lineTo(vx, vy + sy * 6);
+      ctx.moveTo(cx, cy - TILE_H / 2); ctx.lineTo(cx + TILE_W / 2, cy); ctx.lineTo(cx, cy + TILE_H / 2); ctx.lineTo(cx - TILE_W / 2, cy);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = allOk ? "rgba(77,255,136,0.7)" : "rgba(255,82,82,0.8)";
+      ctx.lineWidth = 1.2; ctx.stroke();
+    });
+    // 占地外轮廓 + 四角括号（星际式占位框）
+    const P = [
+      [isoX(c, r), isoY(c, r) - TILE_H / 2],
+      [isoX(c + def.w - 1, r) + TILE_W / 2, isoY(c + def.w - 1, r)],
+      [isoX(c + def.w - 1, r + def.h - 1), isoY(c + def.w - 1, r + def.h - 1) + TILE_H / 2],
+      [isoX(c, r + def.h - 1) - TILE_W / 2, isoY(c, r + def.h - 1)]
+    ];
+    ctx.beginPath();
+    P.forEach(([x, y], i) => { if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    ctx.closePath();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.lineWidth = 3;
+    P.forEach(([x, y], i) => {
+      const [nx, ny] = P[(i + 1) % 4], [pxv, pyv] = P[(i + 3) % 4];
+      const ux = (nx - x) / Math.hypot(nx - x, ny - y), uy = (ny - y) / Math.hypot(nx - x, ny - y);
+      const wx = (pxv - x) / Math.hypot(pxv - x, pyv - y), wy = (pyv - y) / Math.hypot(pxv - x, pyv - y);
+      ctx.beginPath();
+      ctx.moveTo(x + ux * 13, y + uy * 13); ctx.lineTo(x, y); ctx.lineTo(x + wx * 9, y + wy * 9);
       ctx.stroke();
-    };
-    mk(cx, cy - TILE_H / 2, -1, -1); mk(cx + TILE_W / 2, cy, 1, -1);
-    mk(cx, cy + TILE_H / 2, 1, 1); mk(cx - TILE_W / 2, cy, -1, 1);
+    });
   }
 
   /* --- 输电线（钢缆 + 桁架杆塔） --- */
@@ -976,11 +1000,16 @@ function drawMap() {
     }
   });
 
-  /* --- 节点（建筑）按深度排序 --- */
+  /* --- 节点（建筑）按占地中心深度排序 --- */
+  const depthOf = (n, plant) => {
+    if (!plant) return n.col + n.row;
+    const d = PLANT_DEFS[n.type];
+    return (n.col + (d.w - 1) / 2) + (n.row + (d.h - 1) / 2);
+  };
   const nodes = [
     ...loads.map(L => ({ n: L, plant: false })),
     ...state.plants.map(p => ({ n: p, plant: true }))
-  ].sort((a, b) => (a.n.col + a.n.row) - (b.n.col + b.n.row));
+  ].sort((a, b) => depthOf(a.n, a.plant) - depthOf(b.n, b.plant));
   nodes.forEach(({ n, plant }) => drawNode(n, plant, light, night));
   drawMinimap();
   void dayT;
@@ -1043,13 +1072,17 @@ function beacon(x, y, t) {
   }
 }
 function drawNode(n, isPlant, light, night) {
-  const cx = isoX(n.col, n.row), cy = isoY(n.col, n.row);
+  const def = isPlant ? PLANT_DEFS[n.type] : null;
+  const cc = isPlant ? n.col + (def.w - 1) / 2 : n.col;
+  const rr = isPlant ? n.row + (def.h - 1) / 2 : n.row;
+  const cx = isoX(cc, rr), cy = isoY(cc, rr);
+  // 占地越大建筑越大（星际式：不同建筑占地不同、体积不同）
+  const SC = isPlant ? (1.02 + 0.44 * Math.max(def.w, def.h)) : 1.45;
   // 影子
   ctx.fillStyle = "rgba(0,0,0,0.4)";
-  ctx.beginPath(); ctx.ellipse(cx, cy + 14, 42, 12, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx, cy + 10 * (SC / 1.45), 28 * (SC / 1.45), 8 * (SC / 1.45), 0, 0, 7); ctx.fill();
   const T = performance.now();
 
-  const SC = 1.45;
   ctx.save();
   ctx.translate(cx, cy - 8);
   ctx.scale(SC, SC);
@@ -1152,22 +1185,26 @@ function drawNode(n, isPlant, light, night) {
   ctx.restore();
   void light;
 
-  // ===== 名称牌（深色 LCD 风格） =====
+  // ===== 名称牌 / 状态条（位置随建筑体积下移） =====
+  const BOTTOM = { coal: 34, gas: 30, wind: 22, solar: 15, storage: 38, nuclear: 34 };
+  const labY = isPlant
+    ? Math.round((BOTTOM[n.type] || 34) * SC + 16)
+    : Math.round((13 * (n.level || 1) + 38) * 1.45 + 8);
   const lab = isPlant ? n.name : (n.name + " Lv" + (n.level || 1));
   ctx.font = "bold 11px Arial"; ctx.textAlign = "center";
   const tw = ctx.measureText(lab).width + 12;
   ctx.fillStyle = "rgba(8,12,16,0.85)";
-  ctx.fillRect(px(cx - tw / 2), px(cy + 24), px(tw), 16);
+  ctx.fillRect(px(cx - tw / 2), px(cy + labY), px(tw), 16);
   ctx.strokeStyle = "rgba(232,160,32,0.35)"; ctx.lineWidth = 1;
-  ctx.strokeRect(px(cx - tw / 2), px(cy + 24), px(tw), 16);
+  ctx.strokeRect(px(cx - tw / 2), px(cy + labY), px(tw), 16);
   ctx.fillStyle = "#cfe8d8";
-  ctx.fillText(lab, cx, cy + 35);
+  ctx.fillText(lab, cx, cy + labY + 11);
 
   // ===== 状态条（RTS 单位血条风格） =====
   const ratio = isPlant
     ? Math.min(1, (n.lastOut || 0) / (PLANT_DEFS[n.type].cap || 1))
     : Math.min(1, n.serveOk || 0);
-  const barW = 42, barX = cx - barW / 2, barY = cy + 44;
+  const barW = 42, barX = cx - barW / 2, barY = cy + labY + 20;
   ctx.fillStyle = "#0c1116"; ctx.fillRect(barX, barY, barW, 6);
   ctx.fillStyle = ratio > 0.85 ? "#3ddc84" : ratio > 0.55 ? "#f0b040" : "#ff5252";
   ctx.fillRect(barX, barY, barW * ratio, 6);
@@ -1175,14 +1212,15 @@ function drawNode(n, isPlant, light, night) {
 
   if (isPlant) {
     ctx.fillStyle = "#7d8f9c"; ctx.font = "10px Consolas,monospace";
-    ctx.fillText(PLANT_DEFS[n.type].cap + " MW", cx, cy + 62);
+    ctx.fillText(PLANT_DEFS[n.type].cap + " MW", cx, cy + labY + 38);
   }
-  // 连线起点高亮
+  // 连线起点高亮（覆盖整组占地）
   if (state.linkFrom === n.id) {
+    const rx = 30 * SC, ry = 9 * SC, oy = 12 * (SC / 1.45);
     ctx.strokeStyle = "rgba(77,255,136,0.3)"; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.ellipse(cx, cy + 14, 46, 15, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy + oy, rx, ry, 0, 0, 7); ctx.stroke();
     ctx.strokeStyle = "#4dff88"; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.ellipse(cx, cy + 14, 46, 15, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy + oy, rx, ry, 0, 0, 7); ctx.stroke();
   }
 }
 
@@ -1216,8 +1254,10 @@ function drawMinimap() {
     mc.fillRect(px2(L.col, L.row) - 2.5, py2(L.col, L.row) - 2.5, 5, 5);
   });
   state.plants.forEach(p => {
+    const d = PLANT_DEFS[p.type];
+    const cc = p.col + (d.w - 1) / 2, rr = p.row + (d.h - 1) / 2;
     mc.fillStyle = "#e8a020";
-    mc.fillRect(px2(p.col, p.row) - 2.5, py2(p.col, p.row) - 2.5, 5, 5);
+    mc.fillRect(px2(cc, rr) - 2.5, py2(cc, rr) - 2.5, 5, 5);
   });
   // 镜头视口框
   const hw = VW / 2 / ZOOM, hh = VH / 2 / ZOOM;
@@ -1353,7 +1393,7 @@ function buildTools() {
     `<button class="build" data-build="${k}" type="button">
        <span class="dot" style="background:${d.color}"></span>
        <span><span class="nm">${d.name}</span><br>
-       <span class="mt">造价 ${money(d.cost)} · ${d.cap} MW${d.varCost ? " · 燃料 " + d.varCost + " 元/MWh" : " · 储能"}</span></span>
+       <span class="mt">${d.w}×${d.h}格 · 造价 ${money(d.cost)} · ${d.cap} MW${d.varCost ? " · 燃料 " + d.varCost + " 元/MWh" : " · 储能"}</span></span>
      </button>`
   ).join("");
   box.querySelectorAll("[data-build]").forEach(b => b.addEventListener("click", () => {
@@ -1362,8 +1402,9 @@ function buildTools() {
     if (on) { state.buildType = null; state.mode = "none"; }
     else {
       b.classList.add("on"); state.buildType = b.dataset.build; state.mode = "build";
-      $("build-hint").textContent = "建造模式：" + PLANT_DEFS[state.buildType].name + "，可建地形：" +
-        PLANT_DEFS[state.buildType].terr.map(t => TERRAIN[t].name).join("、") + "。点击地图空地放置。";
+      const bd = PLANT_DEFS[state.buildType];
+      $("build-hint").textContent = "建造模式：" + bd.name + "（占 " + bd.w + "×" + bd.h + " 格，光标格为左上角），可建地形：" +
+        bd.terr.map(t => TERRAIN[t].name).join("、") + "。点击地图空地放置。";
     }
     updateModeBtns();
   }));
@@ -1447,7 +1488,12 @@ function updateCamera(dt) {
   return false;
 }
 function nodeAtCell(c, r) {
-  return loads.find(l => l.col === c && l.row === r) || state.plants.find(p => p.col === c && p.row === r) || null;
+  const load = loads.find(l => l.col === c && l.row === r);
+  if (load) return load;
+  return state.plants.find(p => {
+    const d = PLANT_DEFS[p.type];
+    return c >= p.col && c < p.col + d.w && r >= p.row && r < p.row + d.h;
+  }) || null;
 }
 
 canvas.addEventListener("click", ev => {
@@ -1455,10 +1501,17 @@ canvas.addEventListener("click", ev => {
   const existing = nodeAtCell(cell.c, cell.r);
 
   if (state.mode === "build" && state.buildType) {
-    if (existing) { sfx("err"); return toast("这里已经有设施了"); }
     const def = PLANT_DEFS[state.buildType];
-    const terr = grid[cell.r][cell.c];
-    if (!def.terr.includes(terr)) { sfx("err"); return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上"); }
+    // 整组占地校验（越界 / 占用 / 地形）
+    if (cell.c + def.w - 1 >= COLS || cell.r + def.h - 1 >= ROWS) {
+      sfx("err"); return toast(def.name + " 占 " + def.w + "×" + def.h + " 格，这里放不下");
+    }
+    for (let dr = 0; dr < def.h; dr++) for (let dc = 0; dc < def.w; dc++) {
+      const cc = cell.c + dc, rr = cell.r + dr;
+      if (nodeAtCell(cc, rr)) { sfx("err"); return toast("占地范围内已有设施"); }
+      const terr = grid[rr][cc];
+      if (!def.terr.includes(terr)) { sfx("err"); return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上"); }
+    }
     if (state.cash < def.cost) { sfx("err"); return toast("资金不足，还需要 " + money(def.cost - state.cash) + " 元"); }
     state.cash -= def.cost;
     const p = {
