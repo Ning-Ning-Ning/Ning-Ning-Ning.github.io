@@ -333,6 +333,7 @@
   <button class="btn" id="menu-btn" type="button">☰ 菜单</button>
 
   <div class="chip"><span class="k">资金</span><span class="v" id="hd-cash">—</span></div>
+  <div class="chip"><span class="k">日均利润</span><span class="v" id="hd-avg">—</span></div>
   <div class="chip"><span class="k">时间</span><span class="v" id="hd-time">—</span></div>
   <div class="chip"><span class="k">负荷</span><span class="v" id="hd-load">—</span></div>
   <div class="chip"><span class="k">发电</span><span class="v" id="hd-gen">—</span></div>
@@ -365,10 +366,9 @@
     <canvas id="mini" width="248" height="150"></canvas>
   </div>
   <div class="hud-card">
-    <div class="hud-title">目标 <span class="tip" id="goal-diff">普通</span></div>
-    <div class="kv"><span class="k">目标</span><span class="v" id="goal-rule">28 天资金 ≥ 1,000,000 元</span></div>
-    <div class="bar"><i id="goal-bar" style="width:0;background:linear-gradient(90deg,#2f9e6f,#3ddc84)"></i></div>
-    <div class="kv"><span class="k">进度</span><span class="v" id="goal-txt">—</span></div>
+    <div class="hud-title">经营概况</div>
+    <div class="kv"><span class="k">日均利润</span><span class="v" id="avg-profit">—</span></div>
+    <div class="kv"><span class="k">累计净利</span><span class="v" id="sum-profit">—</span></div>
   </div>
   <div class="hud-card">
     <div class="hud-title">当前事件 <span class="tip" id="mod-tip">—</span></div>
@@ -510,12 +510,6 @@
   <div class="modal">
     <h3>菜单</h3>
     <p>账号：<strong id="menu-user">—</strong>　存档只保存在本机浏览器，换电脑或清缓存会丢失。</p>
-    <p style="margin-bottom:6px">难度（目标金额，点「重新开始」生效）：</p>
-    <div class="row" style="justify-content:flex-start;margin-top:0;flex-wrap:wrap">
-      <button class="btn" data-diff="easy" type="button">简单 · 目标 30 万</button>
-      <button class="btn" data-diff="normal" type="button">普通 · 目标 100 万</button>
-      <button class="btn" data-diff="hard" type="button">困难 · 目标 300 万</button>
-    </div>
     <div class="row" style="justify-content:flex-start;flex-wrap:wrap">
       <button class="btn" id="m-new" type="button">重新开始</button>
       <button class="btn" id="m-save" type="button">保存进度</button>
@@ -583,6 +577,15 @@ function fmtNum(v, d = 0) {
   return Number(v).toLocaleString("zh-CN", { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 function money(v) { return fmtNum(v, 0); }
+/* 经营概况：累计净利 / 日均利润 */
+function netProfitAll() {
+  const A = state.allTime;
+  return A.inc - A.fuel - A.om - A.buy + A.ctr;
+}
+function dailyAvgProfit() {
+  const elapsedH = Math.max(1, (state.day - 1) * 24 + state.hour);
+  return netProfitAll() / (elapsedH / 24);
+}
 function pct(v) { return v == null || !Number.isFinite(v) ? "—" : (v * 100).toFixed(1) + "%"; }
 
 let toastTimer = null;
@@ -717,12 +720,7 @@ const LINK_COST_PER_KM = 900;   // 元 / 格
 const LINK_CAP = 500;           // MW
 const LINK_BASE_LOSS = 0.0025;  // 每格损耗
 
-/* ============================ 难度 / 随机事件 / 合同配置 ============================ */
-const DIFFS = {
-  easy:   { name: "简单", goal: 300000,  cash: 2500000 },
-  normal: { name: "普通", goal: 1000000, cash: 2000000 },
-  hard:   { name: "困难", goal: 3000000, cash: 1500000 }
-};
+/* ============================ 随机事件 / 合同配置 ============================ */
 const EVENT_DEFS = [
   { id: "cold",   name: "寒潮来袭",   desc: "全市负荷 +18%",                  dur: [6, 12], loadMul: 1.18 },
   { id: "heat",   name: "持续高温",   desc: "全市负荷 +12%",                  dur: [6, 10], loadMul: 1.12 },
@@ -752,7 +750,7 @@ const state = {
   priceMap: null, // "D:HH" -> price
   today: null, allTime: null,
   days: [], events: [], lastHour: null,
-  diff: "normal", contracts: [], offers: [], offerDay: 0, mods: []
+  contracts: [], offers: [], offerDay: 0, mods: []
 };
 state.today = emptyStat();
 state.allTime = emptyStat();
@@ -990,18 +988,31 @@ function step() {
     });
     if (state.offerDay !== state.day) genOffers();
     submitScore();
-    if (state.day > 28) { state.running = false; endGame(); }
   }
 }
 
-function endGame() {
-  const goal = DIFFS[state.diff].goal;
-  const ok = state.cash >= goal;
-  addEvent(ok ? "28 天目标达成！资金 " + money(state.cash) + " 元" : "28 天结束，资金 " + money(state.cash) + " 元（未达 " + money(goal) + "）", ok ? "" : "warn");
-  toast(ok ? "恭喜达成目标！" : "28 天经营结束");
-  sfx(ok ? "ok" : "sell");
-  saveGame();
-  submitScore();
+/* ============================ 新局赠礼：初始燃煤电厂 ============================ */
+function giveStarterPlant() {
+  const def = PLANT_DEFS.coal;
+  const base = loads[0];   // 滨海市附近
+  let spot = null;
+  for (let d = 0; d < 14 && !spot; d++) {
+    for (let dr = -d; dr <= d && !spot; dr++) for (let dc = -d; dc <= d && !spot; dc++) {
+      const c = base.col + dc - 1, r = base.row + dr - 1;
+      if (c < 0 || r < 0 || c + def.w > COLS || r + def.h > ROWS) continue;
+      let ok = true;
+      for (let y = 0; y < def.h && ok; y++) for (let x = 0; x < def.w && ok; x++) {
+        if (!def.terr.includes(grid[r + y][c + x]) || nodeAtCell(c + x, r + y)) ok = false;
+      }
+      if (ok) spot = [c, r];
+    }
+  }
+  if (!spot) return;
+  state.plants.push({
+    kind: "plant", id: "P" + Date.now(), type: "coal", name: "燃煤电厂 1",
+    col: spot[0], row: spot[1], genMWh: 0, fuelYuan: 0, lastOut: 0, lastAvail: def.cap
+  });
+  addEvent("初始资产：燃煤电厂 1 已在滨海市附近就位（免费）");
 }
 
 /* ============================ P1 随机事件 ============================ */
@@ -1061,7 +1072,7 @@ async function submitScore() {
   if (!sb || !USER || USER === "guest") return;
   try {
     await sb.from("gx_leaderboard").upsert(
-      { username: USER, cash: Math.round(state.cash), day: state.day, difficulty: state.diff },
+      { username: USER, cash: Math.round(state.cash), day: state.day, difficulty: "endless" },
       { onConflict: "username" }
     );
   } catch (e) { /* 网络异常忽略 */ }
@@ -1076,9 +1087,9 @@ async function showLeaderboard() {
       .order("cash", { ascending: false }).limit(20);
     if (error) throw new Error(error.message);
     if (!data || !data.length) { box.innerHTML = '<div class="empty">暂无记录：结束一局或点「保存进度」即可上榜</div>'; return; }
-    box.innerHTML = '<table><thead><tr><th>#</th><th>账号</th><th class="num">资金(元)</th><th class="num">天数</th><th>难度</th></tr></thead><tbody>' +
+    box.innerHTML = '<table><thead><tr><th>#</th><th>账号</th><th class="num">资金(元)</th><th class="num">天数</th></tr></thead><tbody>' +
       data.map((r, i) => '<tr><td>' + (i + 1) + '</td><td>' + r.username + '</td><td class="num">' + money(r.cash) +
-        '</td><td class="num">' + r.day + '</td><td>' + ((DIFFS[r.difficulty] || {}).name || r.difficulty) + '</td></tr>').join("") +
+        '</td><td class="num">' + r.day + '</td></tr>').join("") +
       '</tbody></table>';
   } catch (e) {
     box.innerHTML = '<div class="empty">排行榜加载失败：' + (e.message || "网络异常") + '</div>';
@@ -1704,6 +1715,9 @@ function nodeById(id) {
 function renderHeader() {
   $("hd-cash").textContent = money(state.cash) + " 元";
   $("hd-cash").className = "v " + (state.cash >= 0 ? "up" : "down");
+  const avgP = dailyAvgProfit();
+  $("hd-avg").textContent = (avgP >= 0 ? "+" : "") + money(avgP) + " 元";
+  $("hd-avg").className = "v " + (avgP >= 0 ? "up" : "down");
   $("hd-time").textContent = "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00";
   const h = state.lastHour;
   $("hd-load").textContent = h ? fmtNum(h.load, 0) + " MW" : "—";
@@ -1739,9 +1753,11 @@ function renderPanels() {
   set("a-total", money(state.cash + plantCost + linkCost) + " 元");
   set("a-dep", "-" + money((plantCost + linkCost) * 0.05 / 30) + " 元/天", "down");
 
-  const goal = Math.max(0, Math.min(1, state.cash / DIFFS[state.diff].goal));
-  $("goal-bar").style.width = (goal * 100).toFixed(1) + "%";
-  $("goal-txt").textContent = money(state.cash) + " / " + money(DIFFS[state.diff].goal) + " 元";
+  const avgP = dailyAvgProfit(), netAll = netProfitAll();
+  $("avg-profit").textContent = (avgP >= 0 ? "+" : "") + money(avgP) + " 元/天";
+  $("avg-profit").className = "v " + (avgP >= 0 ? "up" : "down");
+  $("sum-profit").textContent = (netAll >= 0 ? "+" : "") + money(netAll) + " 元";
+  $("sum-profit").className = "v " + (netAll >= 0 ? "up" : "down");
 
   // 收支表
   const rows = [
@@ -2090,7 +2106,7 @@ function saveGame() {
   const data = {
     day: state.day, hour: state.hour, cash: state.cash,
     plants: state.plants, links: state.links, days: state.days, events: state.events,
-    diff: state.diff, contracts: state.contracts, offers: state.offers, offerDay: state.offerDay,
+    diff: "endless", contracts: state.contracts, offers: state.offers, offerDay: state.offerDay,
     loads: loads.map(l => ({ id: l.id, level: l.level, grow: l.grow, totalBought: l.totalBought, totalPaid: l.totalPaid })),
     ts: Date.now()
   };
@@ -2099,11 +2115,8 @@ function saveGame() {
 function loadGame() {
   const raw = localStorage.getItem("gx-save-" + USER);
   if (!raw) {
-    // 新局：按难度初始化（默认普通）
-    let diff = "normal";
-    try { diff = localStorage.getItem("gx-diff") || "normal"; } catch (e) {}
-    state.diff = DIFFS[diff] ? diff : "normal";
-    state.cash = DIFFS[state.diff].cash;
+    // 新局：无尽经营，固定初始资金
+    state.cash = 2000000;
     return false;
   }
   try {
@@ -2111,7 +2124,6 @@ function loadGame() {
     state.day = d.day; state.hour = d.hour; state.cash = d.cash;
     state.plants = d.plants || []; state.links = d.links || [];
     state.days = d.days || []; state.events = d.events || [];
-    state.diff = DIFFS[d.diff] ? d.diff : "normal";
     state.contracts = d.contracts || []; state.offers = d.offers || []; state.offerDay = d.offerDay || 0;
     (d.loads || []).forEach(s => {
       const L = loads.find(l => l.id === s.id);
@@ -2122,7 +2134,7 @@ function loadGame() {
   } catch (e) { return false; }
 }
 
-$("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; updateDiffUI(); });
+$("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; });
 $("m-close").addEventListener("click", () => { $("menu-mask").hidden = true; });
 $("report-btn").addEventListener("click", () => {
   $("report-mask").hidden = false;
@@ -2140,12 +2152,11 @@ window.addEventListener("keydown", e => {
 });
 $("m-save").addEventListener("click", () => { saveGame(); submitScore(); toast("已保存到本机并同步排行榜"); });
 $("m-load").addEventListener("click", () => {
-  if (loadGame()) { toast("已读取存档"); renderAll(); updateDiffUI(); $("menu-mask").hidden = true; }
+  if (loadGame()) { toast("已读取存档"); renderAll(); $("menu-mask").hidden = true; }
   else toast("没有找到存档", "err");
 });
 $("m-new").addEventListener("click", () => {
-  if (!confirm("重新开始会丢弃当前进度（难度：" + DIFFS[state.diff].name + "），确定？")) return;
-  localStorage.setItem("gx-diff", state.diff);
+  if (!confirm("重新开始会丢弃当前进度，确定？")) return;
   localStorage.removeItem("gx-save-" + USER);
   location.href = location.pathname + "?u=" + encodeURIComponent(USER) + "&t=" + Date.now();
 });
@@ -2159,17 +2170,6 @@ $("m-board").addEventListener("click", () => {
 });
 $("board-close").addEventListener("click", () => { $("board-mask").hidden = true; });
 $("board-refresh").addEventListener("click", showLeaderboard);
-/* P1 难度选择 */
-function updateDiffUI() {
-  document.querySelectorAll("[data-diff]").forEach(x => x.classList.toggle("active", x.dataset.diff === state.diff));
-  $("goal-diff").textContent = DIFFS[state.diff].name;
-  $("goal-rule").textContent = "28 天资金 ≥ " + money(DIFFS[state.diff].goal) + " 元";
-}
-document.querySelectorAll("[data-diff]").forEach(b => b.addEventListener("click", () => {
-  state.diff = b.dataset.diff;
-  updateDiffUI();
-  toast("难度已设为「" + DIFFS[state.diff].name + "」，重新开始后生效");
-}));
 
 /* ============================ 速度 / 暂停 ============================ */
 $("pause-btn").addEventListener("click", () => {
@@ -2202,9 +2202,8 @@ function loop(ts) {
 /* ============================ 启动 ============================ */
 buildTools();
 updateModeBtns();
-loadGame();
+if (!loadGame()) giveStarterPlant();   // 新局赠送初始燃煤电厂
 if (!state.offers.length || state.offerDay !== state.day) genOffers();
-updateDiffUI();
 loadPrices();
 resizeView();
 window.addEventListener("resize", () => { resizeView(); drawMap(); });
