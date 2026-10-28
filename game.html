@@ -911,9 +911,9 @@ function drawMap() {
   cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
   for (const [c, r] of cells) drawTerrainCell(c, r, grid[r][c], light);
 
-  /* --- 建造 / 连线 / 拆除模式：RTS 放置网格 --- */
-  if (state.mode !== "none") {
-    ctx.strokeStyle = "rgba(120,255,160,0.13)"; ctx.lineWidth = 1;
+  /* --- 建造模式：RTS 放置网格（星际式，仅放置时显示） --- */
+  if (state.mode === "build" && state.buildType) {
+    ctx.strokeStyle = "rgba(120,255,160,0.16)"; ctx.lineWidth = 1;
     for (const [c, r] of cells) {
       const terr = grid[r][c];
       const cx = isoX(c, r), cy = isoY(c, r) - (terr === "mountain" ? 10 : terr === "river" ? 0 : 3);
@@ -923,14 +923,13 @@ function drawMap() {
     }
   }
 
-  /* --- 悬停：RTS 选择框 + 四角括号（红=不可放置） --- */
-  if (hoverCell) {
+  /* --- 悬停：仅建造放置时显示（星际式，平时不高亮） --- */
+  if (hoverCell && state.mode === "build" && state.buildType) {
     const { c, r } = hoverCell;
     const terr = grid[r][c];
     const lift = terr === "mountain" ? 10 : (terr === "river" ? 0 : 3);
     const cx = isoX(c, r), cy = isoY(c, r) - lift;
-    let ok = true;
-    if (state.mode === "build" && state.buildType) ok = PLANT_DEFS[state.buildType].terr.includes(terr);
+    const ok = PLANT_DEFS[state.buildType].terr.includes(terr);
     const col = ok ? "#4dff88" : "#ff5252";
     ctx.fillStyle = ok ? "rgba(80,255,140,0.13)" : "rgba(255,80,80,0.15)";
     ctx.beginPath();
@@ -1399,6 +1398,11 @@ canvas.addEventListener("pointermove", ev => {
     drawMap();
     return;
   }
+  // 仅在建造放置时才做格子悬停高亮（星际式）
+  if (state.mode !== "build" || !state.buildType) {
+    if (hoverCell) { hoverCell = null; drawMap(); }
+    return;
+  }
   const cell = cellAt(ev);
   const changed = (cell && hoverCell) ? (cell.c !== hoverCell.c || cell.r !== hoverCell.r) : (cell !== hoverCell);
   hoverCell = cell;
@@ -1507,6 +1511,7 @@ canvas.addEventListener("click", ev => {
 document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
   state.mode = b.dataset.mode;
   state.linkFrom = null;
+  hoverCell = null;
   if (state.mode !== "build") {
     state.buildType = null;
     document.querySelectorAll(".build").forEach(x => x.classList.remove("on"));
