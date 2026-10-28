@@ -1807,6 +1807,8 @@ function renderPanels() {
   $("sum-profit").textContent = (netAll >= 0 ? "+" : "") + money(netAll) + " 元";
   $("sum-profit").className = "v " + (netAll >= 0 ? "up" : "down");
 
+  // 报表类表格只在弹层打开时才重建（省下每帧 5 张表的 DOM 开销）
+  if (!$("report-mask").hidden) {
   // 收支表
   const rows = [
     ["售电收入", S.inc, A.inc, "up"],
@@ -1848,12 +1850,16 @@ function renderPanels() {
 
   // 每日经营
   $("day-body").innerHTML = state.days.length ? state.days.map(d => {
-    const net = d.inc - d.fuel - d.om - d.buy;
+    const net = d.inc - d.fuel - d.om - d.buy + (d.ctr || 0);
     return `<tr><td class="center">第 ${d.day} 天</td><td class="num">${fmtNum(d.soldMWh, 0)}</td>
       <td class="num">${fmtNum(d.buyMWh, 0)}</td><td class="num up">${money(d.inc)}</td>
       <td class="num down">${money(d.fuel + d.om)}</td><td class="num down">${money(d.buy)}</td>
       <td class="num ${net >= 0 ? "up" : "down"}">${money(net)}</td><td class="num">${money(d.cash)}</td></tr>`;
   }).join("") : '<tr><td colspan="8" class="empty">经营满 1 天后出现日报</td></tr>';
+
+  // 合同页签打开时同步刷新（签约/到期即时可见）
+  if (!$("rp-contract").hidden) renderContractTab();
+  }
 
   // 事件
   $("events").innerHTML = state.events.length
@@ -1889,17 +1895,22 @@ function renderContractTab() {
 function renderMonthTab() {
   const chrono = state.days.slice().reverse();   // 旧→新
   const parts = [];
-  for (let w = 0; w < 4; w++) {
-    const seg = chrono.filter(d => d.day > w * 7 && d.day <= (w + 1) * 7);
-    if (!seg.length) continue;
+  const groups = new Map();
+  chrono.forEach(d => {
+    const w = Math.ceil(d.day / 7);
+    if (!groups.has(w)) groups.set(w, []);
+    groups.get(w).push(d);
+  });
+  [...groups.keys()].sort((a, b) => a - b).forEach(w => {
+    const seg = groups.get(w);
     const sum = k => seg.reduce((s, d) => s + (d[k] || 0), 0);
     const net = sum("inc") - sum("fuel") - sum("om") - sum("buy") + sum("ctr");
-    parts.push('<tr><td>第 ' + (w * 7 + 1) + '–' + Math.min(28, (w + 1) * 7) + ' 天</td><td class="num">' + fmtNum(sum("soldMWh"), 0) +
+    parts.push('<tr><td>第 ' + (w * 7 - 6) + '–' + (w * 7) + ' 天</td><td class="num">' + fmtNum(sum("soldMWh"), 0) +
       '</td><td class="num">' + fmtNum(sum("buyMWh"), 0) + '</td><td class="num up">' + money(sum("inc")) +
       '</td><td class="num down">' + money(sum("fuel") + sum("om")) + '</td><td class="num down">' + money(sum("buy")) +
       '</td><td class="num ' + (sum("ctr") >= 0 ? "up" : "down") + '">' + money(sum("ctr")) +
       '</td><td class="num ' + (net >= 0 ? "up" : "down") + '">' + money(net) + '</td></tr>');
-  }
+  });
   const A = state.allTime;
   const net = A.inc - A.fuel - A.om - A.buy + A.ctr;
   parts.push('<tr><td><b>全期合计</b></td><td class="num">' + fmtNum(A.soldMWh, 0) + '</td><td class="num">' + fmtNum(A.buyMWh, 0) +
@@ -2200,6 +2211,7 @@ $("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; }
 $("m-close").addEventListener("click", () => { $("menu-mask").hidden = true; });
 $("report-btn").addEventListener("click", () => {
   $("report-mask").hidden = false;
+  renderPanels();            // 打开时立即重建报表表格
   renderContractTab(); renderMonthTab();
 });
 $("report-close").addEventListener("click", () => { $("report-mask").hidden = true; });
@@ -2245,19 +2257,21 @@ document.querySelectorAll("[data-speed]").forEach(b => b.addEventListener("click
 }));
 
 /* ============================ 主循环 ============================ */
-let acc = 0, lastTs = performance.now();
+let acc = 0, lastTs = performance.now(), lastUi = 0;
 function loop(ts) {
   const dt = ts - lastTs; lastTs = ts;
-  const camMoved = updateCamera(dt);
+  updateCamera(dt);
   if (state.running) {
     acc += dt;
     const interval = 2400 / state.speed;
     while (acc >= interval) { acc -= interval; step(); }
-    renderAll();
-  } else {
-    drawMap();
   }
-  void camMoved;
+  drawMap();                                   // 画布逐帧（动画流畅）
+  if (ts - lastUi >= 250) {                    // 面板数值 4 次/秒（省 CPU）
+    lastUi = ts;
+    renderHeader();
+    renderPanels();
+  }
   requestAnimationFrame(loop);
 }
 
