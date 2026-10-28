@@ -357,10 +357,14 @@
     <canvas id="mini" width="248" height="150"></canvas>
   </div>
   <div class="hud-card">
-    <div class="hud-title">目标</div>
-    <div class="kv"><span class="k">目标</span><span class="v">28 天资金 ≥ 30 万元</span></div>
+    <div class="hud-title">目标 <span class="tip" id="goal-diff">普通</span></div>
+    <div class="kv"><span class="k">目标</span><span class="v" id="goal-rule">28 天资金 ≥ 1,000,000 元</span></div>
     <div class="bar"><i id="goal-bar" style="width:0;background:linear-gradient(90deg,#2f9e6f,#3ddc84)"></i></div>
     <div class="kv"><span class="k">进度</span><span class="v" id="goal-txt">—</span></div>
+  </div>
+  <div class="hud-card">
+    <div class="hud-title">当前事件 <span class="tip" id="mod-tip">—</span></div>
+    <div id="mods"><div class="ev">风平浪静</div></div>
   </div>
   <div class="hud-card">
     <div class="hud-title">时刻信息 <span class="tip" id="now-tip">—</span></div>
@@ -411,6 +415,8 @@
       <button class="btn" data-rp="rp-plant" type="button">电站运行</button>
       <button class="btn" data-rp="rp-mkt" type="button">市场买卖电</button>
       <button class="btn" data-rp="rp-day" type="button">每日经营</button>
+      <button class="btn" data-rp="rp-contract" type="button">中长期合同</button>
+      <button class="btn" data-rp="rp-month" type="button">月报</button>
     </div>
     <div class="rp-pane" id="rp-fin">
       <div class="rp-sub">收支（每小时结算）</div>
@@ -468,6 +474,25 @@
         <tbody id="day-body"></tbody>
       </table>
     </div>
+    <div class="rp-pane" id="rp-contract" hidden>
+      <div class="rp-sub">中长期差价合约 <span class="tip">每小时按（合同价 − 日前电价）× 合同电量 结算盈亏；电价低于合同价时盈利。签订总电量上限 300 MW</span></div>
+      <table>
+        <thead><tr><th>合同</th><th class="num">签订价(元/MWh)</th><th class="num">电量(MW)</th><th class="num">剩余天数</th><th class="num">累计盈亏(元)</th></tr></thead>
+        <tbody id="ctr-active"></tbody>
+      </table>
+      <div class="rp-sub" style="margin-top:14px">可签报价（每日刷新）</div>
+      <table>
+        <thead><tr><th>编号</th><th class="num">合同价(元/MWh)</th><th class="num">电量(MW)</th><th class="num">期限(天)</th><th></th></tr></thead>
+        <tbody id="ctr-offers"></tbody>
+      </table>
+    </div>
+    <div class="rp-pane" id="rp-month" hidden>
+      <div class="rp-sub">经营月报（按周汇总）</div>
+      <table>
+        <thead><tr><th>周期</th><th class="num">售电(MWh)</th><th class="num">购电(MWh)</th><th class="num">售电收入</th><th class="num">燃料+维护</th><th class="num">购电支出</th><th class="num">合同盈亏</th><th class="num">净利</th></tr></thead>
+        <tbody id="month-body"></tbody>
+      </table>
+    </div>
     <div class="row"><button class="btn active" id="report-close" type="button">关闭</button></div>
   </div>
 </div>
@@ -477,6 +502,12 @@
   <div class="modal">
     <h3>菜单</h3>
     <p>账号：<strong id="menu-user">—</strong>　存档只保存在本机浏览器，换电脑或清缓存会丢失。</p>
+    <p style="margin-bottom:6px">难度（目标金额，点「重新开始」生效）：</p>
+    <div class="row" style="justify-content:flex-start;margin-top:0;flex-wrap:wrap">
+      <button class="btn" data-diff="easy" type="button">简单 · 目标 30 万</button>
+      <button class="btn" data-diff="normal" type="button">普通 · 目标 100 万</button>
+      <button class="btn" data-diff="hard" type="button">困难 · 目标 300 万</button>
+    </div>
     <div class="row" style="justify-content:flex-start;flex-wrap:wrap">
       <button class="btn" id="m-new" type="button">重新开始</button>
       <button class="btn" id="m-save" type="button">保存进度</button>
@@ -484,6 +515,18 @@
       <button class="btn" id="m-board" type="button">排行榜</button>
     </div>
     <div class="row"><button class="btn active" id="m-close" type="button">关闭</button></div>
+  </div>
+</div>
+
+<!-- 排行榜 -->
+<div class="mask" id="board-mask" hidden>
+  <div class="modal modal-wide">
+    <h3>排行榜 <span class="tip" style="font-size:11px;color:#7d8f9c;font-weight:400">云端 · 全部账号 · 按资金排序</span></h3>
+    <div class="rp-pane" id="board-body"><div class="empty">加载中…</div></div>
+    <div class="row">
+      <button class="btn" id="board-refresh" type="button">刷新</button>
+      <button class="btn active" id="board-close" type="button">关闭</button>
+    </div>
   </div>
 </div>
 
@@ -662,6 +705,25 @@ const LINK_COST_PER_KM = 900;   // 元 / 格
 const LINK_CAP = 500;           // MW
 const LINK_BASE_LOSS = 0.0025;  // 每格损耗
 
+/* ============================ 难度 / 随机事件 / 合同配置 ============================ */
+const DIFFS = {
+  easy:   { name: "简单", goal: 300000,  cash: 2500000 },
+  normal: { name: "普通", goal: 1000000, cash: 2000000 },
+  hard:   { name: "困难", goal: 3000000, cash: 1500000 }
+};
+const EVENT_DEFS = [
+  { id: "cold",   name: "寒潮来袭",   desc: "全市负荷 +18%",                  dur: [6, 12], loadMul: 1.18 },
+  { id: "heat",   name: "持续高温",   desc: "全市负荷 +12%",                  dur: [6, 10], loadMul: 1.12 },
+  { id: "storm",  name: "台风过境",   desc: "风电 +35% / 光伏 -50%",          dur: [3, 6],  windMul: 1.35, solarMul: 0.5 },
+  { id: "windup", name: "风资源转好", desc: "风电出力 +25%",                  dur: [6, 12], windMul: 1.25 },
+  { id: "fuelup", name: "燃料涨价",   desc: "燃料成本 +25%",                  dur: [12, 24], fuelMul: 1.25 },
+  { id: "surge",  name: "电价飙升",   desc: "市场电价 +40%",                  dur: [4, 8],  priceMul: 1.4 },
+  { id: "dip",    name: "电价低谷",   desc: "市场电价 -25%（适合签合同）",     dur: [6, 12], priceMul: 0.75 },
+  { id: "outage", name: "机组故障",   desc: "随机一座电厂停机检修",            dur: [4, 8],  offline: true },
+  { id: "subsidy",name: "绿电补贴",   desc: "立即获得一笔补贴款",              instant: true }
+];
+const CONTRACT_CAP = 300;       // 合同总电量上限 MW
+
 /* ============================ 游戏状态 ============================ */
 const loads = [
   makeLoadNode("滨海市", 10, 8, 210, false),
@@ -677,7 +739,8 @@ const state = {
   plants: [], links: [],
   priceMap: null, // "D:HH" -> price
   today: null, allTime: null,
-  days: [], events: [], lastHour: null
+  days: [], events: [], lastHour: null,
+  diff: "normal", contracts: [], offers: [], offerDay: 0, mods: []
 };
 state.today = emptyStat();
 state.allTime = emptyStat();
@@ -685,7 +748,7 @@ state.allTime = emptyStat();
 function emptyStat() {
   return {
     inc: 0, fuel: 0, om: 0, buy: 0, buyMWh: 0, sellMWh: 0,
-    soldMWh: 0, shedMWh: 0, loadMWh: 0, cost: 0
+    soldMWh: 0, shedMWh: 0, loadMWh: 0, cost: 0, ctr: 0
   };
 }
 
@@ -700,7 +763,7 @@ function simPriceDate(dayNum) {
   base.setDate(base.getDate() + (dayNum - 1));
   return base.getFullYear() + "-" + String(base.getMonth() + 1).padStart(2, "0") + "-" + String(base.getDate()).padStart(2, "0");
 }
-function priceAt(day, hour) {
+function basePriceAt(day, hour) {
   const d = simPriceDate(day);
   if (state.priceMap) {
     const v = state.priceMap[d + ":" + hour];
@@ -711,6 +774,13 @@ function priceAt(day, hour) {
   // 备用合成曲线（未取到真实电价时）
   const shape = [320, 295, 280, 272, 268, 280, 330, 388, 430, 452, 462, 455, 440, 430, 436, 446, 458, 472, 478, 470, 452, 420, 382, 350];
   return shape[hour % 24] * (1 + (day % 7 === 0 || day % 7 === 6 ? 0.06 : 0));
+}
+function priceAt(day, hour) {
+  const p = basePriceAt(day, hour);
+  const absH = (day - 1) * 24 + hour;
+  let mul = 1;
+  state.mods.forEach(m => { if (m.priceMul && m.until > absH) mul *= m.priceMul; });
+  return mul === 1 ? p : p * mul;
 }
 
 async function loadPrices() {
@@ -758,19 +828,29 @@ function plantOutput(pl, hour, day) {
 
 /* ============================ 每小时推进 ============================ */
 function step() {
+  const absH = (state.day - 1) * 24 + state.hour;
+  state.mods = state.mods.filter(m => m.until > absH);        // 过期事件清理
+  const modSum = k => state.mods.reduce((s, m) => s * (m[k] || 1), 1);
+  const loadMul = modSum("loadMul"), fuelMul = modSum("fuelMul");
   const price = priceAt(state.day, state.hour);
   const S = state.today, A = state.allTime;
 
-  // 1) 负荷
+  // 1) 负荷（事件：寒潮/高温加负荷）
   const shape = LOAD_SHAPE[state.hour];
   loads.forEach(L => {
-    L.load = L.base * (1 + 0.12 * (L.level - 1)) * (L.industry ? 1.0 : shape);
+    L.load = L.base * (1 + 0.12 * (L.level - 1)) * (L.industry ? 1.0 : shape) * loadMul;
     L.served = 0;
   });
   const totalLoad = loads.reduce((s, L) => s + L.load, 0);
 
-  // 2) 可再生最大出力
-  const avail = state.plants.map(p => plantOutput(p, state.hour, state.day));
+  // 2) 可再生最大出力（事件：台风/风资源；机组故障停机）
+  const avail = state.plants.map(p => {
+    if (p.offlineUntil && p.offlineUntil > absH) return 0;
+    let out = plantOutput(p, state.hour, state.day);
+    if (p.type === "wind") out *= modSum("windMul");
+    if (p.type === "solar" || p.type === "fishery") out *= modSum("solarMul");
+    return out;
+  });
   const cur = state.plants.map(() => 0);
 
   // 3) 电源点：未接负荷节点的电厂 → 售给市场；接到负荷节点的 → 优先供电
@@ -832,7 +912,7 @@ function step() {
     const def = PLANT_DEFS[p.type];
     om += def.fixedCost;
     if (p.type === "storage") { p.lastOut = cur[i]; p.lastAvail = avail[i]; return; }
-    fuel += cur[i] * def.varCost;
+    fuel += cur[i] * def.varCost * fuelMul;
     p.genMWh = (p.genMWh || 0) + cur[i];
     p.fuelYuan = (p.fuelYuan || 0) + cur[i] * def.varCost;
     p.lastOut = cur[i];
@@ -841,13 +921,24 @@ function step() {
 
   // 6) 收支结算
   const inc = servedAll * price + marketSell * price;
-  const buy = shed * price * 1.08; // 缺供从市场高价买回 + 罚款 15%
+  const buy = shed * price * 1.08; // 缺供从市场高价买回 + 罚款
   S.inc += inc; S.fuel += fuel; S.om += om; S.buy += buy; S.buyMWh += shed; S.soldMWh += servedAll + marketSell;
   S.loadMWh += totalLoad; S.shedMWh += shed;
   A.inc += inc; A.fuel += fuel; A.om += om; A.buy += buy; A.buyMWh += shed; A.soldMWh += servedAll + marketSell;
 
-  state.cash += inc - fuel - om - buy;
-  state.lastHour = { price, load: totalLoad, servedAll, shed, marketSell, fuel, om, inc, buy };
+  // 6b) 中长期差价合约：每小时按（合同价 − 日前电价）× 电量 结算
+  let ctrPnl = 0;
+  state.contracts.forEach(k => {
+    if (!k.expired && state.day >= k.startDay && state.day < k.startDay + k.days) {
+      const pnl = (k.price - price) * k.qty;
+      ctrPnl += pnl;
+      k.pnl = (k.pnl || 0) + pnl;
+    }
+  });
+  S.ctr += ctrPnl; A.ctr += ctrPnl;
+
+  state.cash += inc - fuel - om - buy + ctrPnl;
+  state.lastHour = { price, load: totalLoad, servedAll, shed, marketSell, fuel, om, inc, buy, ctr: ctrPnl };
 
   // 7) 城市成长 / 事件
   loads.forEach(L => {
@@ -862,6 +953,9 @@ function step() {
   });
   if (state.cash < 0) addEvent("现金为负，注意收支！", "warn");
 
+  // 7b) 随机事件掷骰
+  maybeRandomEvent(absH);
+
   // 8) 推进时刻
   state.hour++;
   if (state.hour >= 24) {
@@ -869,22 +963,114 @@ function step() {
     const d = { day: state.day, ...state.today };
     state.days.unshift(d);
     if (state.days.length > 60) state.days.pop();
-    addEvent("第 " + state.day + " 天结算：净利 " + money(d.inc - d.fuel - d.om - d.buy) + " 元，资金 " + money(state.cash) + " 元");
+    addEvent("第 " + state.day + " 天结算：净利 " + money(d.inc - d.fuel - d.om - d.buy + (d.ctr || 0)) + " 元，资金 " + money(state.cash) + " 元");
     // 5% 资产折旧
     const dep = (state.plants.reduce((s, p) => s + PLANT_DEFS[p.type].cost, 0) + state.links.length * 0) * 0.05 / 30;
     state.cash -= dep;
     state.today = emptyStat();
     state.day++;
+    // 合同到期 / 报价刷新 / 每日上榜
+    state.contracts.forEach(k => {
+      if (!k.expired && state.day >= k.startDay + k.days) {
+        k.expired = true;
+        addEvent("合同到期：累计盈亏 " + money(k.pnl || 0) + " 元", (k.pnl || 0) >= 0 ? "" : "warn");
+      }
+    });
+    if (state.offerDay !== state.day) genOffers();
+    submitScore();
     if (state.day > 28) { state.running = false; endGame(); }
   }
 }
 
 function endGame() {
-  const ok = state.cash >= 300000;
-  addEvent(ok ? "28 天目标达成！资金 " + money(state.cash) + " 元" : "28 天结束，资金 " + money(state.cash) + " 元（未达 30 万）", ok ? "" : "warn");
+  const goal = DIFFS[state.diff].goal;
+  const ok = state.cash >= goal;
+  addEvent(ok ? "28 天目标达成！资金 " + money(state.cash) + " 元" : "28 天结束，资金 " + money(state.cash) + " 元（未达 " + money(goal) + "）", ok ? "" : "warn");
   toast(ok ? "恭喜达成目标！" : "28 天经营结束");
   sfx(ok ? "ok" : "sell");
   saveGame();
+  submitScore();
+}
+
+/* ============================ P1 随机事件 ============================ */
+function maybeRandomEvent(absH) {
+  if (state.mods.length >= 2) return;
+  if (Math.random() > 0.06) return;
+  const def = EVENT_DEFS[Math.floor(Math.random() * EVENT_DEFS.length)];
+  if (state.mods.some(m => m.id === def.id)) return;
+  if (def.instant) {
+    const bonus = 30000 + Math.floor(Math.random() * 50000);
+    state.cash += bonus;
+    addEvent(def.name + "：" + def.desc + "（+" + money(bonus) + " 元）");
+    toast("补贴到账 +" + money(bonus) + " 元");
+    sfx("ok");
+    return;
+  }
+  const dur = def.dur[0] + Math.floor(Math.random() * (def.dur[1] - def.dur[0] + 1));
+  const m = { id: def.id, name: def.name, desc: def.desc, until: absH + dur };
+  ["loadMul", "windMul", "solarMul", "fuelMul", "priceMul"].forEach(k => { if (def[k]) m[k] = def[k]; });
+  if (def.offline && state.plants.length) {
+    const p = state.plants[Math.floor(Math.random() * state.plants.length)];
+    p.offlineUntil = absH + dur;
+    m.desc = p.name + " 停机检修";
+  }
+  state.mods.push(m);
+  addEvent(def.name + "：" + m.desc + "（" + dur + " 小时）", "warn");
+  toast("⚡ " + def.name + "：" + m.desc);
+  sfx("err");
+}
+
+/* ============================ P1 中长期合同（差价合约） ============================ */
+function genOffers() {
+  state.offerDay = state.day;
+  const base = 300 + Math.round(Math.random() * 120);
+  state.offers = [0, 1, 2].map(i => ({
+    id: "C" + state.day + "-" + (i + 1),
+    price: base + i * 22 + Math.round(Math.random() * 14),
+    qty: 60 + Math.round(Math.random() * 12) * 10,
+    days: 5 + Math.floor(Math.random() * 6)
+  }));
+}
+function signContract(offerId) {
+  const o = state.offers.find(x => x.id === offerId);
+  if (!o) return;
+  const used = state.contracts.filter(k => !k.expired).reduce((s, k) => s + k.qty, 0);
+  if (used + o.qty > CONTRACT_CAP) { sfx("err"); return toast("合同电量超上限（" + CONTRACT_CAP + " MW）"); }
+  state.contracts.push({ id: o.id, price: o.price, qty: o.qty, days: o.days, startDay: state.day, pnl: 0, expired: false });
+  state.offers = state.offers.filter(x => x.id !== offerId);
+  addEvent("签订中长期合同：" + o.qty + " MW × " + o.price + " 元/MWh × " + o.days + " 天");
+  toast("合同已签：" + o.price + " 元/MWh × " + o.qty + " MW");
+  sfx("ok");
+  renderPanels();
+}
+
+/* ============================ P2 云端排行榜 ============================ */
+async function submitScore() {
+  if (!sb || !USER || USER === "guest") return;
+  try {
+    await sb.from("gx_leaderboard").upsert(
+      { username: USER, cash: Math.round(state.cash), day: state.day, difficulty: state.diff },
+      { onConflict: "username" }
+    );
+  } catch (e) { /* 网络异常忽略 */ }
+}
+async function showLeaderboard() {
+  const box = $("board-body");
+  box.innerHTML = '<div class="empty">加载中…</div>';
+  if (!sb) { box.innerHTML = '<div class="empty">未连接到云端（Supabase 组件加载失败）</div>'; return; }
+  try {
+    const { data, error } = await sb.from("gx_leaderboard")
+      .select("username,cash,day,difficulty")
+      .order("cash", { ascending: false }).limit(20);
+    if (error) throw new Error(error.message);
+    if (!data || !data.length) { box.innerHTML = '<div class="empty">暂无记录：结束一局或点「保存进度」即可上榜</div>'; return; }
+    box.innerHTML = '<table><thead><tr><th>#</th><th>账号</th><th class="num">资金(元)</th><th class="num">天数</th><th>难度</th></tr></thead><tbody>' +
+      data.map((r, i) => '<tr><td>' + (i + 1) + '</td><td>' + r.username + '</td><td class="num">' + money(r.cash) +
+        '</td><td class="num">' + r.day + '</td><td>' + ((DIFFS[r.difficulty] || {}).name || r.difficulty) + '</td></tr>').join("") +
+      '</tbody></table>';
+  } catch (e) {
+    box.innerHTML = '<div class="empty">排行榜加载失败：' + (e.message || "网络异常") + '</div>';
+  }
 }
 
 /* ============================ 画地图（RTS 军事风 · 全程序化） ============================ */
@@ -1541,9 +1727,9 @@ function renderPanels() {
   set("a-total", money(state.cash + plantCost + linkCost) + " 元");
   set("a-dep", "-" + money((plantCost + linkCost) * 0.05 / 30) + " 元/天", "down");
 
-  const goal = Math.max(0, Math.min(1, state.cash / 300000));
+  const goal = Math.max(0, Math.min(1, state.cash / DIFFS[state.diff].goal));
   $("goal-bar").style.width = (goal * 100).toFixed(1) + "%";
-  $("goal-txt").textContent = money(state.cash) + " / 300,000 元";
+  $("goal-txt").textContent = money(state.cash) + " / " + money(DIFFS[state.diff].goal) + " 元";
 
   // 收支表
   const rows = [
@@ -1551,7 +1737,8 @@ function renderPanels() {
     ["燃料成本", -S.fuel, -A.fuel, "down"],
     ["维护成本", -S.om, -A.om, "down"],
     ["购电/罚款", -S.buy, -A.buy, "down"],
-    ["净现金流", S.inc - S.fuel - S.om - S.buy, A.inc - A.fuel - A.om - A.buy, (S.inc - S.fuel - S.om - S.buy) >= 0 ? "up" : "down"]
+    ["合同盈亏", S.ctr, A.ctr, S.ctr >= 0 ? "up" : "down"],
+    ["净现金流", S.inc - S.fuel - S.om - S.buy + S.ctr, A.inc - A.fuel - A.om - A.buy + A.ctr, (S.inc - S.fuel - S.om - S.buy + S.ctr) >= 0 ? "up" : "down"]
   ];
   $("fin-body").innerHTML = rows.map(r =>
     `<tr><td>${r[0]}</td><td class="num ${r[3]}">${money(r[1])}</td><td class="num ${r[3]}">${money(r[2])}</td><td class="num ${r[3]}">${money(r[2])}</td></tr>`
@@ -1597,6 +1784,54 @@ function renderPanels() {
   $("events").innerHTML = state.events.length
     ? state.events.slice(0, 12).map(e => `<div class="ev ${e.level}">${e.msg}</div>`).join("")
     : '<div class="ev">尚无事件</div>';
+
+  // 当前生效的随机事件（P1）
+  const absH = (state.day - 1) * 24 + state.hour;
+  const acts = state.mods.filter(m => m.until > absH);
+  $("mods").innerHTML = acts.length
+    ? acts.map(m => '<div class="ev warn">' + m.name + '：' + m.desc + '（剩 ' + Math.max(1, Math.ceil(m.until - absH)) + ' 小时）</div>').join("")
+    : '<div class="ev">风平浪静</div>';
+  $("mod-tip").textContent = acts.length ? acts.length + " 个进行中" : "—";
+}
+
+/* P1：合同 / 月报表页渲染 */
+function renderContractTab() {
+  $("ctr-active").innerHTML = state.contracts.length ? state.contracts.map(k => {
+    const left = Math.max(0, k.startDay + k.days - state.day);
+    const done = k.expired || left === 0;
+    return '<tr><td>' + (done ? '<span class="tag mute">已到期</span>' : '<span class="tag ok">执行中</span>') +
+      '</td><td class="num">' + k.price + '</td><td class="num">' + k.qty + '</td><td class="num">' + left +
+      '</td><td class="num ' + ((k.pnl || 0) >= 0 ? "up" : "down") + '">' + money(k.pnl || 0) + '</td></tr>';
+  }).join("") : '<tr><td colspan="5" class="empty">还没有合同，可从下方报价里签一份</td></tr>';
+  $("ctr-offers").innerHTML = state.offers.length ? state.offers.map(o =>
+    '<tr><td>' + o.id + '</td><td class="num">' + o.price + '</td><td class="num">' + o.qty +
+    '</td><td class="num">' + o.days + '</td><td class="center"><button class="btn" data-sign="' + o.id + '" type="button">签订</button></td></tr>'
+  ).join("") : '<tr><td colspan="5" class="empty">今日报价已签完，明日刷新</td></tr>';
+  document.querySelectorAll('#ctr-offers [data-sign]').forEach(b => {
+    b.addEventListener("click", () => signContract(b.dataset.sign));
+  });
+}
+function renderMonthTab() {
+  const chrono = state.days.slice().reverse();   // 旧→新
+  const parts = [];
+  for (let w = 0; w < 4; w++) {
+    const seg = chrono.filter(d => d.day > w * 7 && d.day <= (w + 1) * 7);
+    if (!seg.length) continue;
+    const sum = k => seg.reduce((s, d) => s + (d[k] || 0), 0);
+    const net = sum("inc") - sum("fuel") - sum("om") - sum("buy") + sum("ctr");
+    parts.push('<tr><td>第 ' + (w * 7 + 1) + '–' + Math.min(28, (w + 1) * 7) + ' 天</td><td class="num">' + fmtNum(sum("soldMWh"), 0) +
+      '</td><td class="num">' + fmtNum(sum("buyMWh"), 0) + '</td><td class="num up">' + money(sum("inc")) +
+      '</td><td class="num down">' + money(sum("fuel") + sum("om")) + '</td><td class="num down">' + money(sum("buy")) +
+      '</td><td class="num ' + (sum("ctr") >= 0 ? "up" : "down") + '">' + money(sum("ctr")) +
+      '</td><td class="num ' + (net >= 0 ? "up" : "down") + '">' + money(net) + '</td></tr>');
+  }
+  const A = state.allTime;
+  const net = A.inc - A.fuel - A.om - A.buy + A.ctr;
+  parts.push('<tr><td><b>全期合计</b></td><td class="num">' + fmtNum(A.soldMWh, 0) + '</td><td class="num">' + fmtNum(A.buyMWh, 0) +
+    '</td><td class="num up">' + money(A.inc) + '</td><td class="num down">' + money(A.fuel + A.om) + '</td><td class="num down">' + money(A.buy) +
+    '</td><td class="num ' + (A.ctr >= 0 ? "up" : "down") + '">' + money(A.ctr) +
+    '</td><td class="num ' + (net >= 0 ? "up" : "down") + '">' + money(net) + '</td></tr>');
+  $("month-body").innerHTML = parts.join("");
 }
 
 function renderAll() { drawMap(); renderHeader(); renderPanels(); }
@@ -1832,6 +2067,7 @@ function saveGame() {
   const data = {
     day: state.day, hour: state.hour, cash: state.cash,
     plants: state.plants, links: state.links, days: state.days, events: state.events,
+    diff: state.diff, contracts: state.contracts, offers: state.offers, offerDay: state.offerDay,
     loads: loads.map(l => ({ id: l.id, level: l.level, grow: l.grow, totalBought: l.totalBought, totalPaid: l.totalPaid })),
     ts: Date.now()
   };
@@ -1839,12 +2075,21 @@ function saveGame() {
 }
 function loadGame() {
   const raw = localStorage.getItem("gx-save-" + USER);
-  if (!raw) return false;
+  if (!raw) {
+    // 新局：按难度初始化（默认普通）
+    let diff = "normal";
+    try { diff = localStorage.getItem("gx-diff") || "normal"; } catch (e) {}
+    state.diff = DIFFS[diff] ? diff : "normal";
+    state.cash = DIFFS[state.diff].cash;
+    return false;
+  }
   try {
     const d = JSON.parse(raw);
     state.day = d.day; state.hour = d.hour; state.cash = d.cash;
     state.plants = d.plants || []; state.links = d.links || [];
     state.days = d.days || []; state.events = d.events || [];
+    state.diff = DIFFS[d.diff] ? d.diff : "normal";
+    state.contracts = d.contracts || []; state.offers = d.offers || []; state.offerDay = d.offerDay || 0;
     (d.loads || []).forEach(s => {
       const L = loads.find(l => l.id === s.id);
       if (L) { L.level = s.level; L.grow = s.grow; L.totalBought = s.totalBought; L.totalPaid = s.totalPaid; }
@@ -1854,24 +2099,30 @@ function loadGame() {
   } catch (e) { return false; }
 }
 
-$("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; });
+$("menu-btn").addEventListener("click", () => { $("menu-mask").hidden = false; updateDiffUI(); });
 $("m-close").addEventListener("click", () => { $("menu-mask").hidden = true; });
-$("report-btn").addEventListener("click", () => { $("report-mask").hidden = false; });
+$("report-btn").addEventListener("click", () => {
+  $("report-mask").hidden = false;
+  renderContractTab(); renderMonthTab();
+});
 $("report-close").addEventListener("click", () => { $("report-mask").hidden = true; });
 document.querySelectorAll("#report-tabs [data-rp]").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll("#report-tabs [data-rp]").forEach(x => x.classList.toggle("active", x === b));
-  ["rp-fin", "rp-city", "rp-plant", "rp-mkt", "rp-day"].forEach(id => { $(id).hidden = id !== b.dataset.rp; });
+  ["rp-fin", "rp-city", "rp-plant", "rp-mkt", "rp-day", "rp-contract", "rp-month"].forEach(id => { $(id).hidden = id !== b.dataset.rp; });
+  if (b.dataset.rp === "rp-contract") renderContractTab();
+  if (b.dataset.rp === "rp-month") renderMonthTab();
 }));
 window.addEventListener("keydown", e => {
   if (e.key === "Escape") { $("report-mask").hidden = true; $("menu-mask").hidden = true; }
 });
-$("m-save").addEventListener("click", () => { saveGame(); toast("已保存到本机"); });
+$("m-save").addEventListener("click", () => { saveGame(); submitScore(); toast("已保存到本机并同步排行榜"); });
 $("m-load").addEventListener("click", () => {
-  if (loadGame()) { toast("已读取存档"); renderAll(); $("menu-mask").hidden = true; }
+  if (loadGame()) { toast("已读取存档"); renderAll(); updateDiffUI(); $("menu-mask").hidden = true; }
   else toast("没有找到存档");
 });
 $("m-new").addEventListener("click", () => {
-  if (!confirm("重新开始会丢弃当前进度，确定？")) return;
+  if (!confirm("重新开始会丢弃当前进度（难度：" + DIFFS[state.diff].name + "），确定？")) return;
+  localStorage.setItem("gx-diff", state.diff);
   localStorage.removeItem("gx-save-" + USER);
   location.href = location.pathname + "?u=" + encodeURIComponent(USER) + "&t=" + Date.now();
 });
@@ -1879,8 +2130,23 @@ $("back-sim-btn").addEventListener("click", () => {
   location.href = "index.html#sim";
 });
 $("m-board").addEventListener("click", () => {
-  toast("排行榜在 P2 上线：云端保存各账号资产并排名");
+  $("menu-mask").hidden = true;
+  $("board-mask").hidden = false;
+  showLeaderboard();
 });
+$("board-close").addEventListener("click", () => { $("board-mask").hidden = true; });
+$("board-refresh").addEventListener("click", showLeaderboard);
+/* P1 难度选择 */
+function updateDiffUI() {
+  document.querySelectorAll("[data-diff]").forEach(x => x.classList.toggle("active", x.dataset.diff === state.diff));
+  $("goal-diff").textContent = DIFFS[state.diff].name;
+  $("goal-rule").textContent = "28 天资金 ≥ " + money(DIFFS[state.diff].goal) + " 元";
+}
+document.querySelectorAll("[data-diff]").forEach(b => b.addEventListener("click", () => {
+  state.diff = b.dataset.diff;
+  updateDiffUI();
+  toast("难度已设为「" + DIFFS[state.diff].name + "」，重新开始后生效");
+}));
 
 /* ============================ 速度 / 暂停 ============================ */
 $("pause-btn").addEventListener("click", () => {
@@ -1914,6 +2180,8 @@ function loop(ts) {
 buildTools();
 updateModeBtns();
 loadGame();
+if (!state.offers.length || state.offerDay !== state.day) genOffers();
+updateDiffUI();
 loadPrices();
 resizeView();
 window.addEventListener("resize", () => { resizeView(); drawMap(); });
