@@ -305,9 +305,17 @@
   .rp-pane{max-height:58vh; overflow-y:auto;}
   .rp-sub{font-size:12px; color:#d8b46a; margin:0 0 8px; letter-spacing:1px;}
   .rp-sub .tip{font-size:11px; color:#6d8290; letter-spacing:0; margin-left:8px;}
+  /* 提示：顶部居中、无背景框；错误为红字 */
   .toast{
-    border-color:#e8a020; box-shadow:0 0 24px rgba(232,160,32,0.35), 0 12px 40px rgba(0,0,0,.6);
-    background:linear-gradient(180deg,rgba(32,40,47,0.96),rgba(20,26,32,0.98));
+    position:fixed; left:50%; top:54px; bottom:auto; transform:translateX(-50%);
+    background:none; border:none; box-shadow:none; padding:0 8px;
+    color:#e6f0e8; font-size:13px; font-weight:700; letter-spacing:.5px;
+    text-shadow:0 1px 3px rgba(0,0,0,.92), 0 0 14px rgba(0,0,0,.75);
+    pointer-events:none; z-index:60;
+  }
+  .toast.err{
+    color:#ff5252;
+    text-shadow:0 1px 3px rgba(0,0,0,.95), 0 0 12px rgba(255,60,60,.4);
   }
   @media (max-width:1100px){
     .hud-right{width:196px;}
@@ -578,9 +586,13 @@ function money(v) { return fmtNum(v, 0); }
 function pct(v) { return v == null || !Number.isFinite(v) ? "—" : (v * 100).toFixed(1) + "%"; }
 
 let toastTimer = null;
-function toast(msg) {
-  const el = $("toast"); el.textContent = msg; el.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
+function toast(msg, kind) {
+  const el = $("toast");
+  el.textContent = msg;
+  el.className = "toast" + (kind === "err" ? " err" : "");
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, kind === "err" ? 3200 : 2400);
 }
 
 /* ===== 音效（WebAudio 程序化，无外部文件） ===== */
@@ -1035,7 +1047,7 @@ function signContract(offerId) {
   const o = state.offers.find(x => x.id === offerId);
   if (!o) return;
   const used = state.contracts.filter(k => !k.expired).reduce((s, k) => s + k.qty, 0);
-  if (used + o.qty > CONTRACT_CAP) { sfx("err"); return toast("合同电量超上限（" + CONTRACT_CAP + " MW）"); }
+  if (used + o.qty > CONTRACT_CAP) { sfx("err"); return toast("合同电量超上限（" + CONTRACT_CAP + " MW）", "err"); }
   state.contracts.push({ id: o.id, price: o.price, qty: o.qty, days: o.days, startDay: state.day, pnl: 0, expired: false });
   state.offers = state.offers.filter(x => x.id !== offerId);
   addEvent("签订中长期合同：" + o.qty + " MW × " + o.price + " 元/MWh × " + o.days + " 天");
@@ -1993,15 +2005,15 @@ canvas.addEventListener("click", ev => {
     const def = PLANT_DEFS[state.buildType];
     // 整组占地校验（越界 / 占用 / 地形）
     if (cell.c + def.w - 1 >= COLS || cell.r + def.h - 1 >= ROWS) {
-      sfx("err"); return toast(def.name + " 占 " + def.w + "×" + def.h + " 格，这里放不下");
+      sfx("err"); return toast(def.name + " 占 " + def.w + "×" + def.h + " 格，这里放不下", "err");
     }
     for (let dr = 0; dr < def.h; dr++) for (let dc = 0; dc < def.w; dc++) {
       const cc = cell.c + dc, rr = cell.r + dr;
-      if (nodeAtCell(cc, rr)) { sfx("err"); return toast("占地范围内已有设施"); }
+      if (nodeAtCell(cc, rr)) { sfx("err"); return toast("占地范围内已有设施", "err"); }
       const terr = grid[rr][cc];
-      if (!def.terr.includes(terr)) { sfx("err"); return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上"); }
+      if (!def.terr.includes(terr)) { sfx("err"); return toast(def.name + " 不能建在" + TERRAIN[terr].name + "上", "err"); }
     }
-    if (state.cash < def.cost) { sfx("err"); return toast("资金不足，还需要 " + money(def.cost - state.cash) + " 元"); }
+    if (state.cash < def.cost) { sfx("err"); return toast("资金不足，还需要 " + money(def.cost - state.cash) + " 元", "err"); }
     state.cash -= def.cost;
     const p = {
       kind: "plant", id: "P" + Date.now() + Math.floor(Math.random() * 99),
@@ -2015,8 +2027,8 @@ canvas.addEventListener("click", ev => {
   }
 
   if (state.mode === "sell") {
-    if (!existing) return toast("这里没有设施");
-    if (existing.kind === "load") return toast("城市和工业区不能拆除");
+    if (!existing) return toast("这里没有设施", "err");
+    if (existing.kind === "load") return toast("城市和工业区不能拆除", "err");
     const def = PLANT_DEFS[existing.type];
     state.cash += def.cost * 0.5;
     state.plants = state.plants.filter(p => p.id !== existing.id);
@@ -2027,9 +2039,9 @@ canvas.addEventListener("click", ev => {
   }
 
   if (state.mode === "connect") {
-    if (!existing) return toast("请点击电厂或城市");
+    if (!existing) return toast("请点击电厂或城市", "err");
     if (!state.linkFrom) {
-      if (existing.kind !== "plant") return toast("请先点一座电厂作为起点");
+      if (existing.kind !== "plant") return toast("请先点一座电厂作为起点", "err");
       state.linkFrom = existing.id;
       toast("起点：" + existing.name + "，再点击目标城市");
       return renderAll();
@@ -2037,10 +2049,10 @@ canvas.addEventListener("click", ev => {
     if (state.linkFrom === existing.id) { state.linkFrom = null; return renderAll(); }
     const a = nodeById(state.linkFrom), b = existing;
     const dup = state.links.some(l => (l.a === a.id && l.b === b.id) || (l.a === b.id && l.b === a.id));
-    if (dup) { sfx("err"); return toast("这两点已经连过了"); }
+    if (dup) { sfx("err"); return toast("这两点已经连过了", "err"); }
     const dist = Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) + 1;
     const cost = dist * LINK_COST_PER_KM;
-    if (state.cash < cost) { sfx("err"); return toast("输电线造价 " + money(cost) + " 元，资金不足"); }
+    if (state.cash < cost) { sfx("err"); return toast("输电线造价 " + money(cost) + " 元，资金不足", "err"); }
     state.cash -= cost;
     state.links.push({ a: a.id, b: b.id, cost, dist, load: 0, overload: false });
     addEvent("新建输电线 " + a.name + " ↔ " + b.name + "（" + dist + " 格，造价 " + money(cost) + " 元，容量 " + LINK_CAP + " MW）");
@@ -2129,7 +2141,7 @@ window.addEventListener("keydown", e => {
 $("m-save").addEventListener("click", () => { saveGame(); submitScore(); toast("已保存到本机并同步排行榜"); });
 $("m-load").addEventListener("click", () => {
   if (loadGame()) { toast("已读取存档"); renderAll(); updateDiffUI(); $("menu-mask").hidden = true; }
-  else toast("没有找到存档");
+  else toast("没有找到存档", "err");
 });
 $("m-new").addEventListener("click", () => {
   if (!confirm("重新开始会丢弃当前进度（难度：" + DIFFS[state.diff].name + "），确定？")) return;
