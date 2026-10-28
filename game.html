@@ -539,6 +539,27 @@
 
 /* ============================ 基础 ============================ */
 const $ = id => document.getElementById(id);
+/* DOM 写入记忆化：内容未变就不触碰 DOM，避免 4Hz 重建布局 */
+const _domCache = {};
+function setHtml(el, html) {
+  if (_domCache[el.id] === html) return;
+  _domCache[el.id] = html;
+  el.innerHTML = html;
+}
+function setTxt(id, txt, cls) {
+  const el = $(id);
+  const key = txt + "|" + (cls || "");
+  if (_domCache[id] === key) return;
+  _domCache[id] = key;
+  el.textContent = txt;
+  el.className = "v" + (cls ? " " + cls : "");
+}
+function setOnly(id, txt) {
+  const el = $(id);
+  if (_domCache[id] === txt) return;
+  _domCache[id] = txt;
+  el.textContent = txt;
+}
 const canvas = $("map"), ctx = canvas.getContext("2d");
 /* ===== 全屏等轴测视图（世界坐标 + 自适应缩放 + 可移动镜头）===== */
 const COLS = 45, ROWS = 29;                   // 大世界地图（1305 格，约原图 10 倍）
@@ -855,6 +876,7 @@ function step() {
     L.served = 0;
   });
   const totalLoad = loads.reduce((s, L) => s + L.load, 0);
+  state.links.forEach(lk => { lk.load = 0; });   // 线路负载为每小时流量，必须清零（此前累计导致显示无限增大）
 
   // 2) 可再生最大出力（事件：台风/风资源；机组故障停机）
   const avail = state.plants.map(p => {
@@ -900,16 +922,15 @@ function step() {
     else segs.forEach(s => { s.link.overload = false; });
   });
 
-  // 3b) 剩余出力 → 售给市场（未联网电厂全部出力 + 已联网电厂未用完的部分）
+  // 3b) 富余电量 → 售给市场（联网电厂未派给城市的部分也卖，线损不计收入）
+  let marketSell = 0;
   state.plants.forEach((p, i) => {
-    const hasLoadLink = state.links.some(LK =>
-      (LK.a === p.id && loads.some(l => l.id === LK.b)) ||
-      (LK.b === p.id && loads.some(l => l.id === LK.a)));
-    if (!hasLoadLink) cur[i] = avail[i];
+    const spare = avail[i] - cur[i];
+    if (spare > 0) marketSell += spare;
+    cur[i] = avail[i];   // 全出力运行（城市优先消纳，其余卖市场）
   });
   const totalGen = cur.reduce((s, v) => s + v, 0);
   const totalServed = loads.reduce((s, L) => s + L.served, 0);
-  const marketSell = Math.max(0, totalGen - totalServed);
 
   // 4) 缺供 / 超发
   let shed = 0, servedAll = 0;
@@ -1761,29 +1782,27 @@ function nodeById(id) {
 
 /* ============================ 面板 ============================ */
 function renderHeader() {
-  $("hd-cash").textContent = money(state.cash) + " 元";
-  $("hd-cash").className = "v " + (state.cash >= 0 ? "up" : "down");
+  setTxt("hd-cash", money(state.cash) + " 元", state.cash >= 0 ? "up" : "down");
   const avgP = dailyAvgProfit();
-  $("hd-avg").textContent = (avgP >= 0 ? "+" : "") + money(avgP) + " 元";
-  $("hd-avg").className = "v " + (avgP >= 0 ? "up" : "down");
-  $("hd-time").textContent = "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00";
+  setTxt("hd-avg", (avgP >= 0 ? "+" : "") + money(avgP) + " 元", avgP >= 0 ? "up" : "down");
+  setOnly("hd-time", "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00");
   const h = state.lastHour;
-  $("hd-load").textContent = h ? fmtNum(h.load, 0) + " MW" : "—";
-  $("hd-gen").textContent = h ? fmtNum(state.plants.reduce((s, p) => s + (p.lastOut || 0), 0), 0) + " MW" : "—";
+  setOnly("hd-load", h ? fmtNum(h.load, 0) + " MW" : "—");
+  setOnly("hd-gen", h ? fmtNum(state.plants.reduce((s, p) => s + (p.lastOut || 0), 0), 0) + " MW" : "—");
   const price = priceAt(state.day, state.hour);
-  $("hd-price").textContent = fmtNum(price, 0) + " 元";
+  setOnly("hd-price", fmtNum(price, 0) + " 元");
   const serve = h && h.load > 0 ? h.servedAll / h.load : 1;
-  $("hd-serve").textContent = pct(serve);
-  $("hd-serve").className = "v " + (serve > 0.98 ? "up" : serve > 0.9 ? "" : "down");
+  setTxt("hd-serve", pct(serve), serve > 0.98 ? "up" : serve > 0.9 ? "" : "down");
   const wrap = $("hd-serve-wrap");
-  wrap.className = "chip" + (serve < 0.9 ? " bad" : serve < 0.98 ? " warn" : "");
+  const wrapCls = "chip" + (serve < 0.9 ? " bad" : serve < 0.98 ? " warn" : "");
+  if (wrap.className !== wrapCls) wrap.className = wrapCls;
 }
 
 function renderPanels() {
   const h = state.lastHour;
   const S = state.today, A = state.allTime;
-  $("now-tip").textContent = "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00";
-  const set = (id, txt, cls) => { const el = $(id); el.textContent = txt; el.className = "v" + (cls ? " " + cls : ""); };
+  setOnly("now-tip", "第 " + state.day + " 天 " + String(state.hour).padStart(2, "0") + ":00");
+  const set = setTxt;
   set("p-price", fmtNum(h ? h.price : priceAt(state.day, state.hour), 0) + " 元/MWh");
   set("p-load", h ? fmtNum(h.load, 0) + " MW" : "—");
   set("p-supply", h ? fmtNum(h.servedAll, 0) + " MW" : "—");
@@ -1802,92 +1821,91 @@ function renderPanels() {
   set("a-dep", "-" + money((plantCost + linkCost) * 0.05 / 30) + " 元/天", "down");
 
   const avgP = dailyAvgProfit(), netAll = netProfitAll();
-  $("avg-profit").textContent = (avgP >= 0 ? "+" : "") + money(avgP) + " 元/天";
-  $("avg-profit").className = "v " + (avgP >= 0 ? "up" : "down");
-  $("sum-profit").textContent = (netAll >= 0 ? "+" : "") + money(netAll) + " 元";
-  $("sum-profit").className = "v " + (netAll >= 0 ? "up" : "down");
+  setTxt("avg-profit", (avgP >= 0 ? "+" : "") + money(avgP) + " 元/天", avgP >= 0 ? "up" : "down");
+  setTxt("sum-profit", (netAll >= 0 ? "+" : "") + money(netAll) + " 元", netAll >= 0 ? "up" : "down");
 
   // 报表类表格只在弹层打开时才重建（省下每帧 5 张表的 DOM 开销）
   if (!$("report-mask").hidden) {
   // 收支表
   const rows = [
-    ["售电收入", S.inc, A.inc, "up"],
-    ["燃料成本", -S.fuel, -A.fuel, "down"],
-    ["维护成本", -S.om, -A.om, "down"],
-    ["合同盈亏", S.ctr, A.ctr, S.ctr >= 0 ? "up" : "down"],
-    ["净现金流", S.inc - S.fuel - S.om - S.buy + S.ctr, A.inc - A.fuel - A.om - A.buy + A.ctr, (S.inc - S.fuel - S.om - S.buy + S.ctr) >= 0 ? "up" : "down"]
+    ["售电收入", h ? h.inc : 0, S.inc, A.inc, "up"],
+    ["燃料成本", h ? -h.fuel : 0, -S.fuel, -A.fuel, "down"],
+    ["维护成本", h ? -h.om : 0, -S.om, -A.om, "down"],
+    ["合同盈亏", h ? h.ctr : 0, S.ctr, A.ctr, S.ctr >= 0 ? "up" : "down"],
+    ["净现金流", h ? h.inc - h.fuel - h.om - h.buy + h.ctr : 0, S.inc - S.fuel - S.om - S.buy + S.ctr,
+      A.inc - A.fuel - A.om - A.buy + A.ctr, (S.inc - S.fuel - S.om - S.buy + S.ctr) >= 0 ? "up" : "down"]
   ];
-  $("fin-body").innerHTML = rows.map(r =>
-    `<tr><td>${r[0]}</td><td class="num ${r[3]}">${money(r[1])}</td><td class="num ${r[3]}">${money(r[2])}</td><td class="num ${r[3]}">${money(r[2])}</td></tr>`
-  ).join("");
+  setHtml($("fin-body"), rows.map(r =>
+    `<tr><td>${r[0]}</td><td class="num ${r[4]}">${money(r[1])}</td><td class="num ${r[4]}">${money(r[2])}</td><td class="num ${r[4]}">${money(r[3])}</td></tr>`
+  ).join(""));
 
   // 城市
-  $("city-body").innerHTML = loads.map(L => {
+  setHtml($("city-body"), loads.map(L => {
     const ok = L.serveOk >= 0.92, mid = L.serveOk >= 0.8;
     const tag = ok ? '<span class="tag ok">稳定</span>' : mid ? '<span class="tag warn">紧张</span>' : '<span class="tag bad">缺供</span>';
     return `<tr><td>${L.name}</td><td class="num">Lv${L.level}</td>
       <td class="num">${L.regionPrice ? fmtNum(L.regionPrice, 0) : "—"}</td><td class="num">${fmtNum(L.load, 0)}</td>
       <td class="num">${fmtNum(L.served, 0)}</td><td class="num">${pct(L.serveOk)}</td><td class="center">${tag}</td></tr>`;
-  }).join("");
+  }).join(""));
 
   // 电站
-  $("plant-body").innerHTML = state.plants.length ? state.plants.map(p => {
+  setHtml($("plant-body"), state.plants.length ? state.plants.map(p => {
     const def = PLANT_DEFS[p.type];
     const out = p.lastOut || 0, av = p.lastAvail || def.cap;
     return `<tr><td><span class="tag" style="background:${def.color}22;color:${def.color}">${def.icon} ${p.name}</span></td>
       <td class="num">${def.cap}</td><td class="num">${fmtNum(out, 0)}</td>
       <td class="num">${pct(av ? out / av : 0)}</td><td class="num">${money(p.fuelYuan || 0)}</td>
       <td class="num">${money((p.genMWh || 0) * priceAt(state.day, state.hour))}</td></tr>`;
-  }).join("") : '<tr><td colspan="6" class="empty">还没有电站，先在地图上建一座</td></tr>';
+  }).join("") : '<tr><td colspan="6" class="empty">还没有电站，先在地图上建一座</td></tr>');
 
   // 市场
-  $("mkt-body").innerHTML = [
+  setHtml($("mkt-body"), [
     ["售给市场（未上网电量）", h ? h.marketSell : 0, S.soldMWh, A.soldMWh, " MWh"],
     ["城市缺电（不计费）", h ? h.shed : 0, S.shedMWh, A.shedMWh, " MWh"],
     ["系统总用电", h ? h.load : 0, S.loadMWh, A.loadMWh, " MWh"]
   ].map(r => `<tr><td>${r[0]}</td><td class="num">${fmtNum(r[1], 0)}${r[4]}</td>
-    <td class="num">${fmtNum(r[2], 0)}${r[4]}</td><td class="num">${fmtNum(r[3], 0)}${r[4]}</td></tr>`).join("");
+    <td class="num">${fmtNum(r[2], 0)}${r[4]}</td><td class="num">${fmtNum(r[3], 0)}${r[4]}</td></tr>`).join(""));
 
   // 每日经营
-  $("day-body").innerHTML = state.days.length ? state.days.map(d => {
+  setHtml($("day-body"), state.days.length ? state.days.map(d => {
     const net = d.inc - d.fuel - d.om - d.buy + (d.ctr || 0);
     return `<tr><td class="center">第 ${d.day} 天</td><td class="num">${fmtNum(d.soldMWh, 0)}</td>
       <td class="num">${fmtNum(d.buyMWh, 0)}</td><td class="num up">${money(d.inc)}</td>
       <td class="num down">${money(d.fuel + d.om)}</td><td class="num down">${money(d.buy)}</td>
       <td class="num ${net >= 0 ? "up" : "down"}">${money(net)}</td><td class="num">${money(d.cash)}</td></tr>`;
-  }).join("") : '<tr><td colspan="8" class="empty">经营满 1 天后出现日报</td></tr>';
+  }).join("") : '<tr><td colspan="8" class="empty">经营满 1 天后出现日报</td></tr>');
 
   // 合同页签打开时同步刷新（签约/到期即时可见）
   if (!$("rp-contract").hidden) renderContractTab();
   }
 
   // 事件
-  $("events").innerHTML = state.events.length
+  setHtml($("events"), state.events.length
     ? state.events.slice(0, 12).map(e => `<div class="ev ${e.level}">${e.msg}</div>`).join("")
-    : '<div class="ev">尚无事件</div>';
+    : '<div class="ev">尚无事件</div>');
 
   // 当前生效的随机事件（P1）
   const absH = (state.day - 1) * 24 + state.hour;
   const acts = state.mods.filter(m => m.until > absH);
-  $("mods").innerHTML = acts.length
+  setHtml($("mods"), acts.length
     ? acts.map(m => '<div class="ev warn">' + m.name + '：' + m.desc + '（剩 ' + Math.max(1, Math.ceil(m.until - absH)) + ' 小时）</div>').join("")
-    : '<div class="ev">风平浪静</div>';
-  $("mod-tip").textContent = acts.length ? acts.length + " 个进行中" : "—";
+    : '<div class="ev">风平浪静</div>');
+  setOnly("mod-tip", acts.length ? acts.length + " 个进行中" : "—");
 }
 
 /* P1：合同 / 月报表页渲染 */
 function renderContractTab() {
-  $("ctr-active").innerHTML = state.contracts.length ? state.contracts.map(k => {
+  setHtml($("ctr-active"), state.contracts.length ? state.contracts.map(k => {
     const left = Math.max(0, k.startDay + k.days - state.day);
     const done = k.expired || left === 0;
     return '<tr><td>' + (done ? '<span class="tag mute">已到期</span>' : '<span class="tag ok">执行中</span>') +
       '</td><td class="num">' + k.price + '</td><td class="num">' + k.qty + '</td><td class="num">' + left +
       '</td><td class="num ' + ((k.pnl || 0) >= 0 ? "up" : "down") + '">' + money(k.pnl || 0) + '</td></tr>';
-  }).join("") : '<tr><td colspan="5" class="empty">还没有合同，可从下方报价里签一份</td></tr>';
-  $("ctr-offers").innerHTML = state.offers.length ? state.offers.map(o =>
+  }).join("") : '<tr><td colspan="5" class="empty">还没有合同，可从下方报价里签一份</td></tr>');
+  setHtml($("ctr-offers"), state.offers.length ? state.offers.map(o =>
     '<tr><td>' + o.id + '</td><td class="num">' + o.price + '</td><td class="num">' + o.qty +
     '</td><td class="num">' + o.days + '</td><td class="center"><button class="btn" data-sign="' + o.id + '" type="button">签订</button></td></tr>'
-  ).join("") : '<tr><td colspan="5" class="empty">今日报价已签完，明日刷新</td></tr>';
+  ).join("") : '<tr><td colspan="5" class="empty">今日报价已签完，明日刷新</td></tr>');
   document.querySelectorAll('#ctr-offers [data-sign]').forEach(b => {
     b.addEventListener("click", () => signContract(b.dataset.sign));
   });
@@ -1917,7 +1935,7 @@ function renderMonthTab() {
     '</td><td class="num up">' + money(A.inc) + '</td><td class="num down">' + money(A.fuel + A.om) + '</td><td class="num down">' + money(A.buy) +
     '</td><td class="num ' + (A.ctr >= 0 ? "up" : "down") + '">' + money(A.ctr) +
     '</td><td class="num ' + (net >= 0 ? "up" : "down") + '">' + money(net) + '</td></tr>');
-  $("month-body").innerHTML = parts.join("");
+  setHtml($("month-body"), parts.join(""));
 }
 
 function renderAll() { drawMap(); renderHeader(); renderPanels(); }
@@ -2179,6 +2197,7 @@ function saveGame() {
   const data = {
     day: state.day, hour: state.hour, cash: state.cash,
     plants: state.plants, links: state.links, days: state.days, events: state.events,
+    allTime: state.allTime, today: state.today, mods: state.mods,
     diff: "endless", contracts: state.contracts, offers: state.offers, offerDay: state.offerDay,
     loads: loads.map(l => ({ id: l.id, level: l.level, grow: l.grow, totalBought: l.totalBought, totalPaid: l.totalPaid })),
     ts: Date.now()
@@ -2202,7 +2221,17 @@ function loadGame() {
       const L = loads.find(l => l.id === s.id);
       if (L) { L.level = s.level; L.grow = s.grow; L.totalBought = s.totalBought; L.totalPaid = s.totalPaid; }
     });
-    state.today = emptyStat();
+    // 全期/当日累计 + 进行中事件也要恢复（此前读档后累计净利清零）
+    if (d.allTime) {
+      state.allTime = d.allTime;
+    } else {
+      // 旧存档兼容：用历史日报重建全期累计
+      const A = emptyStat();
+      (d.days || []).forEach(day => { Object.keys(A).forEach(k => { A[k] += day[k] || 0; }); });
+      state.allTime = A;
+    }
+    state.today = d.today || emptyStat();
+    state.mods = d.mods || [];
     return true;
   } catch (e) { return false; }
 }
