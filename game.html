@@ -1352,12 +1352,13 @@ function drawMap() {
     });
   }
 
-  /* --- 输电线（钢缆 + 桁架杆塔） --- */
+  /* --- 输电线（钢缆 + 桁架杆塔，按建筑中心连线） --- */
   state.links.forEach(L => {
     const A = nodeById(L.a), B = nodeById(L.b);
     if (!A || !B) return;
-    const ax = isoX(A.col, A.row), ay = isoY(A.col, A.row) - 42;
-    const bx = isoX(B.col, B.row), by = isoY(B.col, B.row) - 42;
+    const ca = nodeCenter(A), cb = nodeCenter(B);
+    const ax = isoX(ca.c, ca.r), ay = isoY(ca.c, ca.r) - 42;
+    const bx = isoX(cb.c, cb.r), by = isoY(cb.c, cb.r) - 42;
     const ratio = (L.load || 0) / LINK_CAP;
     const pulse = 0.75 + 0.25 * Math.sin(performance.now() * 0.006);
     ctx.strokeStyle = L.overload ? ("rgba(255,64,64," + pulse + ")") : (ratio > 0.85 ? "#f0a030" : "#8fa3b0");
@@ -1381,6 +1382,42 @@ function drawMap() {
       ctx.fillStyle = "#4dff88"; ctx.beginPath(); ctx.arc(tX, tY, 5, 0, 7); ctx.fill();
     }
   });
+
+  /* --- 连线预览：橡皮筋 + 目标/格数/造价/线损 --- */
+  if (state.mode === "connect" && state.linkFrom && hoverCell) {
+    const A = nodeById(state.linkFrom);
+    if (A) {
+      const ca = nodeCenter(A);
+      const ax = isoX(ca.c, ca.r), ay = isoY(ca.c, ca.r) - 42;
+      const bx = isoX(hoverCell.c, hoverCell.r), by = isoY(hoverCell.c, hoverCell.r) - 42;
+      const target = nodeAtCell(hoverCell.c, hoverCell.r);
+      const okTarget = !!(target && target.kind === "load" && target.id !== A.id);
+      const dup = okTarget && state.links.some(l => (l.a === A.id && l.b === target.id) || (l.b === A.id && l.a === target.id));
+      const dist = Math.max(Math.abs(A.col - hoverCell.c), Math.abs(A.row - hoverCell.r)) + 1;
+      const cost = dist * LINK_COST_PER_KM;
+      const txt = dup ? "这两点已经连过了"
+        : okTarget
+          ? "接至 " + target.name + " · " + dist + " 格 · " + money(cost) + " 元 · 损" + (dist * LINK_BASE_LOSS * 100).toFixed(1) + "%"
+          : "仅可接城市/工业区";
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = (okTarget && !dup) ? "rgba(120,255,170,0.85)" : "rgba(255,110,110,0.8)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.setLineDash([]);
+      const tX = (ax + bx) / 2, tY = Math.min(ay, by) - 26;
+      ctx.font = "bold 11px Consolas,monospace"; ctx.textAlign = "center";
+      const w = ctx.measureText(txt).width + 16;
+      ctx.fillStyle = "rgba(8,12,16,0.9)";
+      ctx.fillRect(tX - w / 2, tY - 13, w, 16);
+      ctx.strokeStyle = (okTarget && !dup) ? "rgba(77,255,136,0.65)" : "rgba(255,82,82,0.65)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tX - w / 2, tY - 13, w, 16);
+      ctx.fillStyle = (okTarget && !dup) ? "#8ef0a8" : "#ff8a8a";
+      ctx.fillText(txt, tX, tY - 1);
+      ctx.restore();
+    }
+  }
 
   /* --- 节点（建筑）按占地中心深度排序 --- */
   const depthOf = (n, plant) => {
@@ -1754,7 +1791,7 @@ function renderPanels() {
   set("p-inc", h ? "+" + money(h.inc) : "—", "up");
   set("p-fuel", h ? "-" + money(h.fuel) : "—", "down");
   set("p-om", h ? "-" + money(h.om) : "—", "down");
-  set("p-buy", h ? "-" + money(h.buy) : "—", "down");
+  set("p-buy", h ? (h.buy > 0 ? "-" + money(h.buy) : "0 元") : "—", "down");
 
   const plantCost = state.plants.reduce((s, p) => s + PLANT_DEFS[p.type].cost, 0);
   const linkCost = state.links.reduce((s, l) => s + l.cost, 0);
@@ -1972,7 +2009,7 @@ canvas.addEventListener("pointermove", ev => {
     hoveringMap = false;
     $("build-hint").textContent = modeHint;
   }
-  if (state.mode === "build" && state.buildType) drawMap();
+  if ((state.mode === "build" && state.buildType) || (state.mode === "connect" && state.linkFrom)) drawMap();
 });
 canvas.addEventListener("pointerleave", () => {
   hoverCell = null; pointerOnMap = false; hoveringMap = false;
@@ -2023,6 +2060,14 @@ function nodeAtCell(c, r) {
     const d = PLANT_DEFS[p.type];
     return c >= p.col && c < p.col + d.w && r >= p.row && r < p.row + d.h;
   }) || null;
+}
+/* 节点视觉中心（多格电厂取占地中心） */
+function nodeCenter(n) {
+  if (n.kind === "plant") {
+    const d = PLANT_DEFS[n.type];
+    return { c: n.col + (d.w - 1) / 2, r: n.row + (d.h - 1) / 2 };
+  }
+  return { c: n.col, r: n.row };
 }
 
 canvas.addEventListener("click", ev => {
@@ -2075,7 +2120,12 @@ canvas.addEventListener("click", ev => {
       return renderAll();
     }
     if (state.linkFrom === existing.id) { state.linkFrom = null; return renderAll(); }
+    if (existing.kind !== "load") {
+      sfx("err");
+      return toast("终点请选城市或工业区（电网只接到负荷区）", "err");
+    }
     const a = nodeById(state.linkFrom), b = existing;
+    if (!a) { state.linkFrom = null; sfx("err"); return toast("起点已不存在，请重新选电厂", "err"); }
     const dup = state.links.some(l => (l.a === a.id && l.b === b.id) || (l.a === b.id && l.b === a.id));
     if (dup) { sfx("err"); return toast("这两点已经连过了", "err"); }
     const dist = Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) + 1;
@@ -2216,6 +2266,7 @@ buildTools();
 updateModeBtns();
 if (!loadGame()) giveStarterPlant();   // 新局赠送初始燃煤电厂
 if (!state.offers.length || state.offerDay !== state.day) genOffers();
+loads.forEach(L => { L.regionPrice = priceAt(state.day, state.hour) * (L.regionMul || 1); });
 loadPrices();
 resizeView();
 window.addEventListener("resize", () => { resizeView(); drawMap(); });
