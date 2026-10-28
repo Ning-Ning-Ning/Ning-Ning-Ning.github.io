@@ -53,7 +53,7 @@
     letter-spacing:.5px; box-shadow:0 2px 0 rgba(0,0,0,.35);
   }
   .btn:hover{border-color:var(--primary); color:var(--primary);}
-  .btn.active{background:linear-gradient(180deg,#f2b445,#d9901e); border-color:#f7c96c; color:#1a1206;}
+  .btn.active,.btn.primary{background:linear-gradient(180deg,#f2b445,#d9901e); border-color:#f7c96c; color:#1a1206;}
   .btn.danger:hover{border-color:var(--danger); color:var(--danger);}
 
   /* ===== 布局 ===== */
@@ -173,6 +173,7 @@
 <header class="topbar">
   <h1>电网大亨<small>建电站 · 架电网 · 买电卖电</small></h1>
 
+  <button class="btn primary" id="back-sim-btn" type="button">← 返回模拟页</button>
   <button class="btn" id="menu-btn" type="button">☰ 菜单</button>
 
   <div class="chip"><span class="k">资金</span><span class="v" id="hd-cash">—</span></div>
@@ -341,7 +342,6 @@
       <button class="btn" id="m-save" type="button">保存进度</button>
       <button class="btn" id="m-load" type="button">读取进度</button>
       <button class="btn" id="m-board" type="button">排行榜</button>
-      <button class="btn" id="m-back" type="button">返回模拟页</button>
     </div>
     <div class="row"><button class="btn active" id="m-close" type="button">关闭</button></div>
   </div>
@@ -1363,8 +1363,8 @@ $("m-new").addEventListener("click", () => {
   localStorage.removeItem("gx-save-" + USER);
   location.href = location.pathname + "?u=" + encodeURIComponent(USER) + "&t=" + Date.now();
 });
-$("m-back").addEventListener("click", () => {
-  location.href = "index.html";
+$("back-sim-btn").addEventListener("click", () => {
+  location.href = "index.html#sim";
 });
 $("m-board").addEventListener("click", () => {
   toast("排行榜在 P2 上线：云端保存各账号资产并排名");

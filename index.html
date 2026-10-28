@@ -899,6 +899,8 @@ wsecL.onpointerleave=()=>{wSelHour=-1;wInChart=0;wttL.hidden=true;wchartLeft.que
     
     // ---- 应用初始化与鉴权 ----
     if(!sb){authOverlay.hidden=false;authSubmit.disabled=true;authError.textContent="页面组件加载失败（需访问 cdn.jsdelivr.net），请检查网络后刷新。";}else{sb.auth.onAuthStateChange((event,session)=>{if(session)onSignedIn(session);});sb.auth.getSession().then(({data:{session}})=>{if(session)onSignedIn(session);else authOverlay.hidden=false;});}
+    // ---- 带 #sim 入口直达模拟页（游戏返回用） ----
+    if(location.hash==="#sim"){switchGlyPage("sim");}
   </script>
 </body>
 </html>
