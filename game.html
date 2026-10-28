@@ -261,19 +261,43 @@
   /* 建造栏：紧凑 */
   .hud-build{
     position:fixed; left:50%; transform:translateX(-50%); bottom:10px; z-index:14;
-    width:min(780px, 92vw); padding:8px 12px;
+    width:min(660px, 92vw); padding:8px 12px;
     background:linear-gradient(180deg,rgba(16,21,27,0.92),rgba(10,13,17,0.94));
     border:1px solid rgba(70,84,96,0.75); border-top:1px solid rgba(150,168,182,0.4);
     border-radius:3px; box-shadow:0 14px 44px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,0.06);
     backdrop-filter:blur(12px) saturate(1.2);
   }
-  .hud-build .tools{gap:6px;}
-  .hud-build .tools + .tools{margin-top:6px;}
+  .bbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .bspacer{flex:1;}
+  .hud-build .tools{gap:6px; flex-wrap:wrap;}
+  /* 固定位置提示条（悬浮信息统一在这里显示） */
+  .hud-build .hint{
+    margin:0 0 8px; padding-bottom:6px; border-bottom:1px solid rgba(58,70,82,0.45);
+    min-height:16px; font-size:10.5px; color:#9fb2bf; line-height:1.55;
+  }
+  .hud-build .hint b{color:#eec87e; letter-spacing:.5px;}
+  .hud-build .hint em{color:#8ef0a8; font-style:normal; font-variant-numeric:tabular-nums;}
+  /* 建造图标按钮（星际式建造栏） */
   .build{padding:5px 9px; gap:6px; border-radius:2px;}
-  .build .nm{font-size:11px;}
-  .build .mt{font-size:9.5px;}
-  .build .dot{width:10px; height:10px;}
-  .hud-build .hint{font-size:9.5px; margin-top:6px; color:#6d8290;}
+  .build.ico{
+    width:46px; height:44px; padding:0; display:flex; align-items:center; justify-content:center;
+    position:relative;
+  }
+  .build.ico svg{
+    width:26px; height:26px; stroke:currentColor; fill:none; stroke-width:1.6;
+    stroke-linecap:round; stroke-linejoin:round; color:#9fb2bf;
+  }
+  .build.ico::after{
+    content:""; position:absolute; left:9px; right:9px; bottom:4px; height:2px;
+    border-radius:1px; background:var(--c,#888); opacity:.6;
+  }
+  .build.ico:hover svg{color:#f0c27a;}
+  .build.ico.on{
+    background:linear-gradient(180deg,#f2b445,#d9901e); border-color:#f7c96c;
+    box-shadow:0 0 0 1px #f7c96c, 0 0 14px rgba(232,160,32,.45);
+  }
+  .build.ico.on svg{color:#1a1206;}
+  .build.ico.on::after{background:#1a1206; opacity:.85;}
   /* 报表弹层 */
   .modal-wide{width:min(880px,94vw);}
   .modal{border:1px solid rgba(70,84,96,0.85); border-top:1px solid rgba(150,168,182,0.5);}
@@ -364,13 +388,16 @@
 </div>
 
 <div class="hud-build">
-  <div class="tools" id="build-tools"></div>
-  <div class="tools" style="margin-top:8px">
-    <button class="btn" data-mode="connect" type="button">⤳ 连线（接到城市）</button>
-    <button class="btn" data-mode="sell" type="button">✕ 拆除（退 50%）</button>
-    <button class="btn" data-mode="none" type="button">✔ 完成</button>
-  </div>
   <div class="hint" id="build-hint">提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。</div>
+  <div class="bbar">
+    <div class="tools" id="build-tools"></div>
+    <div class="bspacer"></div>
+    <div class="tools">
+      <button class="btn" data-mode="connect" type="button">⤳ 连线</button>
+      <button class="btn" data-mode="sell" type="button">✕ 拆除</button>
+      <button class="btn" data-mode="none" type="button">✔ 完成</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== 报表弹层（收支 / 城市 / 电站 / 市场 / 每日） ===== -->
@@ -1387,27 +1414,54 @@ function renderPanels() {
 function renderAll() { drawMap(); renderHeader(); renderPanels(); }
 
 /* ============================ 建造 / 连线 / 拆除 ============================ */
+/* ===== 建造面板：图标按钮 + 固定位置悬浮提示 ===== */
+const BUILD_ICON = {
+  coal: '<svg viewBox="0 0 24 24"><path d="M3 21V13l5-3v3l5-3v3l5-3v11z"/><path d="M17 21V6h3v15"/><path d="M3 21h18"/></svg>',
+  gas: '<svg viewBox="0 0 24 24"><path d="M12 3c2.2 3.2 5 5.2 5 9a5 5 0 0 1-10 0c0-2 1-3.6 2.2-5.2 0 1.6 1 2.6 2 2.8C11 7.4 11.5 5.2 12 3z"/></svg>',
+  wind: '<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="1.6"/><path d="M12 11v10M9 21h6M12 11l6.2-4.6M12 11L5.4 7.4M12 11V3.4"/></svg>',
+  solar: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="12" height="8" rx="1"/><path d="M3 15h12M9 11v8"/><circle cx="19" cy="6" r="2.4"/><path d="M19 2.4v.8M19 8.8v.8M22.6 6h-.8M15.4 6h.8"/></svg>',
+  storage: '<svg viewBox="0 0 24 24"><rect x="3" y="8" width="15" height="9" rx="1.5"/><path d="M18 11h2.2v3H18"/><path d="M11.5 9.8 8.8 13h2.6l-1.2 2.9L13.4 12h-2.6z"/></svg>',
+  nuclear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M12 12V4.2A7.8 7.8 0 0 1 18.8 16M12 12l-6.8 3.9A7.8 7.8 0 0 1 5.2 8M12 12l6.8 3.9A7.8 7.8 0 0 1 12 19.8"/></svg>'
+};
+const HINT_DEFAULT = "提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。";
+let modeHint = HINT_DEFAULT, hoveringBuild = false;
+function setHint(t) {
+  modeHint = t;
+  if (!hoveringBuild) $("build-hint").textContent = t;
+}
+function buildInfoHTML(d) {
+  return "<b>" + d.name + "</b> · 占 <em>" + d.w + "×" + d.h + "</em> 格 · 造价 <em>" + money(d.cost) + "</em> 元 · 装机 <em>" +
+    d.cap + "</em> MW · " + (d.varCost ? "燃料 <em>" + d.varCost + "</em> 元/MWh" : "零燃料 · 储能") +
+    " · 可建：" + d.terr.map(t => TERRAIN[t].name).join("/");
+}
 function buildTools() {
   const box = $("build-tools");
   box.innerHTML = Object.entries(PLANT_DEFS).map(([k, d]) =>
-    `<button class="build" data-build="${k}" type="button">
-       <span class="dot" style="background:${d.color}"></span>
-       <span><span class="nm">${d.name}</span><br>
-       <span class="mt">${d.w}×${d.h}格 · 造价 ${money(d.cost)} · ${d.cap} MW${d.varCost ? " · 燃料 " + d.varCost + " 元/MWh" : " · 储能"}</span></span>
-     </button>`
+    `<button class="build ico" data-build="${k}" type="button" style="--c:${d.color}" aria-label="${d.name}">${BUILD_ICON[k] || ""}</button>`
   ).join("");
-  box.querySelectorAll("[data-build]").forEach(b => b.addEventListener("click", () => {
-    const on = b.classList.contains("on");
-    box.querySelectorAll(".build").forEach(x => x.classList.remove("on"));
-    if (on) { state.buildType = null; state.mode = "none"; }
-    else {
-      b.classList.add("on"); state.buildType = b.dataset.build; state.mode = "build";
-      const bd = PLANT_DEFS[state.buildType];
-      $("build-hint").textContent = "建造模式：" + bd.name + "（占 " + bd.w + "×" + bd.h + " 格，光标格为左上角），可建地形：" +
-        bd.terr.map(t => TERRAIN[t].name).join("、") + "。点击地图空地放置。";
-    }
-    updateModeBtns();
-  }));
+  box.querySelectorAll("[data-build]").forEach(b => {
+    const d = PLANT_DEFS[b.dataset.build];
+    b.addEventListener("pointerenter", () => {
+      hoveringBuild = true;
+      $("build-hint").innerHTML = buildInfoHTML(d);
+    });
+    b.addEventListener("pointerleave", () => {
+      hoveringBuild = false;
+      $("build-hint").textContent = modeHint;
+    });
+    b.addEventListener("click", () => {
+      const on = b.classList.contains("on");
+      box.querySelectorAll(".build").forEach(x => x.classList.remove("on"));
+      if (on) { state.buildType = null; state.mode = "none"; setHint(HINT_DEFAULT); }
+      else {
+        b.classList.add("on"); state.buildType = b.dataset.build; state.mode = "build";
+        const bd = PLANT_DEFS[state.buildType];
+        setHint("建造模式：" + bd.name + "（占 " + bd.w + "×" + bd.h + " 格，光标格为左上角），可建地形：" +
+          bd.terr.map(t => TERRAIN[t].name).join("、") + "。点击地图空地放置。");
+      }
+      updateModeBtns();
+    });
+  });
 }
 function updateModeBtns() {
   document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
@@ -1568,11 +1622,11 @@ document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click"
   if (state.mode !== "build") {
     state.buildType = null;
     document.querySelectorAll(".build").forEach(x => x.classList.remove("on"));
-    $("build-hint").textContent = state.mode === "connect"
+    setHint(state.mode === "connect"
       ? "连线模式：先点一座电厂，再点要供电的城市或工业区。每格造价 " + money(LINK_COST_PER_KM) + " 元，容量 " + LINK_CAP + " MW。"
       : state.mode === "sell"
         ? "拆除模式：点击设施拆除，退回 50% 造价。"
-        : "提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。";
+        : HINT_DEFAULT);
   }
   updateModeBtns();
 }));
