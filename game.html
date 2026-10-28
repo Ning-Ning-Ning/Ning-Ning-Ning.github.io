@@ -343,11 +343,12 @@
 
 <div class="hud-legend">
   <span class="lg"><i class="sw" style="background:#2e4630"></i>平原</span>
-  <span class="lg"><i class="sw" style="background:#17466b"></i>河流</span>
-  <span class="lg"><i class="sw" style="background:#4d5359"></i>山地</span>
+  <span class="lg"><i class="sw" style="background:#1d3a22"></i>森林（禁建）</span>
+  <span class="lg"><i class="sw" style="background:#155a66"></i>鱼塘（仅渔光互补）</span>
+  <span class="lg"><i class="sw" style="background:#4d5359"></i>山地（仅光伏/风电）</span>
+  <span class="lg"><i class="sw" style="background:#17466b"></i>河流（禁建）</span>
   <span class="lg"><i class="sw" style="background:#7d6f4e"></i>沿海</span>
-  <span class="lg"><i class="sw" style="background:#39424c"></i>城市（需要用电）</span>
-  <span class="lg"><i class="sw" style="background:#4a4440"></i>工业区（用电更大）</span>
+  <span class="lg"><i class="sw" style="background:#3f3a33"></i>城镇</span>
 </div>
 
 <div class="hud-right">
@@ -495,7 +496,7 @@
 const $ = id => document.getElementById(id);
 const canvas = $("map"), ctx = canvas.getContext("2d");
 /* ===== 全屏等轴测视图（世界坐标 + 自适应缩放 + 可移动镜头）===== */
-const COLS = 14, ROWS = 9;
+const COLS = 45, ROWS = 29;                   // 大世界地图（1305 格，约原图 10 倍）
 const TILE_W = 96, TILE_H = 48;              // 菱形地块（世界坐标）
 const ORX = 0, ORY = 0;                      // 世界原点：格 (0,0) 在 (0,0)
 const MAP_CX = ((COLS - 1) - (ROWS - 1)) * TILE_W / 4;        // 地图水平中心
@@ -513,7 +514,8 @@ function resizeView() {
 }
 function clampCam() {
   const halfW = VW / 2 / ZOOM, halfH = VH / 2 / ZOOM;
-  const minX = -464, maxX = 744, minY = -280, maxY = 640;
+  const minX = -(ROWS - 1) * TILE_W / 2 - 170, maxX = (COLS - 1) * TILE_W / 2 + 170;
+  const minY = -260, maxY = (COLS + ROWS - 2) * TILE_H / 2 + 190;
   CAMX = (maxX - minX) <= halfW * 2 ? (minX + maxX) / 2 : Math.max(minX + halfW, Math.min(maxX - halfW, CAMX));
   CAMY = (maxY - minY) <= halfH * 2 ? (minY + maxY) / 2 : Math.max(minY + halfH, Math.min(maxY - halfH, CAMY));
 }
@@ -562,29 +564,62 @@ function sfx(kind) {
 /* ============================ 地图与地形 ============================ */
 const TERRAIN = {
   plain:    { name: "平原",  fill: "#2e4630", fill2: "#35503a", fill3: "#283c28" },
-  river:    { name: "河流",  fill: "#17466b", fill2: "#1d5477", fill3: "#123a5c" },
+  forest:   { name: "森林",  fill: "#1d3a22", fill2: "#22452a", fill3: "#182f1c" },
+  pond:     { name: "鱼塘",  fill: "#155a66", fill2: "#196a76", fill3: "#114a55" },
   mountain: { name: "山地",  fill: "#4d5359", fill2: "#5a6168", fill3: "#3f454b" },
+  river:    { name: "河流",  fill: "#17466b", fill2: "#1d5477", fill3: "#123a5c" },
   coast:    { name: "沿海",  fill: "#7d6f4e", fill2: "#8a7b57", fill3: "#6e6244" },
-  city:     { name: "城市",  fill: "#39424c", fill2: "#424c58", fill3: "#2f3841" },
-  industry: { name: "工业区", fill: "#4a4440", fill2: "#56504a", fill3: "#3c3733" }
+  town:     { name: "城镇",  fill: "#3f3a33", fill2: "#48423a", fill3: "#352f29" }
 };
-const MAP_DEF = [
-  "m m m f f f f f f f f f f f",
-  "m m m f f f f f f f f f f f",
-  "r r r r r f f f f f f f f f",
-  "r r r r r f f f f f f f f f",
-  "r r r r r f f f f f f f f f",
-  "p p p p p p p p p p p c c c",
-  "p p p p p p p p p p p c c c",
-  "p p p p p p p p p p p o o o",
-  "p p p p p p p p p p p o o o"
-];
-const TERRAIN_CODE = { m: "mountain", f: "plain", r: "river", p: "plain", c: "coast", o: "coast" };
+/* 城镇地块中心（城市节点所在地） */
+const TOWN_SPOTS = [[10, 8], [34, 7], [38, 21], [23, 24], [8, 20]];
 
-const grid = []; // grid[r][c]
-for (let r = 0; r < ROWS; r++) {
-  grid.push(MAP_DEF[r].split(" ").map(code => TERRAIN_CODE[code]));
+/* 程序化大地图：山脊 + 山体 + 蜿蜒河 + 鱼塘 + 森林 + 沿海 + 城镇 */
+function generateMap() {
+  const g = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) {
+      let t = "plain";
+      const h = hash2(c * 3 + 11, r * 5 + 7);
+      // 西侧山脊
+      const ridge = 5 + 2.6 * Math.sin(r / 4.6) + 1.6 * Math.sin(r / 1.7 + 1.3);
+      if (c < ridge + h * 1.4) t = "mountain";
+      // 中部山体
+      if (Math.hypot(c - 27, r - 4.5) < 3.8 + h) t = "mountain";
+      if (Math.hypot(c - 37, r - 18) < 3.2 + h * 0.8) t = "mountain";
+      // 蜿蜒南北的河流
+      const rc = 16 + 4.2 * Math.sin(r / 3.4) + 1.6 * Math.sin(r / 1.2 + 2);
+      if (Math.abs(c - rc) < 1.2 + h * 0.6) t = "river";
+      // 鱼塘簇（河湾低地）
+      if (t === "plain" || t === "river") {
+        if (Math.hypot((c - 22) / 1.4, r - 23) < 2.4) t = "pond";
+        else if (Math.hypot((c - 11) / 1.3, r - 13) < 2.1) t = "pond";
+        else if (Math.hypot((c - 30) / 1.5, r - 12) < 1.9) t = "pond";
+      }
+      // 森林（三片）
+      if (t === "plain") {
+        if (Math.hypot((c - 33) / 1.7, r - 24) < 3.4) t = "forest";
+        else if (Math.hypot((c - 12) / 1.6, r - 5) < 3.0) t = "forest";
+        else if (Math.hypot((c - 40) / 1.4, r - 8) < 2.6) t = "forest";
+      }
+      // 东南沿海
+      if (c > COLS - 6 && r > ROWS - 5) t = "coast";
+      row.push(t);
+    }
+    g.push(row);
+  }
+  // 城镇地块（3×3，盖在城市节点周围）
+  TOWN_SPOTS.forEach(([tc, tr]) => {
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const cc = tc + dc, rr = tr + dr;
+      if (cc >= 0 && cc < COLS && rr >= 0 && rr < ROWS) g[rr][cc] = "town";
+    }
+  });
+  return g;
 }
+
+const grid = generateMap(); // grid[r][c]
 
 /* 负荷节点：城市 / 工业区（24 小时负荷曲线形状） */
 const LOAD_SHAPE = [
@@ -604,12 +639,13 @@ function makeLoadNode(name, col, row, peak, industry) {
 
 /* ============================ 设施定义 ============================ */
 const PLANT_DEFS = {
-  coal:     { name: "燃煤电厂",   icon: "▦", color: "#8a8f94", cost: 220000, cap: 200, varCost: 150, fixedCost: 40,  terr: ["plain", "mountain", "coast"], w: 3, h: 2 },
-  gas:      { name: "燃气电厂",   icon: "▲", color: "#e08a3c", cost: 140000, cap: 150, varCost: 280, fixedCost: 30,  terr: ["plain", "coast", "mountain"], w: 2, h: 2 },
+  coal:     { name: "燃煤电厂",   icon: "▦", color: "#8a8f94", cost: 220000, cap: 200, varCost: 150, fixedCost: 40,  terr: ["plain", "coast"], w: 3, h: 2 },
+  gas:      { name: "燃气电厂",   icon: "▲", color: "#e08a3c", cost: 140000, cap: 150, varCost: 280, fixedCost: 30,  terr: ["plain", "coast"], w: 2, h: 2 },
   wind:     { name: "风电场",     icon: "✳", color: "#4aa3d8", cost: 170000, cap: 80,  varCost: 8,   fixedCost: 30,  terr: ["mountain", "coast"], w: 2, h: 1 },
-  solar:    { name: "光伏电站",   icon: "◐", color: "#d9b122", cost: 140000, cap: 80,  varCost: 4,   fixedCost: 22,  terr: ["plain", "coast"], w: 2, h: 2 },
-  storage:  { name: "储能电站",   icon: "▤", color: "#2f9e6f", cost: 110000, cap: 120, varCost: 0,   fixedCost: 16,  terr: ["plain", "coast", "mountain"], w: 1, h: 2 },
-  nuclear:  { name: "核电站",     icon: "☢", color: "#b34fd8", cost: 520000, cap: 450, varCost: 60,  fixedCost: 150, terr: ["plain", "coast"], w: 3, h: 3 }
+  solar:    { name: "光伏电站",   icon: "◐", color: "#d9b122", cost: 140000, cap: 80,  varCost: 4,   fixedCost: 22,  terr: ["plain", "coast", "mountain"], w: 2, h: 2 },
+  storage:  { name: "储能电站",   icon: "▤", color: "#2f9e6f", cost: 110000, cap: 120, varCost: 0,   fixedCost: 16,  terr: ["plain", "coast"], w: 1, h: 2 },
+  nuclear:  { name: "核电站",     icon: "☢", color: "#b34fd8", cost: 520000, cap: 450, varCost: 60,  fixedCost: 150, terr: ["plain", "coast"], w: 3, h: 3 },
+  fishery:  { name: "渔光互补光伏", icon: "◍", color: "#3f9ec4", cost: 165000, cap: 110, varCost: 4, fixedCost: 26, terr: ["pond"], w: 2, h: 2 }
 };
 const LINK_COST_PER_KM = 900;   // 元 / 格
 const LINK_CAP = 500;           // MW
@@ -617,9 +653,11 @@ const LINK_BASE_LOSS = 0.0025;  // 每格损耗
 
 /* ============================ 游戏状态 ============================ */
 const loads = [
-  makeLoadNode("滨海市", 1, 6, 210, false),
-  makeLoadNode("新城", 12, 2, 150, false),
-  makeLoadNode("工业园区", 12, 7, 130, true)
+  makeLoadNode("滨海市", 10, 8, 210, false),
+  makeLoadNode("新城", 34, 7, 150, false),
+  makeLoadNode("工业园区", 38, 21, 130, true),
+  makeLoadNode("江湾镇", 23, 24, 110, false),
+  makeLoadNode("山林镇", 8, 20, 90, false)
 ];
 
 const state = {
@@ -845,7 +883,7 @@ function hash2(c, r) {
   return ((h ^ (h >> 16)) >>> 0) / 4294967295;
 }
 
-function drawTerrainCell(c, r, terr, light) {
+function drawTerrainCell(g, c, r, terr, light, phase) {
   const cx = isoX(c, r), cy = isoY(c, r);
   const pal = TERRAIN[terr] || TERRAIN.plain;
   const v = hash2(c, r);
@@ -855,70 +893,123 @@ function drawTerrainCell(c, r, terr, light) {
   const ty = cy - lift, hw = TILE_W / 2, hh = TILE_H / 2;
   // 侧面（山地/陆块立体台地）
   if (lift > 0) {
-    ctx.fillStyle = shade(base, 0.55);
-    ctx.beginPath();
-    ctx.moveTo(cx - hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx, ty + hh + lift); ctx.lineTo(cx - hw, ty + lift);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = shade(base, 0.4);
-    ctx.beginPath();
-    ctx.moveTo(cx + hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx, ty + hh + lift); ctx.lineTo(cx + hw, ty + lift);
-    ctx.closePath(); ctx.fill();
+    g.fillStyle = shade(base, 0.55);
+    g.beginPath();
+    g.moveTo(cx - hw, ty); g.lineTo(cx, ty + hh); g.lineTo(cx, ty + hh + lift); g.lineTo(cx - hw, ty + lift);
+    g.closePath(); g.fill();
+    g.fillStyle = shade(base, 0.4);
+    g.beginPath();
+    g.moveTo(cx + hw, ty); g.lineTo(cx, ty + hh); g.lineTo(cx, ty + hh + lift); g.lineTo(cx + hw, ty + lift);
+    g.closePath(); g.fill();
   }
   // 顶面
-  ctx.beginPath();
-  ctx.moveTo(cx, ty - hh); ctx.lineTo(cx + hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx - hw, ty);
-  ctx.closePath();
-  ctx.fillStyle = base; ctx.fill();
+  g.beginPath();
+  g.moveTo(cx, ty - hh); g.lineTo(cx + hw, ty); g.lineTo(cx, ty + hh); g.lineTo(cx - hw, ty);
+  g.closePath();
+  g.fillStyle = base; g.fill();
   // 顶面纹理
-  ctx.save();
-  ctx.clip();
+  g.save();
+  g.clip();
   if (terr === "mountain") {
-    ctx.fillStyle = shade(base, 0.72);
-    ctx.beginPath(); ctx.moveTo(cx, ty - hh); ctx.lineTo(cx + hw, ty); ctx.lineTo(cx, ty); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = shade(base, 1.18);
-    ctx.beginPath(); ctx.moveTo(cx, ty - hh); ctx.lineTo(cx - hw * 0.5, ty - hh * 0.2); ctx.lineTo(cx - hw * 0.2, ty); ctx.closePath(); ctx.fill();
+    g.fillStyle = shade(base, 0.72);
+    g.beginPath(); g.moveTo(cx, ty - hh); g.lineTo(cx + hw, ty); g.lineTo(cx, ty); g.closePath(); g.fill();
+    g.fillStyle = shade(base, 1.18);
+    g.beginPath(); g.moveTo(cx, ty - hh); g.lineTo(cx - hw * 0.5, ty - hh * 0.2); g.lineTo(cx - hw * 0.2, ty); g.closePath(); g.fill();
   } else if (terr === "river") {
-    const ph = performance.now() * 0.0012 + c * 0.5 + r * 0.35;
-    ctx.strokeStyle = "rgba(160,210,255,0.22)"; ctx.lineWidth = 2;
+    const ph = phase + c * 0.5 + r * 0.35;
+    g.strokeStyle = "rgba(160,210,255,0.22)"; g.lineWidth = 2;
     for (let k = 0; k < 2; k++) {
       const off = Math.sin(ph + k * 2.1) * 8;
-      ctx.beginPath();
-      ctx.moveTo(cx - hw * 0.55, ty - 4 + off * 0.3 + k * 7);
-      ctx.lineTo(cx + hw * 0.55, ty + 4 + off * 0.3 + k * 7);
-      ctx.stroke();
+      g.beginPath();
+      g.moveTo(cx - hw * 0.55, ty - 4 + off * 0.3 + k * 7);
+      g.lineTo(cx + hw * 0.55, ty + 4 + off * 0.3 + k * 7);
+      g.stroke();
     }
-  } else if (terr === "city") {
-    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(cx - hw, ty - 2); ctx.lineTo(cx + hw, ty - 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - hw * 0.6, ty - hh * 0.55); ctx.lineTo(cx + hw * 0.2, ty + hh * 0.6); ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fillRect(cx - 18, ty - 6, 5, 4); ctx.fillRect(cx + 6, ty + 2, 5, 4);
+  } else if (terr === "forest") {
+    for (let k = 0; k < 3; k++) {
+      const hx = (hash2(c * 13 + k * 3, r * 7 + k) - 0.5) * TILE_W * 0.55;
+      const hy = (hash2(c * 5 + k, r * 11 + k * 5) - 0.5) * TILE_H * 0.5;
+      const bx = cx + hx, by = ty + hy;
+      g.fillStyle = shade(base, 0.62);
+      g.beginPath(); g.moveTo(bx, by - 8); g.lineTo(bx + 5, by + 4); g.lineTo(bx - 5, by + 4); g.closePath(); g.fill();
+      g.fillStyle = shade(base, 1.55);
+      g.beginPath(); g.moveTo(bx, by - 11); g.lineTo(bx + 4, by - 1); g.lineTo(bx - 4, by - 1); g.closePath(); g.fill();
+    }
+  } else if (terr === "pond") {
+    const ph = phase + c * 0.4 + r * 0.3;
+    g.strokeStyle = "rgba(150,235,235,0.28)"; g.lineWidth = 1.5;
+    for (let k = 0; k < 2; k++) {
+      const rr2 = 16 - k * 6 + Math.sin(ph + k) * 1.5;
+      g.beginPath(); g.ellipse(cx, ty, rr2, rr2 * 0.42, 0, 0, Math.PI * 2); g.stroke();
+    }
+    g.fillStyle = "rgba(0,0,0,0.2)";
+    g.fillRect(cx - 12, ty - 8, 4, 3);
   } else if (terr === "coast") {
     for (let k = 0; k < 5; k++) {
       const hx = hash2(c * 7 + k, r * 3 + k) - 0.5;
       const hy = hash2(c + k * 9, r * 5 + k) - 0.5;
-      ctx.fillStyle = k % 2 ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.18)";
-      ctx.fillRect(cx + hx * TILE_W * 0.7, ty + hy * TILE_H * 0.6, 3, 2);
+      g.fillStyle = k % 2 ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.18)";
+      g.fillRect(cx + hx * TILE_W * 0.7, ty + hy * TILE_H * 0.6, 3, 2);
     }
-  } else if (terr === "industry") {
-    ctx.fillStyle = "rgba(240,176,64,0.28)";
-    for (let k = 0; k < 3; k++) ctx.fillRect(cx - hw + 10 + k * 22, ty + 6 + (k % 2) * 5, 10, 3);
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.fillRect(cx - hw * 0.4, ty - 8, 12, 6);
+  } else if (terr === "town") {
+    for (let k = 0; k < 4; k++) {
+      const hx = (hash2(c * 9 + k * 7, r * 3 + k) - 0.5) * TILE_W * 0.6;
+      const hy = (hash2(c * 7 + k, r * 9 + k * 3) - 0.5) * TILE_H * 0.5;
+      g.fillStyle = k % 2 ? "rgba(0,0,0,0.32)" : "rgba(255,215,140,0.28)";
+      g.fillRect(cx + hx - 3, ty + hy - 2, 6, 4);
+    }
   } else {
-    ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1.5;
+    g.strokeStyle = "rgba(255,255,255,0.10)"; g.lineWidth = 1.5;
     for (let k = 0; k < 4; k++) {
       const hx = (hash2(c * 11 + k, r * 13 + k) - 0.5) * TILE_W * 0.8;
       const hy = (hash2(c * 5 + k * 3, r * 7 + k) - 0.5) * TILE_H * 0.7;
-      ctx.beginPath(); ctx.moveTo(cx + hx, ty + hy); ctx.lineTo(cx + hx + 3, ty + hy - 5); ctx.stroke();
+      g.beginPath(); g.moveTo(cx + hx, ty + hy); g.lineTo(cx + hx + 3, ty + hy - 5); g.stroke();
     }
   }
-  ctx.restore();
+  g.restore();
   // 边线
-  ctx.beginPath();
-  ctx.moveTo(cx, ty - hh); ctx.lineTo(cx + hw, ty); ctx.lineTo(cx, ty + hh); ctx.lineTo(cx - hw, ty);
-  ctx.closePath();
-  ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = 1; ctx.stroke();
+  g.beginPath();
+  g.moveTo(cx, ty - hh); g.lineTo(cx + hw, ty); g.lineTo(cx, ty + hh); g.lineTo(cx - hw, ty);
+  g.closePath();
+  g.strokeStyle = "rgba(0,0,0,0.45)"; g.lineWidth = 1; g.stroke();
+}
+
+/* 地形烘焙：整张大地图离屏渲染一次，逐帧只做一次贴图 */
+const WB_MINX = -(ROWS - 1) * TILE_W / 2 - TILE_W / 2 - 24;
+const WB_MINY = -80;
+const WB_MAXX = (COLS - 1) * TILE_W / 2 + TILE_W / 2 + 24;
+const WB_MAXY = (COLS + ROWS - 2) * TILE_H / 2 + TILE_H / 2 + 30;
+const WB_W = WB_MAXX - WB_MINX, WB_H = WB_MAXY - WB_MINY;
+let terrainCanvas = null;
+function bakeTerrain() {
+  terrainCanvas = document.createElement("canvas");
+  terrainCanvas.width = Math.ceil(WB_W);
+  terrainCanvas.height = Math.ceil(WB_H);
+  const g = terrainCanvas.getContext("2d");
+  g.translate(-WB_MINX, -WB_MINY);
+  const cells = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
+  cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+  for (const [c, r] of cells) drawTerrainCell(g, c, r, grid[r][c], 1, 0.6);
+}
+
+/* 视口裁剪：只返回可见范围内的格子（按 c+r 深度排序） */
+function visibleCells() {
+  let minC = 1e9, maxC = -1e9, minR = 1e9, maxR = -1e9;
+  [[0, 0], [VW, 0], [0, VH], [VW, VH]].forEach(([mx, my]) => {
+    const wx = (mx - (VW / 2 - CAMX * ZOOM)) / ZOOM;
+    const wy = (my - (VH / 2 - CAMY * ZOOM)) / ZOOM;
+    const gx = wx / (TILE_W / 2), gy = wy / (TILE_H / 2);
+    const c = (gx + gy) / 2, r = (gy - gx) / 2;
+    minC = Math.min(minC, c); maxC = Math.max(maxC, c);
+    minR = Math.min(minR, r); maxR = Math.max(maxR, r);
+  });
+  minC = Math.max(0, Math.floor(minC) - 2); maxC = Math.min(COLS - 1, Math.ceil(maxC) + 2);
+  minR = Math.max(0, Math.floor(minR) - 2); maxR = Math.min(ROWS - 1, Math.ceil(maxR) + 2);
+  const cells = [];
+  for (let r = minR; r <= maxR; r++) for (let c = minC; c <= maxC; c++) cells.push([c, r]);
+  cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+  return cells;
 }
 
 function drawMap() {
@@ -932,11 +1023,15 @@ function drawMap() {
   const light = 0.88 + 0.12 * Math.sin(dayT - Math.PI / 2);   // 昼夜亮度
   const night = state.hour < 6 || state.hour >= 19;
 
-  /* --- 地块（按 c+r 深度排序） --- */
-  const cells = [];
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
-  cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  for (const [c, r] of cells) drawTerrainCell(c, r, grid[r][c], light);
+  /* --- 地块（烘焙贴图 + 昼夜遮罩） --- */
+  const cells = visibleCells();
+  if (!terrainCanvas) bakeTerrain();
+  ctx.drawImage(terrainCanvas, WB_MINX, WB_MINY);
+  const dimA = Math.max(0, 1 - light) * 0.85;
+  if (dimA > 0.02) {
+    ctx.fillStyle = "rgba(4,8,16," + dimA.toFixed(3) + ")";
+    ctx.fillRect(WB_MINX, WB_MINY, WB_W, WB_H);
+  }
 
   /* --- 建造模式：RTS 放置网格（星际式，仅放置时显示） --- */
   if (state.mode === "build" && state.buildType) {
@@ -1165,6 +1260,25 @@ function drawNode(n, isPlant, light, night) {
         }
         break;
       }
+      case "fishery": {
+        // 水面 + 漂浮光伏板（渔光互补）
+        ctx.fillStyle = "rgba(120,220,235,0.20)";
+        ctx.beginPath(); ctx.ellipse(cx, cy + 10, 32, 11, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = "rgba(150,235,235,0.35)"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(cx, cy + 10, 22, 7, 0, 0, Math.PI * 2); ctx.stroke();
+        for (let i = 0; i < 3; i++) {
+          const bx = cx - 26 + i * 20, by = cy + 2 + (i % 2) * 8;
+          isoBox(bx, by, 17, 5, 17, "#20406b", "#183355", "#10233c");
+          ctx.strokeStyle = "rgba(120,180,255,0.5)"; ctx.lineWidth = 1;
+          ctx.strokeRect(px(bx - 6), px(by - 8), 12, 5);
+        }
+        if (!night) {
+          const glow = 0.5 + 0.5 * Math.sin(T * 0.003);
+          ctx.fillStyle = "rgba(250,204,21," + (0.28 * glow) + ")";
+          ctx.beginPath(); ctx.arc(cx + 30, cy - 30, 12, 0, 7); ctx.fill();
+        }
+        break;
+      }
       case "storage": {
         isoBox(cx - 12, cy + 6, 42, 32, 22, "#3a5a52", "#2c463f", "#1e322c");
         hazard(cx - 12, cy + 26, 42);
@@ -1213,7 +1327,7 @@ function drawNode(n, isPlant, light, night) {
   void light;
 
   // ===== 名称牌 / 状态条（位置随建筑体积下移） =====
-  const BOTTOM = { coal: 34, gas: 30, wind: 22, solar: 15, storage: 38, nuclear: 34 };
+  const BOTTOM = { coal: 34, gas: 30, wind: 22, solar: 15, storage: 38, nuclear: 34, fishery: 16 };
   const labY = isPlant
     ? Math.round((BOTTOM[n.type] || 34) * SC + 16)
     : Math.round((13 * (n.level || 1) + 38) * 1.45 + 8);
@@ -1251,25 +1365,35 @@ function drawNode(n, isPlant, light, night) {
   }
 }
 
-/* ===== 小地图（地形 + 单位 + 镜头框，点击跳转） ===== */
-const MINI_TW = 9, MINI_TH = 4.5, MINI_OY = 24;
-function drawMinimap() {
+/* ===== 小地图（地形缓存 + 单位 + 镜头框，点击跳转） ===== */
+const MINI_TW = 6, MINI_TH = 3, MINI_OY = 16;
+let miniBase = null;
+function buildMiniBase() {
   const m = $("mini"); if (!m) return;
-  const mc = m.getContext("2d");
-  const MW = m.width, MH = m.height;
-  mc.fillStyle = "#0b0f13"; mc.fillRect(0, 0, MW, MH);
+  miniBase = document.createElement("canvas");
+  miniBase.width = m.width; miniBase.height = m.height;
+  const mc = miniBase.getContext("2d");
+  const MW = miniBase.width;
+  mc.fillStyle = "#0b0f13"; mc.fillRect(0, 0, MW, miniBase.height);
   const px2 = (c, r) => MW / 2 + (c - r) * MINI_TW / 2;
   const py2 = (c, r) => MINI_OY + (c + r) * MINI_TH / 2;
-  const cells = [];
-  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) cells.push([c, r]);
-  cells.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-  for (const [c, r] of cells) {
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
     const x = px2(c, r), y = py2(c, r);
     mc.fillStyle = TERRAIN[grid[r][c]].fill;
     mc.beginPath();
     mc.moveTo(x, y - MINI_TH / 2); mc.lineTo(x + MINI_TW / 2, y); mc.lineTo(x, y + MINI_TH / 2); mc.lineTo(x - MINI_TW / 2, y);
     mc.closePath(); mc.fill();
   }
+}
+function drawMinimap() {
+  const m = $("mini"); if (!m) return;
+  if (!miniBase) buildMiniBase();
+  const mc = m.getContext("2d");
+  const MW = m.width, MH = m.height;
+  mc.clearRect(0, 0, MW, MH);
+  if (miniBase) mc.drawImage(miniBase, 0, 0);
+  const px2 = (c, r) => MW / 2 + (c - r) * MINI_TW / 2;
+  const py2 = (c, r) => MINI_OY + (c + r) * MINI_TH / 2;
   state.links.forEach(L => {
     const A = nodeById(L.a), B = nodeById(L.b);
     if (!A || !B) return;
@@ -1278,18 +1402,18 @@ function drawMinimap() {
   });
   loads.forEach(L => {
     mc.fillStyle = "#ff6b6b";
-    mc.fillRect(px2(L.col, L.row) - 2.5, py2(L.col, L.row) - 2.5, 5, 5);
+    mc.fillRect(px2(L.col, L.row) - 2, py2(L.col, L.row) - 2, 4, 4);
   });
   state.plants.forEach(p => {
     const d = PLANT_DEFS[p.type];
     const cc = p.col + (d.w - 1) / 2, rr = p.row + (d.h - 1) / 2;
     mc.fillStyle = "#e8a020";
-    mc.fillRect(px2(cc, rr) - 2.5, py2(cc, rr) - 2.5, 5, 5);
+    mc.fillRect(px2(cc, rr) - 2, py2(cc, rr) - 2, 4, 4);
   });
   // 镜头视口框
   const hw = VW / 2 / ZOOM, hh = VH / 2 / ZOOM;
   const w2m = (wx, wy) => [MW / 2 + wx * MINI_TW / TILE_W, MINI_OY + wy * MINI_TH / TILE_H];
-  mc.strokeStyle = "rgba(240,190,90,0.95)"; mc.lineWidth = 1.5;
+  mc.strokeStyle = "rgba(240,190,90,0.95)"; mc.lineWidth = 1.2;
   mc.beginPath();
   [[CAMX - hw, CAMY - hh], [CAMX + hw, CAMY - hh], [CAMX + hw, CAMY + hh], [CAMX - hw, CAMY + hh]].forEach(([wx, wy], i) => {
     const [x, y] = w2m(wx, wy);
@@ -1421,7 +1545,8 @@ const BUILD_ICON = {
   wind: '<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="1.6"/><path d="M12 11v10M9 21h6M12 11l6.2-4.6M12 11L5.4 7.4M12 11V3.4"/></svg>',
   solar: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="12" height="8" rx="1"/><path d="M3 15h12M9 11v8"/><circle cx="19" cy="6" r="2.4"/><path d="M19 2.4v.8M19 8.8v.8M22.6 6h-.8M15.4 6h.8"/></svg>',
   storage: '<svg viewBox="0 0 24 24"><rect x="3" y="8" width="15" height="9" rx="1.5"/><path d="M18 11h2.2v3H18"/><path d="M11.5 9.8 8.8 13h2.6l-1.2 2.9L13.4 12h-2.6z"/></svg>',
-  nuclear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M12 12V4.2A7.8 7.8 0 0 1 18.8 16M12 12l-6.8 3.9A7.8 7.8 0 0 1 5.2 8M12 12l6.8 3.9A7.8 7.8 0 0 1 12 19.8"/></svg>'
+  nuclear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M12 12V4.2A7.8 7.8 0 0 1 18.8 16M12 12l-6.8 3.9A7.8 7.8 0 0 1 5.2 8M12 12l6.8 3.9A7.8 7.8 0 0 1 12 19.8"/></svg>',
+  fishery: '<svg viewBox="0 0 24 24"><rect x="3.5" y="8.5" width="17" height="4.4" rx="0.8"/><path d="M8.6 8.5v4.4M12 8.5v4.4M15.4 8.5v4.4"/><path d="M3 18c1.8-1.4 3.6-1.4 5.4 0s3.6 1.4 5.4 0 3.6-1.4 5.4 0"/></svg>'
 };
 const HINT_DEFAULT = "提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。";
 let modeHint = HINT_DEFAULT, hoveringBuild = false;
