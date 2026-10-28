@@ -452,7 +452,7 @@
       </table>
     </div>
     <div class="rp-pane" id="rp-mkt" hidden>
-      <div class="rp-sub">市场买卖电 <span class="tip">自动结算：缺电按市场价买入，富余按市场价卖出</span></div>
+      <div class="rp-sub">市场买卖电 <span class="tip">城市缺电只少供电量、不扣费；富余电量按市场价卖出</span></div>
       <table>
         <thead>
           <tr><th>项目</th><th class="num">本小时</th><th class="num">今日累计</th><th class="num">总计</th></tr>
@@ -695,7 +695,7 @@ function makeLoadNode(name, col, row, peak, industry) {
 const PLANT_DEFS = {
   coal:     { name: "燃煤电厂",   icon: "▦", color: "#8a8f94", cost: 220000, cap: 200, varCost: 150, fixedCost: 40,  terr: ["plain", "coast"], w: 3, h: 2 },
   gas:      { name: "燃气电厂",   icon: "▲", color: "#e08a3c", cost: 140000, cap: 150, varCost: 280, fixedCost: 30,  terr: ["plain", "coast"], w: 2, h: 2 },
-  wind:     { name: "风电场",     icon: "✳", color: "#4aa3d8", cost: 170000, cap: 80,  varCost: 8,   fixedCost: 30,  terr: ["mountain", "coast"], w: 2, h: 1 },
+  wind:     { name: "风电场",     icon: "✳", color: "#4aa3d8", cost: 170000, cap: 80,  varCost: 8,   fixedCost: 30,  terr: ["plain", "mountain", "coast", "town"], w: 2, h: 1 },
   solar:    { name: "光伏电站",   icon: "◐", color: "#d9b122", cost: 140000, cap: 80,  varCost: 4,   fixedCost: 22,  terr: ["plain", "coast", "mountain"], w: 2, h: 2 },
   storage:  { name: "储能电站",   icon: "▤", color: "#2f9e6f", cost: 110000, cap: 120, varCost: 0,   fixedCost: 16,  terr: ["plain", "coast"], w: 1, h: 2 },
   nuclear:  { name: "核电站",     icon: "☢", color: "#b34fd8", cost: 520000, cap: 450, varCost: 60,  fixedCost: 150, terr: ["plain", "coast"], w: 3, h: 3 },
@@ -919,9 +919,9 @@ function step() {
     p.lastAvail = avail[i];
   });
 
-  // 6) 收支结算
+  // 6) 收支结算（城市缺电不扣钱：仅少供电量、不罚款）
   const inc = servedAll * price + marketSell * price;
-  const buy = shed * price * 1.08; // 缺供从市场高价买回 + 罚款
+  const buy = 0;
   S.inc += inc; S.fuel += fuel; S.om += om; S.buy += buy; S.buyMWh += shed; S.soldMWh += servedAll + marketSell;
   S.loadMWh += totalLoad; S.shedMWh += shed;
   A.inc += inc; A.fuel += fuel; A.om += om; A.buy += buy; A.buyMWh += shed; A.soldMWh += servedAll + marketSell;
@@ -1736,7 +1736,6 @@ function renderPanels() {
     ["售电收入", S.inc, A.inc, "up"],
     ["燃料成本", -S.fuel, -A.fuel, "down"],
     ["维护成本", -S.om, -A.om, "down"],
-    ["购电/罚款", -S.buy, -A.buy, "down"],
     ["合同盈亏", S.ctr, A.ctr, S.ctr >= 0 ? "up" : "down"],
     ["净现金流", S.inc - S.fuel - S.om - S.buy + S.ctr, A.inc - A.fuel - A.om - A.buy + A.ctr, (S.inc - S.fuel - S.om - S.buy + S.ctr) >= 0 ? "up" : "down"]
   ];
@@ -1765,9 +1764,8 @@ function renderPanels() {
   // 市场
   $("mkt-body").innerHTML = [
     ["售给市场（未上网电量）", h ? h.marketSell : 0, S.soldMWh, A.soldMWh, " MWh"],
-    ["从市场购电/罚款（缺供）", h ? h.buyMWh : 0, S.buyMWh, A.buyMWh, " MWh"],
-    ["系统总用电", h ? h.load : 0, S.loadMWh, A.loadMWh, " MWh"],
-    ["缺供电量", h ? h.shed : 0, S.shedMWh, A.shedMWh, " MWh"]
+    ["城市缺电（不计费）", h ? h.shed : 0, S.shedMWh, A.shedMWh, " MWh"],
+    ["系统总用电", h ? h.load : 0, S.loadMWh, A.loadMWh, " MWh"]
   ].map(r => `<tr><td>${r[0]}</td><td class="num">${fmtNum(r[1], 0)}${r[4]}</td>
     <td class="num">${fmtNum(r[2], 0)}${r[4]}</td><td class="num">${fmtNum(r[3], 0)}${r[4]}</td></tr>`).join("");
 
@@ -1847,11 +1845,16 @@ const BUILD_ICON = {
   nuclear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.8"/><path d="M12 12V4.2A7.8 7.8 0 0 1 18.8 16M12 12l-6.8 3.9A7.8 7.8 0 0 1 5.2 8M12 12l6.8 3.9A7.8 7.8 0 0 1 12 19.8"/></svg>',
   fishery: '<svg viewBox="0 0 24 24"><rect x="3.5" y="8.5" width="17" height="4.4" rx="0.8"/><path d="M8.6 8.5v4.4M12 8.5v4.4M15.4 8.5v4.4"/><path d="M3 18c1.8-1.4 3.6-1.4 5.4 0s3.6 1.4 5.4 0 3.6-1.4 5.4 0"/></svg>'
 };
-const HINT_DEFAULT = "提示：先建一座煤电或燃气电厂，再用「连线」把电送到城市，城市才会用你的电、给你付电费。";
-let modeHint = HINT_DEFAULT, hoveringBuild = false;
+const HINT_DEFAULT = "提示：鼠标悬浮地块可看地形；先建一座电厂，再用「连线」把电送到城市。";
+let modeHint = HINT_DEFAULT, hoveringBuild = false, hoveringMap = false;
 function setHint(t) {
   modeHint = t;
-  if (!hoveringBuild) $("build-hint").textContent = t;
+  if (!hoveringBuild && !hoveringMap) $("build-hint").textContent = t;
+}
+function terrainHintHTML(terr) {
+  const t = TERRAIN[terr];
+  const allowed = Object.values(PLANT_DEFS).filter(d => d.terr.includes(terr)).map(d => d.name);
+  return "地形：<b>" + t.name + "</b> · " + (allowed.length ? "可建：" + allowed.join("/") : "不可建造");
 }
 function buildInfoHTML(d) {
   return "<b>" + d.name + "</b> · 占 <em>" + d.w + "×" + d.h + "</em> 格 · 造价 <em>" + money(d.cost) + "</em> 元 · 装机 <em>" +
@@ -1917,17 +1920,25 @@ canvas.addEventListener("pointermove", ev => {
     drawMap();
     return;
   }
-  // 仅在建造放置时才做格子悬停高亮（星际式）
-  if (state.mode !== "build" || !state.buildType) {
-    if (hoverCell) { hoverCell = null; drawMap(); }
-    return;
-  }
   const cell = cellAt(ev);
   const changed = (cell && hoverCell) ? (cell.c !== hoverCell.c || cell.r !== hoverCell.r) : (cell !== hoverCell);
   hoverCell = cell;
-  if (changed) drawMap();
+  if (!changed) return;
+  // 固定提示条：任何模式下悬浮地块都显示地形类型（建造模式另加放置高亮）
+  if (cell) {
+    hoveringMap = true;
+    $("build-hint").innerHTML = terrainHintHTML(grid[cell.r][cell.c]);
+  } else {
+    hoveringMap = false;
+    $("build-hint").textContent = modeHint;
+  }
+  if (state.mode === "build" && state.buildType) drawMap();
 });
-canvas.addEventListener("pointerleave", () => { hoverCell = null; pointerOnMap = false; drawMap(); });
+canvas.addEventListener("pointerleave", () => {
+  hoverCell = null; pointerOnMap = false; hoveringMap = false;
+  $("build-hint").textContent = modeHint;
+  drawMap();
+});
 canvas.addEventListener("pointerdown", ev => {
   if (ev.button === 1 || ev.button === 2) {
     panning = true; panLastX = ev.clientX; panLastY = ev.clientY;
