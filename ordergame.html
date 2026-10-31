@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>集中竞价 · 挂单猎手</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --panel2:#1a222c; --line:#263140;
+    --txt:#dbe6f0; --mut:#7d8f9e; --gold:#e8a020;
+    --buy:#e5484d; --sell:#3ddc84; --accent:#4aa3ff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--txt);
+    font:13px/1.5 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+  .tb{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:9px 16px;
+    background:linear-gradient(180deg,#18202a,#10151c);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;}
+  .logo{font-size:15px;font-weight:800;letter-spacing:1px;color:#f0c27a;}
+  .chip{color:var(--mut);font-size:12px;white-space:nowrap;}
+  .chip b{color:var(--txt);font-family:Consolas,monospace;margin-left:4px;font-size:13px;}
+  .chip b.up{color:var(--buy);} .chip b.down{color:var(--sell);}
+  .spacer{flex:1;}
+  .btn{background:var(--panel2);border:1px solid #33455a;color:#bcd2e4;
+    padding:5px 12px;border-radius:3px;cursor:pointer;font-size:12px;}
+  .btn:hover{border-color:var(--gold);color:#f0c27a;}
+  .btn.primary{background:var(--gold);border-color:var(--gold);color:#1a1206;font-weight:700;}
+  .btn.buy{background:#3a1c20;border-color:#7a2b31;color:#ff9b9f;}
+  .btn.sell{background:#122a1e;border-color:#2c6a46;color:#9df2bd;}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .wrap{display:grid;grid-template-columns:1.35fr 1fr;gap:12px;padding:12px 16px;
+    max-width:1500px;margin:0 auto;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    padding:10px 12px;margin-bottom:12px;}
+  .card-t{font-size:12px;font-weight:700;letter-spacing:1px;color:#a9bcc9;margin-bottom:8px;}
+  #chart{width:100%;height:250px;display:block;background:#0b0f14;border:1px solid #1d2836;}
+  .row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  select,input{background:#0f151d;border:1px solid #2c3c4e;color:var(--txt);
+    padding:5px 8px;border-radius:3px;font:12px Consolas,monospace;}
+  input{width:96px;}
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center;}
+  .stats span{display:block;color:var(--mut);font-size:11px;}
+  .stats b{font:700 16px Consolas,monospace;color:var(--gold);}
+  .book .lvl{display:grid;grid-template-columns:44px 1fr 84px 64px;gap:6px;align-items:center;
+    padding:3px 6px;margin:2px 0;border-radius:3px;cursor:pointer;
+    font:12px Consolas,monospace;position:relative;overflow:hidden;}
+  .lvl:hover{outline:1px solid var(--gold);}
+  .lvl .tag{color:var(--mut);}
+  .lvl .bar{height:14px;border-radius:2px;opacity:.55;}
+  .lvl.ask{background:linear-gradient(90deg,rgba(229,72,77,.14),transparent);}
+  .lvl.bid{background:linear-gradient(90deg,rgba(61,220,132,.12),transparent);}
+  .lvl .pr{font-weight:700;text-align:right;}
+  .lvl.ask .pr{color:#ff8f93;} .lvl.bid .pr{color:#8ef0a8;}
+  .lvl .qt{text-align:right;color:#c6d4e0;}
+  .spread{display:flex;justify-content:space-between;padding:5px 6px;color:var(--gold);
+    border-top:1px dashed #2c3c4e;border-bottom:1px dashed #2c3c4e;margin:4px 0;
+    font:12px Consolas,monospace;}
+  .qty-row{display:flex;gap:6px;align-items:center;margin-top:8px;color:var(--mut);font-size:12px;}
+  .qbtn{background:#141d28;border:1px solid #2c3c4e;color:#a9c1d6;padding:3px 10px;
+    border-radius:3px;cursor:pointer;font-size:12px;}
+  .qbtn.active{background:var(--gold);border-color:var(--gold);color:#1a1206;font-weight:700;}
+  .log{max-height:180px;overflow-y:auto;font:11.5px Consolas,monospace;}
+  .log .it{display:flex;justify-content:space-between;padding:2px 4px;border-bottom:1px solid #182230;}
+  .log .it .b{color:var(--buy);} .log .it .s{color:var(--sell);}
+  .log .it .m{color:var(--mut);}
+  .empty{color:var(--mut);font-size:12px;padding:6px 0;}
+  .mask{position:fixed;inset:0;background:rgba(4,7,10,.7);display:flex;align-items:center;
+    justify-content:center;z-index:50;}
+  .mask[hidden]{display:none;}
+  .modal{background:var(--panel);border:1px solid var(--gold);border-radius:6px;
+    padding:22px 28px;min-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+  .modal h3{margin:0 0 14px;color:#f0c27a;}
+  .modal .big{font:800 30px Consolas,monospace;margin:10px 0;}
+  .modal table{margin:0 auto 14px;font:13px Consolas,monospace;}
+  .modal td{padding:3px 12px;text-align:left;}
+  .modal td:last-child{text-align:right;color:var(--gold);}
+  @media(max-width:1100px){.wrap{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header class="tb">
+  <span class="logo">⚡ 集中竞价 · 挂单猎手</span>
+  <span class="chip" id="tb-date">—</span>
+  <span class="chip">档位<b id="tb-slot">—</b></span>
+  <span class="chip">现价<b id="tb-price">—</b></span>
+  <span class="chip">现金<b id="tb-cash">—</b></span>
+  <span class="chip">持仓<b id="tb-pos">—</b></span>
+  <span class="chip">估值<b id="tb-val">—</b></span>
+  <span class="chip">浮动盈亏<b id="tb-pnl">—</b></span>
+  <span class="spacer"></span>
+  <a class="btn" href="index.html#sim">返回模拟交易</a>
+</header>
+
+<div class="wrap">
+  <section>
+    <div class="card">
+      <div class="card-t">行情回放（真实 sim_ticks · 五档盘口同源）</div>
+      <canvas id="chart"></canvas>
+      <div class="row">
+        <button class="btn" id="btn-prev">◀ 上一档</button>
+        <button class="btn primary" id="btn-play">▶ 播放</button>
+        <button class="btn" id="btn-next">下一档 ▶</button>
+        <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select>
+        <span class="chip" id="progress">—</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-t">模拟交易页联动（挂单量 / 成交量，每 20 秒刷新）</div>
+      <div class="stats">
+        <div><span>买单挂单</span><b id="lk-bidq">—</b></div>
+        <div><span>卖单挂单</span><b id="lk-askq">—</b></div>
+        <div><span>累计成交</span><b id="lk-vol">—</b></div>
+        <div><span>成交笔数</span><b id="lk-cnt">—</b></div>
+        <div><span>基准价</span><b id="lk-base">—</b></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-t">我的成交</div>
+      <div id="my-trades" class="log"><div class="empty">还没有成交，点右侧盘口直接吃单</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card book">
+      <div class="card-t">五档盘口（点档位立即吃单）</div>
+      <div id="book-asks"></div>
+      <div class="spread"><span id="spread-mid">—</span><span id="spread-val">价差 —</span></div>
+      <div id="book-bids"></div>
+      <div class="qty-row">吃单数量：
+        <button class="qbtn active" data-q="1">1</button>
+        <button class="qbtn" data-q="5">5</button>
+        <button class="qbtn" data-q="10">10</button>
+        <button class="qbtn" data-q="25">25</button>
+        <button class="qbtn" data-q="max">最大</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-t">挂单（限价单，行情到位自动成交）</div>
+      <div class="row">
+        <input id="og-price" placeholder="价格" type="number" step="0.1">
+        <input id="og-qty" placeholder="数量" type="number" step="1">
+        <button class="btn buy" id="og-buy">挂买</button>
+        <button class="btn sell" id="og-sell">挂卖</button>
+      </div>
+      <div id="og-myorders" class="log" style="margin-top:8px"><div class="empty">暂无挂单</div></div>
+    </div>
+    <div class="card">
+      <div class="card-t">市场最近成交（sim_trades）</div>
+      <div id="mkt-trades" class="log"><div class="empty">—</div></div>
+    </div>
+  </section>
+</div>
+
+<div class="mask" id="end-mask" hidden>
+  <div class="modal">
+    <h3>本局结算</h3>
+    <div class="big" id="end-pnl">—</div>
+    <table>
+      <tr><td>最终估值</td><td id="end-val">—</td></tr>
+      <tr><td>成交笔数</td><td id="end-cnt">—</td></tr>
+      <tr><td>持仓</td><td id="end-pos">—</td></tr>
+      <tr><td>本账号最佳</td><td id="end-best">—</td></tr>
+    </table>
+    <button class="btn primary" id="end-again">再来一局</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ================= 基础 ================= */
+const $ = id => document.getElementById(id);
+const USER = (() => {
+  const q = new URLSearchParams(location.search).get("u");
+  return (q || localStorage.getItem("gx-user") || "guest").slice(0, 24);
+})();
+localStorage.setItem("gx-user", USER);
+const SB_URL = "https://kputrrbbcmxbnhwhxvoo.supabase.co";
+const SB_KEY = "sb_publishable__oSojg5CJQVmyKJkn_8D5A_Qbq8OXn0";
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const money = v => (v < 0 ? "-" : "") + Math.abs(Math.round(v)).toLocaleString("en-US");
+const num = (v, d = 1) => Number(v).toFixed(d);
+
+let ticks = [], dateStr = "", basePrice = 380;
+let slotIdx = 0, playing = false, timer = null, speed = 1;
+const S = {
+  cash: 1000000, pos: 0, avg: 0, realized: 0, trades: [],
+  orders: [], oid: 1, eatQty: 1, marketTrades: []
+};
+
+/* ================= 数据加载 ================= */
+async function loadData() {
+  const { data: mkts, error } = await sb.from("sim_market")
+    .select("trade_date,base_price,last_slot").order("trade_date", { ascending: false }).limit(1);
+  if (error) throw error;
+  if (!mkts || !mkts.length) throw new Error("sim_market 无数据");
+  dateStr = mkts[0].trade_date;
+  basePrice = Number(mkts[0].base_price) || 380;
+
+  const { data: tk, error: e2 } = await sb.from("sim_ticks")
+    .select("slot,price,volume,ladder").eq("trade_date", dateStr).order("slot", { ascending: true });
+  if (e2) throw e2;
+  ticks = tk || [];
+  if (!ticks.length) throw new Error("sim_ticks 当日无行情");
+
+  const { data: tr, error: e3 } = await sb.from("sim_trades")
+    .select("slot,price,qty,buyer,seller").eq("trade_date", dateStr).order("slot", { ascending: true });
+  if (e3) throw e3;
+  S.marketTrades = tr || [];
+  refreshStats();
+}
+async function refreshStats() {
+  try {
+    const { data: os } = await sb.from("sim_orders")
+      .select("side,qty,filled_qty,status").eq("trade_date", dateStr).eq("status", "pending");
+    let bq = 0, aq = 0;
+    (os || []).forEach(o => {
+      const q = Number(o.qty) - Number(o.filled_qty || 0);
+      if (o.side === "buy") bq += q; else aq += q;
+    });
+    $("lk-bidq").textContent = num(bq, 0);
+    $("lk-askq").textContent = num(aq, 0);
+    const vol = S.marketTrades.reduce((s, t) => s + Number(t.qty), 0);
+    $("lk-vol").textContent = num(vol, 0);
+    $("lk-cnt").textContent = S.marketTrades.length;
+    $("lk-base").textContent = basePrice;
+  } catch (e) { /* 忽略统计失败 */ }
+}
+
+/* ================= 盘口与行情 ================= */
+function tick() { return ticks[slotIdx]; }
+function book() {
+  const lad = tick().ladder || {};
+  // 直接引用原始档位对象，吃单/撮合扣减才能持久到本档
+  const asks = (lad.asks || []).filter(a => Number(a.qty) > 0)
+    .sort((a, b) => Number(a.price) - Number(b.price));
+  const bids = (lad.bids || []).filter(b => Number(b.qty) > 0)
+    .sort((a, b) => Number(b.price) - Number(a.price));
+  return { asks, bids };
+}
+function renderBook() {
+  const { asks, bids } = book();
+  const bestA = asks[0], bestB = bids[0];
+  $("spread-mid").textContent = bestA && bestB ? "中间价 " + num((bestA.price + bestB.price) / 2, 2) : "—";
+  $("spread-val").textContent = bestA && bestB ? "价差 " + num(bestA.price - bestB.price, 2) : "价差 —";
+
+  const rowHtml = (L, side, i) => `
+    <div class="lvl ${side}" data-side="${side}" data-i="${i}">
+      <span class="tag">${side === "ask" ? "卖" : "买"}${i + 1}</span>
+      <span class="bar" style="width:${Math.min(100, L.qty / 2)}%;background:${side === "ask" ? "#7a2b31" : "#2c6a46"}"></span>
+      <span class="pr">${num(L.price, 2)}</span>
+      <span class="qt">${num(L.qty, 0)}</span>
+    </div>`;
+  $("book-asks").innerHTML = asks.slice(0, 5).map((L, i) => rowHtml(L, "ask", i)).reverse().join("")
+    || '<div class="empty">无卖盘</div>';
+  $("book-bids").innerHTML = bids.slice(0, 5).map((L, i) => rowHtml(L, "bid", i)).join("")
+    || '<div class="empty">无买盘</div>';
+  document.querySelectorAll(".lvl").forEach(el => {
+    el.addEventListener("click", () => {
+      const side = el.dataset.side, i = Number(el.dataset.i);
+      if (side === "ask") takerBuy(i); else takerSell(i);
+    });
+  });
+}
+function renderChart() {
+  const cv = $("chart"), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.fillStyle = "#0b0f14"; c.fillRect(0, 0, W, H);
+  const n = ticks.length;
+  if (!n) return;
+  const padL = 46, padR = 8, padT = 14, padB = 40;
+  const pw = W - padL - padR, ph = H - padT - padB;
+  let mn = Infinity, mx = -Infinity;
+  ticks.forEach(t => { mn = Math.min(mn, t.price); mx = Math.max(mx, t.price); });
+  if (mx - mn < 0.01) { mx = mn + 1; }
+  const x = i => padL + (i / (n - 1)) * pw;
+  const y = p => padT + (1 - (p - mn) / (mx - mn)) * ph;
+  // 网格与价签
+  c.strokeStyle = "#18222e"; c.fillStyle = "#5f7386"; c.font = "10px Consolas,monospace";
+  for (let g = 0; g <= 4; g++) {
+    const p = mn + (mx - mn) * g / 4, yy = y(p);
+    c.beginPath(); c.moveTo(padL, yy); c.lineTo(W - padR, yy); c.stroke();
+    c.fillText(p.toFixed(0), 6, yy + 3);
+  }
+  // 成交量
+  const maxV = Math.max(...ticks.map(t => Number(t.volume) || 0), 1);
+  for (let i = 0; i <= slotIdx; i++) {
+    const v = Number(ticks[i].volume) || 0;
+    c.fillStyle = "rgba(74,163,255,0.35)";
+    const bh = (v / maxV) * 30;
+    c.fillRect(x(i) - 1, H - 8 - bh, 2, bh);
+  }
+  // 价格线（到当前档位）
+  c.beginPath();
+  for (let i = 0; i <= slotIdx; i++) {
+    const px = x(i), py = y(ticks[i].price);
+    if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+  }
+  c.strokeStyle = "#e8a020"; c.lineWidth = 1.8; c.stroke();
+  // 当前价虚线 + 标签
+  const cp = ticks[slotIdx].price, cy = y(cp);
+  c.setLineDash([4, 4]); c.strokeStyle = "#4aa3ff";
+  c.beginPath(); c.moveTo(padL, cy); c.lineTo(W - padR, cy); c.stroke();
+  c.setLineDash([]);
+  c.fillStyle = "#4aa3ff"; c.beginPath(); c.arc(x(slotIdx), cy, 4, 0, 7); c.fill();
+  c.fillText(num(cp, 2), W - padR - 44, cy - 6);
+  // 起始标识
+  c.fillStyle = "#5f7386";
+  c.fillText(dateStr + "  共 " + n + " 档", padL, H - 22);
+}
+
+/* ================= 账户与成交 ================= */
+function valuation() {
+  const p = ticks.length ? tick().price : basePrice;
+  return S.cash + S.pos * p;
+}
+function floatingPnl() {
+  const p = ticks.length ? tick().price : basePrice;
+  return S.realized + S.pos * p - (S.pos !== 0 ? S.pos * S.avg : 0);
+}
+function recordTrade(side, price, qty, kind) {
+  const cost = price * qty;
+  if (side === "buy") {
+    if (cost > S.cash) { toast("现金不足", true); return false; }
+    S.avg = (S.avg * S.pos + cost) / (S.pos + qty);
+    S.pos += qty; S.cash -= cost;
+  } else {
+    if (qty > S.pos) { toast("持仓不足", true); return false; }
+    const pnl = (price - S.avg) * qty;
+    S.realized += pnl;
+    S.pos -= qty; S.cash += cost;
+    if (S.pos <= 0) { S.pos = 0; S.avg = 0; }
+  }
+  S.trades.unshift({ side, price, qty, slot: tick().slot, kind });
+  return true;
+}
+function toast(msg, isErr) {
+  let el = $("og-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "og-toast";
+    el.style.cssText = "position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:60;font-weight:700;pointer-events:none;text-shadow:0 1px 3px #000;";
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.color = isErr ? "#ff5252" : "#8ef0a8";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ""; }, 2400);
+}
+function takerBuy(i) {
+  const { asks } = book();
+  const L = asks[i];
+  if (!L) return;
+  let q = S.eatQty === "max" ? L.qty : Math.min(S.eatQty, L.qty);
+  q = Math.min(q, Math.floor(S.cash / L.price));
+  if (q <= 0) return toast("现金不足或该档无货", true);
+  if (recordTrade("buy", L.price, q, "吃单")) {
+    L.qty -= q;
+    toast("买入 " + num(q, 0) + " @ " + num(L.price, 2));
+    renderAll();
+  }
+}
+function takerSell(i) {
+  const { bids } = book();
+  const L = bids[i];
+  if (!L) return;
+  let q = S.eatQty === "max" ? L.qty : Math.min(S.eatQty, L.qty);
+  q = Math.min(q, S.pos);
+  if (q <= 0) return toast("持仓不足或该档无货", true);
+  if (recordTrade("sell", L.price, q, "吃单")) {
+    L.qty -= q;
+    toast("卖出 " + num(q, 0) + " @ " + num(L.price, 2));
+    renderAll();
+  }
+}
+function placeOrder(side) {
+  const p = Number($("og-price").value), q = Math.floor(Number($("og-qty").value));
+  if (!p || !q || q <= 0) return toast("请填写价格和数量", true);
+  if (side === "buy" && p * q > S.cash) return toast("挂单金额超现金", true);
+  if (side === "sell" && q > S.pos) return toast("挂单数量超持仓", true);
+  S.orders.push({ id: S.oid++, side, price: p, qty: q, slot: tick().slot, status: "pending" });
+  toast((side === "buy" ? "挂买 " : "挂卖 ") + q + " @ " + p);
+  renderAll();
+}
+function matchOrders() {
+  const { asks, bids } = book();
+  const bestA = asks[0], bestB = bids[0];
+  S.orders.forEach(o => {
+    if (o.status !== "pending") return;
+    if (o.side === "buy" && bestA && bestA.price <= o.price) {
+      const q = Math.min(o.qty, bestA.qty);
+      if (q > 0 && recordTrade("buy", bestA.price, q, "挂单")) {
+        bestA.qty -= q; o.qty -= q;
+        if (o.qty <= 0) o.status = "filled";
+        toast("挂买成交 " + q + " @ " + bestA.price);
+      }
+    }
+    if (o.side === "sell" && bestB && bestB.price >= o.price) {
+      const q = Math.min(o.qty, bestB.qty);
+      if (q > 0 && recordTrade("sell", bestB.price, q, "挂单")) {
+        bestB.qty -= q; o.qty -= q;
+        if (o.qty <= 0) o.status = "filled";
+        toast("挂卖成交 " + q + " @ " + bestB.price);
+      }
+    }
+  });
+}
+
+/* ================= 渲染 ================= */
+function renderAll() {
+  $("tb-date").textContent = dateStr;
+  $("tb-slot").textContent = (slotIdx + 1) + "/" + ticks.length;
+  $("tb-price").textContent = num(tick().price, 2);
+  $("tb-cash").textContent = money(S.cash);
+  $("tb-pos").textContent = num(S.pos, 0);
+  $("tb-val").textContent = money(valuation());
+  const pnl = valuation() - 1000000;
+  const pnlEl = $("tb-pnl");
+  pnlEl.textContent = (pnl >= 0 ? "+" : "") + money(pnl);
+  pnlEl.className = pnl >= 0 ? "up" : "down";
+  $("progress").textContent = "档位 " + tick().slot + " · 行情 " + (playing ? "播放中" : "已暂停");
+  renderBook();
+  renderChart();
+  // 我的成交
+  $("my-trades").innerHTML = S.trades.length ? S.trades.slice(0, 40).map(t =>
+    `<div class="it"><span class="${t.side === "buy" ? "b" : "s"}">${t.side === "buy" ? "买入" : "卖出"}</span>
+     <span>${num(t.price, 2)} × ${num(t.qty, 0)}</span><span class="m">档${t.slot} · ${t.kind}</span></div>`).join("")
+    : '<div class="empty">还没有成交，点右侧盘口直接吃单</div>';
+  // 我的挂单
+  $("og-myorders").innerHTML = S.orders.length ? S.orders.slice(-12).reverse().map(o =>
+    `<div class="it"><span class="${o.side === "buy" ? "b" : "s"}">${o.side === "buy" ? "挂买" : "挂卖"}</span>
+     <span>${num(o.price, 2)} × ${o.qty}</span><span class="m">${o.status === "filled" ? "已成交" : "待成交"}</span></div>`).join("")
+    : '<div class="empty">暂无挂单</div>';
+  // 市场成交（当前档附近）
+  const cur = tick().slot;
+  const near = S.marketTrades.filter(t => Math.abs(t.slot - cur) <= 3).slice(-12).reverse();
+  $("mkt-trades").innerHTML = near.length ? near.map(t =>
+    `<div class="it"><span class="m">档${t.slot}</span><span>${num(t.price, 2)} × ${num(t.qty, 0)}</span>
+     <span class="m">${t.buyer || "系统"}↔${t.seller || "系统"}</span></div>`).join("")
+    : '<div class="empty">本档附近无市场成交</div>';
+}
+
+/* ================= 推进 ================= */
+function stepSlot(dir) {
+  const next = slotIdx + dir;
+  if (next < 0 || next >= ticks.length) {
+    if (next >= ticks.length) endGame();
+    return;
+  }
+  slotIdx = next;
+  matchOrders();
+  renderAll();
+  if (slotIdx === ticks.length - 1) endGame();
+}
+function play() {
+  playing = !playing;
+  $("btn-play").textContent = playing ? "⏸ 暂停" : "▶ 播放";
+  clearInterval(timer);
+  if (playing) timer = setInterval(() => stepSlot(1), 1500 / speed);
+}
+function endGame() {
+  clearInterval(timer); playing = false;
+  $("btn-play").textContent = "▶ 播放";
+  const pnl = valuation() - 1000000;
+  $("end-pnl").textContent = (pnl >= 0 ? "+" : "") + money(pnl) + " 元";
+  $("end-pnl").style.color = pnl >= 0 ? "#e5484d" : "#3ddc84";
+  $("end-val").textContent = money(valuation());
+  $("end-cnt").textContent = S.trades.length;
+  $("end-pos").textContent = num(S.pos, 0);
+  const key = "og-best-" + USER;
+  const best = Number(localStorage.getItem(key) || 0);
+  if (pnl > best) localStorage.setItem(key, pnl);
+  $("end-best").textContent = money(Math.max(best, pnl));
+  $("end-mask").hidden = false;
+}
+
+/* ================= 事件 ================= */
+$("btn-prev").addEventListener("click", () => stepSlot(-1));
+$("btn-next").addEventListener("click", () => stepSlot(1));
+$("btn-play").addEventListener("click", play);
+$("speed").addEventListener("change", () => {
+  speed = Number($("speed").value);
+  if (playing) { clearInterval(timer); timer = setInterval(() => stepSlot(1), 1500 / speed); }
+});
+$("og-buy").addEventListener("click", () => placeOrder("buy"));
+$("og-sell").addEventListener("click", () => placeOrder("sell"));
+$("end-again").addEventListener("click", () => location.reload());
+document.querySelectorAll(".qbtn").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".qbtn").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  S.eatQty = b.dataset.q === "max" ? "max" : Number(b.dataset.q);
+}));
+window.addEventListener("resize", () => { if (ticks.length) renderChart(); });
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === " ") { e.preventDefault(); play(); }
+  if (e.key === "ArrowRight") stepSlot(1);
+  if (e.key === "ArrowLeft") stepSlot(-1);
+});
+
+/* ================= 启动 ================= */
+(async function init() {
+  try {
+    await loadData();
+    // 默认价格/数量
+    $("og-price").value = num(tick().price, 1);
+    $("og-qty").value = 5;
+    renderAll();
+    setInterval(refreshStats, 20000);
+  } catch (e) {
+    document.body.insertAdjacentHTML("beforeend",
+      '<div style="position:fixed;top:70px;left:50%;transform:translateX(-50%);color:#ff5252;z-index:99">行情加载失败：' + (e.message || e) + '</div>');
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
