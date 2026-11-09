@@ -2,7 +2,8 @@
 """
 【备用通道】巡天测试环境（xuntian-cloud-test2.tclpv.com）市场行情 → Supabase 同步
 主通道 sync_xuntian.py（生产环境）失败时使用本脚本：逻辑、写库规则与主脚本完全一致，
-仅登录方式不同——固定验证码登录，手机号/验证码从 ~/.workbuddy/xuntian_test2_secret.txt 读取。
+仅登录方式不同——固定短信验证码 + 图形算式验证码（9-1=? 之类，用 ddddocr 离线识别，多尺度投票），
+手机号/验证码从 ~/.workbuddy/xuntian_test2_secret.txt 读取。
 
 原说明：巡天（xuntian-cloud.tcl.com）市场行情 → Supabase 同步
   1) 统一出清电价（用户侧全省，日前/实时，24 点）→ daily_curves.day_ahead_price / real_time_price
@@ -16,7 +17,7 @@
 用法：python sync_xuntian.py [--days N]   默认回溯 7 天 + 向后 3 天
 凭据：数据库密码 ~/.workbuddy/db_secret.txt；本文件不含任何凭据
 """
-import argparse, asyncio, datetime as dt, json, re, sys, time
+import argparse, asyncio, base64, datetime as dt, io, json, re, sys, time
 from pathlib import Path
 
 import psycopg2
@@ -45,6 +46,57 @@ def kv(path):
         if m:
             d[m.group(1)] = m.group(2).strip()
     return d
+
+
+OCR = None
+
+
+def _ocr():
+    global OCR
+    if OCR is None:
+        import ddddocr
+        OCR = ddddocr.DdddOcr(show_ad=False)
+    return OCR
+
+
+def parse_expr(txt):
+    t = (txt or "").replace(" ", "").replace("×", "x").replace("X", "x").replace("*", "x")
+    t = t.replace("=", "").replace("?", "").replace("＝", "")
+    m = re.search(r"([0-9])\s*([+\-x])\s*([0-9])", t)
+    if not m:
+        return None
+    a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
+    ans = a * b if op == "x" else (a + b if op == "+" else a - b)
+    if ans < 0 or ans > 100:
+        return None
+    return (a, op, b, ans)
+
+
+def solve_captcha(img_bytes):
+    """图形算式验证码：多尺度 OCR + 投票，返回答案字符串或 None"""
+    from PIL import Image
+    im = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    w, h = im.size
+    votes = {}
+    for scale in (1, 2, 3):
+        v = im.resize((w * scale, h * scale), Image.LANCZOS)
+        buf = io.BytesIO()
+        v.save(buf, "PNG")
+        try:
+            txt = _ocr().classification(buf.getvalue())
+        except Exception as e:
+            log("OCR 异常:", type(e).__name__)
+            continue
+        r = parse_expr(txt)
+        log("  验证码 OCR[%dx]: %r -> %s" % (scale, txt, r[3] if r else "-"))
+        if r:
+            votes[(r[0], r[1], r[2])] = votes.get((r[0], r[1], r[2]), 0) + 1
+    if not votes:
+        return None
+    best = sorted(votes.items(), key=lambda kv: -kv[1])[0][0]
+    a, op, b = best
+    ans = a * b if op == "x" else (a + b if op == "+" else a - b)
+    return str(ans) if 0 <= ans <= 100 else None
 
 
 class Session:
@@ -94,28 +146,95 @@ class Session:
     async def _sms_login(self):
         cfg = kv(HOME / "xuntian_test2_secret.txt")
         pg = self.page
-        for k in range(3):
-            try:
-                await pg.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
+
+        async def goto_login():
+            for k in range(3):
+                try:
+                    await pg.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
+                    return
+                except Exception as e:
+                    log("登录页跳转失败，重试", k + 1, type(e).__name__)
+                    await pg.wait_for_timeout(5000)
+            raise SystemExit("登录页连续打不开")
+
+        async def wait_code_btn_enabled(timeout=75):
+            for _ in range(timeout // 2):
+                try:
+                    if not await pg.evaluate("() => { const b=document.querySelector('button.code-btn'); return b ? b.disabled : true; }"):
+                        return True
+                except Exception:
+                    pass
+                await pg.wait_for_timeout(2000)
+            return False
+
+        async def get_captcha_img():
+            src = await pg.evaluate(
+                "() => { const i = Array.from(document.querySelectorAll('img')).find(x => (x.src||'').includes('code/image')); return i ? i.src : null; }")
+            if not src:
+                return None
+            b64 = await pg.evaluate("""async (u) => {
+                const r = await fetch(u, {credentials: 'include'});
+                const b = await r.arrayBuffer();
+                let s = ''; const a = new Uint8Array(b);
+                for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+                return btoa(s);
+            }""", src)
+            return base64.b64decode(b64)
+
+        async def refresh_captcha():
+            await pg.evaluate("() => { const i = Array.from(document.querySelectorAll('img')).find(x => (x.src||'').includes('code/image')); if (i) i.click(); }")
+            await pg.wait_for_timeout(1500)
+
+        for attempt in range(1, 5):
+            log("登录尝试 %d/4" % attempt)
+            await goto_login()
+            await pg.wait_for_timeout(3500)
+            await pg.click("text=验证码登录")
+            await pg.wait_for_timeout(1200)
+            await pg.fill("input[placeholder='请输入手机号']", cfg["phone"])
+            if not await wait_code_btn_enabled():
+                log("获取验证码按钮仍处于倒计时，等待中…")
+            # 第一步：点获取验证码 —— 触发图形验证码（此时短信尚未发出）
+            await pg.click("button.code-btn")
+            await pg.wait_for_timeout(2000)
+            ok = False
+            for cap_try in range(1, 4):
+                img = await get_captcha_img()
+                ans = solve_captcha(img) if img else None
+                if not ans:
+                    log("  图形验证码识别失败，换一张（%d/3）" % cap_try)
+                    await refresh_captcha()
+                    continue
+                await pg.fill("input[placeholder='请输入图形验证码']", ans)
+                await pg.wait_for_timeout(400)
+                # 第二步：填完图形验证码后再点一次获取验证码，短信才真正发出（按钮开始倒计时）
+                await pg.click("button.code-btn")
+                await pg.wait_for_timeout(2500)
+                counting = await pg.evaluate("() => { const b=document.querySelector('button.code-btn'); return !!b && /秒后重发/.test(b.innerText); }")
+                if not counting:
+                    log("  短信未发出（按钮未倒计时），重试（%d/3）" % cap_try)
+                    await refresh_captcha()
+                    continue
+                log("  短信已发出（倒计时开始），填写短信验证码")
+                await pg.fill("input[placeholder='请输入验证码']", cfg["code"])
+                await pg.click("button:has-text('登 录')")
+                await pg.wait_for_timeout(7000)
+                body = await pg.evaluate("document.body.innerText")
+                if "/login" not in pg.url or "零售客户管理" in body or "售电公司电能量交易" in body:
+                    ok = True
+                    break
+                log("  登录未通过（第 %d 次），整页重来" % cap_try)
                 break
-            except Exception as e:
-                log("登录页跳转失败，重试", k + 1, type(e).__name__)
-                await pg.wait_for_timeout(5000)
-        await pg.wait_for_timeout(4000)
-        await pg.click("text=验证码登录")
-        await pg.wait_for_timeout(1200)
-        await pg.fill("input[placeholder='请输入手机号']", cfg["phone"])
-        await pg.click("button.code-btn")
-        await pg.wait_for_timeout(2500)
-        await pg.fill("input[placeholder='请输入验证码']", cfg["code"])
-        await pg.click("button:has-text('登 录')")
-        await pg.wait_for_timeout(6000)
-        if "/login" in pg.url:
-            raise SystemExit("验证码登录未成功")
+            if ok:
+                break
+            await pg.wait_for_timeout(3000)
+        else:
+            raise SystemExit("验证码登录未成功（含图形验证码识别）")
+
         if not await self._goto_dash():
             raise SystemExit("登录后无法访问市场行情看板")
         await self.ctx.storage_state(path=str(STATE))
-        log("短信验证码登录成功，登录态已保存")
+        log("短信+图形验证码登录成功，登录态已保存")
 
     async def post(self, ep, body):
         for i in range(3):
