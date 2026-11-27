@@ -12,7 +12,7 @@
 用法：python sync_xuntian.py [--days N]   默认回溯 7 天 + 向后 3 天
 凭据：数据库密码 ~/.workbuddy/db_secret.txt；本文件不含任何凭据
 """
-import argparse, asyncio, datetime as dt, json, re, sys, time, urllib.request
+import argparse, asyncio, base64, datetime as dt, io, json, re, sys, time, urllib.request
 from pathlib import Path
 
 import psycopg2
@@ -22,7 +22,8 @@ from playwright.async_api import async_playwright
 HOME = Path.home() / ".workbuddy"
 STATE = HOME / "xuntian_state.json"
 LOGIN_URL = "https://xuntian-cloud.tcl.com/login"
-DASH = "https://xuntian-cloud.tcl.com/saas-vpp/ElectricityTrade/DataAnalysis/MarketSituationDashboard"
+DASH = "https://xuntian-cloud.tcl.com/saas-vpp/GenerationTrade/DataAnalysis/MarketSituationDashboard"
+DASH_FALLBACK = "https://xuntian-cloud.tcl.com/saas-vpp/ElectricityTrade/DataAnalysis/MarketSituationDashboard"
 API = "https://xuntian-cloud.tcl.com/xts_api/vpp_base/api/common/"
 PROVINCE = "440000000000"
 BND = {100: "td_load", 102: "a_power", 103: "local_power", 104: "yuekong", 105: "b_power"}
@@ -43,7 +44,7 @@ def kv(path):
     return d
 
 
-def sms_poll(since_iso, cfg, timeout=60):
+def sms_poll(since_iso, cfg, timeout=180):
     body = json.dumps({"p_token": cfg["sms_token"], "p_since": since_iso}).encode()
     hdr = {"apikey": cfg["sms_apikey"], "Authorization": "Bearer " + cfg["sms_apikey"],
            "Content-Type": "application/json"}
@@ -53,12 +54,59 @@ def sms_poll(since_iso, cfg, timeout=60):
             r = urllib.request.urlopen(urllib.request.Request(cfg["sms_url"], data=body, headers=hdr), timeout=10)
             d = json.loads(r.read().decode() or "null")
             d = d[0] if isinstance(d, list) and d else d
-            if isinstance(d, dict) and d.get("code") and float(d.get("age_sec") or 0) <= 50:
+            if isinstance(d, dict) and d.get("code") and float(d.get("age_sec") or 0) <= 170:
                 return str(d["code"])
         except Exception as e:
             log("取码请求异常:", type(e).__name__)
         time.sleep(1)
     return None
+
+
+OCR = None
+
+
+def _ocr():
+    global OCR
+    if OCR is None:
+        import ddddocr
+        OCR = ddddocr.DdddOcr(show_ad=False)
+    return OCR
+
+
+def parse_expr(txt):
+    t = (txt or "").replace(" ", "").replace("×", "x").replace("X", "x").replace("*", "x")
+    t = t.replace("=", "").replace("?", "").replace("＝", "")
+    m = re.search(r"([0-9])\s*([+\-x])\s*([0-9])", t)
+    if not m:
+        return None
+    a, op, b = int(m.group(1)), m.group(2), int(m.group(3))
+    ans = a * b if op == "x" else (a + b if op == "+" else a - b)
+    if ans < 0 or ans > 100:
+        return None
+    return (a, op, b, ans)
+
+
+def solve_captcha(img_bytes):
+    from PIL import Image
+    im = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    w, h = im.size
+    votes = {}
+    for scale in (1, 2, 3):
+        v = im.resize((w * scale, h * scale), Image.LANCZOS)
+        buf = io.BytesIO()
+        v.save(buf, "PNG")
+        try:
+            txt = _ocr().classification(buf.getvalue())
+        except Exception:
+            continue
+        r = parse_expr(txt)
+        if r:
+            votes[r[:3]] = votes.get(r[:3], 0) + 1
+    if not votes:
+        return None
+    a, op, b = sorted(votes.items(), key=lambda kv: -kv[1])[0][0]
+    ans = a * b if op == "x" else (a + b if op == "+" else a - b)
+    return str(ans) if 0 <= ans <= 100 else None
 
 
 class Session:
@@ -97,25 +145,75 @@ class Session:
     async def _sms_login(self):
         cfg = kv(HOME / "sms_secret.txt")
         pg = self.page
-        await pg.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
-        await pg.wait_for_timeout(4000)
-        await pg.click("text=验证码登录")
-        await pg.wait_for_timeout(800)
-        await pg.fill("input[placeholder='请输入手机号']", cfg["xuntian_phone"])
-        t0 = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=5)).isoformat()
-        await pg.click("button.code-btn")
-        code = sms_poll(t0, cfg)
-        if not code:
-            raise SystemExit("60 秒内未取到短信验证码")
-        await pg.fill("input[placeholder='请输入验证码']", code)
-        await pg.click("button:has-text('登 录')")
-        await pg.wait_for_timeout(6000)
-        if "/login" in pg.url:
-            raise SystemExit("验证码登录未成功")
-        if not await self._goto_dash():
-            raise SystemExit("登录后无法访问市场行情看板")
-        await self.ctx.storage_state(path=str(STATE))
-        log("短信验证码登录成功，登录态已保存")
+
+        async def goto_login():
+            for k in range(3):
+                try:
+                    await pg.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
+                    return
+                except Exception as e:
+                    log("登录页跳转失败，重试", k + 1, type(e).__name__)
+                    await pg.wait_for_timeout(5000)
+            raise SystemExit("登录页连续打不开")
+
+        async def cap_src():
+            return await pg.evaluate(
+                "() => { const i = Array.from(document.querySelectorAll('img')).find(x => (x.src||'').includes('code/image')); return i ? i.src : null; }")
+
+        async def refresh_cap():
+            await pg.evaluate("() => { const i = Array.from(document.querySelectorAll('img')).find(x => (x.src||'').includes('code/image')); if (i) i.click(); }")
+            await pg.wait_for_timeout(1500)
+
+        for attempt in range(1, 5):
+            log("登录尝试 %d/4" % attempt)
+            await goto_login()
+            await pg.wait_for_timeout(3500)
+            await pg.click("text=验证码登录")
+            await pg.wait_for_timeout(1200)
+            await pg.fill("input[placeholder='请输入手机号']", cfg["xuntian_phone"])
+            await pg.click("button.code-btn")
+            await pg.wait_for_timeout(2200)
+            src = await cap_src()
+            if src:
+                ans = None
+                for k in range(3):
+                    cur = await cap_src()
+                    if not cur:
+                        break
+                    img = await (await self.ctx.request.get(cur)).body()
+                    ans = solve_captcha(img)
+                    if ans:
+                        break
+                    await refresh_cap()
+                if not ans:
+                    log("  图形验证码识别失败，重来")
+                    continue
+                await pg.fill("input[placeholder='请输入图形验证码']", ans)
+                await pg.wait_for_timeout(400)
+                await pg.click("button.code-btn")
+                await pg.wait_for_timeout(2500)
+                counting = await pg.evaluate("() => { const b=document.querySelector('button.code-btn'); return !!b && /秒后重发/.test(b.innerText); }")
+                if not counting:
+                    log("  短信未发出（未倒计时），重来")
+                    continue
+            t0 = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=5)).isoformat()
+            code = sms_poll(t0, cfg, timeout=180)
+            if not code:
+                log("  180 秒内未取到短信验证码，重来")
+                continue
+            await pg.fill("input[placeholder='请输入验证码']", code)
+            await pg.click("button:has-text('登 录')")
+            await pg.wait_for_timeout(7000)
+            body = await pg.evaluate("document.body.innerText")
+            if "/login" not in pg.url or "零售客户管理" in body or "电能量交易" in body:
+                if not await self._goto_dash():
+                    raise SystemExit("登录后无法访问市场行情看板")
+                await self.ctx.storage_state(path=str(STATE))
+                log("短信+图形验证码登录成功，登录态已保存")
+                return
+            log("  登录未通过（第 %d 次）" % attempt)
+            await pg.wait_for_timeout(2000)
+        raise SystemExit("验证码登录未成功（含图形验证码识别）")
 
     async def post(self, ep, body):
         for i in range(3):
